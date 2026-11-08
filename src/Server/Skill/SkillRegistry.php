@@ -31,7 +31,7 @@ final class SkillRegistry
     private array $skills = [];
 
     /**
-     * @var array<string, true>
+     * @var array<string, string> URI => real path of the file served there
      */
     private array $servedUris = [];
 
@@ -62,11 +62,22 @@ final class SkillRegistry
     }
 
     /**
+     * The real path of the file served at $uri, to tell the same file reached through two skills
+     * (a nested skill's supporting file) from two different files claiming one URI.
+     *
      * @internal
      */
-    public function markServed(string $uri): void
+    public function servedPath(string $uri): ?string
     {
-        $this->servedUris[$uri] = true;
+        return $this->servedUris[$uri] ?? null;
+    }
+
+    /**
+     * @internal
+     */
+    public function markServed(string $uri, string $realPath): void
+    {
+        $this->servedUris[$uri] = $realPath;
     }
 
     public function get(string $uri): ?Skill

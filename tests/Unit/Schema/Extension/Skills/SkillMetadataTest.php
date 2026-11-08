@@ -55,4 +55,19 @@ class SkillMetadataTest extends TestCase
             'version' => '2.0.0',
         ], $metadata->jsonSerialize());
     }
+
+    public function testFromArrayAcceptsZeroAsNameAndDescription(): void
+    {
+        $metadata = SkillMetadata::fromArray(['name' => '0', 'description' => '0']);
+
+        $this->assertSame('0', $metadata->name);
+        $this->assertSame('0', $metadata->description);
+    }
+
+    public function testFromArrayRejectsAnEmptyName(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        SkillMetadata::fromArray(['name' => '', 'description' => 'x']);
+    }
 }

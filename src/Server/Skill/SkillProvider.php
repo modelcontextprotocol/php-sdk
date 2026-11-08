@@ -12,7 +12,7 @@
 namespace Mcp\Server\Skill;
 
 use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\RuntimeException;
+use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\Extension\Skills\McpSkills;
 use Mcp\Schema\Extension\Skills\Skill;
 use Mcp\Schema\Extension\Skills\SkillMetadata;
@@ -45,6 +45,9 @@ final class SkillProvider
     /** Longest skill name the Agent Skills specification allows. */
     private const MAX_NAME_LENGTH = 64;
 
+    /** Longest `compatibility` value the Agent Skills specification allows. */
+    private const MAX_COMPATIBILITY_LENGTH = 500;
+
     /** Longest skill description the Agent Skills specification allows. */
     private const MAX_DESCRIPTION_LENGTH = 1024;
 
@@ -70,10 +73,21 @@ final class SkillProvider
             throw new InvalidArgumentException(\sprintf('Skills directory "%s" does not exist or is not a directory.', $baseDirectory));
         }
 
+        $manifests = $this->findSkillManifests($base);
+
+        // A SKILL.md without frontmatter inside another skill is not a skill, e.g. a template the
+        // skill ships. The spec treats such content as supporting content, so it is served as a file.
+        $skillManifests = [];
+        foreach ($manifests as $manifestPath) {
+            if ($this->frontmatter->hasFrontmatter((string) file_get_contents($manifestPath)) || !$this->isInsideAnotherSkill($manifestPath, $manifests)) {
+                $skillManifests[$manifestPath] = true;
+            }
+        }
+
         $skills = [];
 
-        foreach ($this->findSkillManifests($base) as $manifestPath) {
-            $skill = $this->registerSkill($builder, $registry, $base, $manifestPath);
+        foreach (array_keys($skillManifests) as $manifestPath) {
+            $skill = $this->registerSkill($builder, $registry, $base, $manifestPath, $skillManifests);
             $registry->add($skill);
             $skills[] = $skill;
         }
@@ -81,7 +95,10 @@ final class SkillProvider
         return $skills;
     }
 
-    private function registerSkill(Builder $builder, SkillRegistry $registry, string $base, string $manifestPath): Skill
+    /**
+     * @param array<string, true> $skillManifests the SKILL.md files that are skills, by path
+     */
+    private function registerSkill(Builder $builder, SkillRegistry $registry, string $base, string $manifestPath, array $skillManifests): Skill
     {
         $skillDir = \dirname($manifestPath);
         $skillPath = $this->relativePath($base, $skillDir);
@@ -116,7 +133,7 @@ final class SkillProvider
             // resource exactly once, by its own registerSkill() call below with its own
             // frontmatter — registering it again here, generically, would make which metadata
             // wins depend on filesystem walk order instead of always being the nested skill's own.
-            if (McpSkills::ENTRY_POINT !== basename($filePath)) {
+            if (!isset($skillManifests[$filePath])) {
                 $files[] = [$filePath, $uri, $size, $digest];
             }
 
@@ -128,6 +145,10 @@ final class SkillProvider
         // Two packages shipping the same path would overwrite each other, and a file only one of
         // them has would stay served without being listed. That includes a file of one skill that
         // lands on the URI of another skill's file, e.g. `acme/billing/x.md` and `acme/billing/SKILL.md`.
+        // The one exception is the same file reached through two skills: a nested skill's supporting
+        // file is part of the manifest of both, and the spec allows that.
+        $files = array_values(array_filter($files, static fn (array $file): bool => realpath($file[0]) !== $registry->servedPath($file[1])));
+
         foreach ([$entryUri, ...array_column($files, 1)] as $uri) {
             if ($registry->isServed($uri)) {
                 throw new InvalidArgumentException(\sprintf('Skill "%s" at "%s" collides with an already registered skill: %s is served twice. Skill paths must be unique, so rename one of the skill folders.', $metadata->name, $manifestPath, $uri));
@@ -146,7 +167,7 @@ final class SkillProvider
             digest: $entryDigest,
             meta: $this->metaFor($metadata),
         );
-        $registry->markServed($entryUri);
+        $registry->markServed($entryUri, (string) realpath($manifestPath));
 
         foreach ($files as [$filePath, $uri, $size, $digest]) {
             $this->registerFile(
@@ -161,12 +182,26 @@ final class SkillProvider
                 digest: $digest,
                 meta: null,
             );
-            $registry->markServed($uri);
+            $registry->markServed($uri, (string) realpath($filePath));
         }
 
-        $this->checkLimits($skillPath, $resources);
-
         return new Skill($entryUri, $metadata, $resources);
+    }
+
+    /**
+     * @param list<string> $manifests every SKILL.md found under the base directory
+     */
+    private function isInsideAnotherSkill(string $manifestPath, array $manifests): bool
+    {
+        $directory = \dirname($manifestPath).\DIRECTORY_SEPARATOR;
+
+        foreach ($manifests as $other) {
+            if ($other !== $manifestPath && str_starts_with($directory, \dirname($other).\DIRECTORY_SEPARATOR)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -177,6 +212,15 @@ final class SkillProvider
     {
         if (\strlen($metadata->name) > self::MAX_NAME_LENGTH || 1 !== preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $metadata->name)) {
             throw new InvalidArgumentException(\sprintf('Skill at "%s": name "%s" must be 1-%d characters of lowercase letters, digits and single hyphens, and must not start or end with a hyphen.', $skillPath, $metadata->name, self::MAX_NAME_LENGTH));
+        }
+
+        // The Agent Skills specification: `compatibility` is a string of 1 to 500 characters.
+        if (\array_key_exists('compatibility', $metadata->extra)) {
+            $compatibility = $metadata->extra['compatibility'];
+            $length = \is_string($compatibility) ? (\function_exists('mb_strlen') ? mb_strlen($compatibility) : \strlen($compatibility)) : 0;
+            if (!\is_string($compatibility) || $length < 1 || $length > self::MAX_COMPATIBILITY_LENGTH) {
+                throw new InvalidArgumentException(\sprintf('Skill at "%s": compatibility must be a string of 1-%d characters.', $skillPath, self::MAX_COMPATIBILITY_LENGTH));
+            }
         }
 
         $descriptionLength = \function_exists('mb_strlen') ? mb_strlen($metadata->description) : \strlen($metadata->description);
@@ -242,8 +286,8 @@ final class SkillProvider
                 // The manifest was built once. Serving bytes that no longer match its digest would make
                 // every host fail the verification, and a refresh through skills/get cannot fix that
                 // until the server restarts, so the read says so instead.
-                if ('sha256:'.hash_file('sha256', $absolute) !== $digest) {
-                    throw new RuntimeException(\sprintf('The file behind "%s" changed since the skill was registered. Restart the server to serve the new version.', $uri));
+                if (!is_file($absolute) || 'sha256:'.hash_file('sha256', $absolute) !== $digest) {
+                    throw new ResourceReadException(\sprintf('The file behind "%s" changed or went missing since the skill was registered. Restart the server to serve the new version.', $uri));
                 }
 
                 return new \SplFileInfo($absolute);
@@ -258,19 +302,19 @@ final class SkillProvider
     }
 
     /**
-     * @return iterable<string> absolute paths to every SKILL.md under $base
+     * @return list<string> absolute paths to every SKILL.md under $base
      */
-    private function findSkillManifests(string $base): iterable
+    private function findSkillManifests(string $base): array
     {
-        yield from $this->iterateFiles($base, static fn (string $path): bool => McpSkills::ENTRY_POINT === basename($path));
+        return $this->iterateFiles($base, static fn (string $path): bool => McpSkills::ENTRY_POINT === basename($path));
     }
 
     /**
-     * @return iterable<string> absolute paths to all files in $skillDir except the manifest
+     * @return list<string> absolute paths to all files in $skillDir except the manifest
      */
-    private function findSupportingFiles(string $skillDir, string $manifestPath): iterable
+    private function findSupportingFiles(string $skillDir, string $manifestPath): array
     {
-        yield from $this->iterateFiles($skillDir, static fn (string $path): bool => $path !== $manifestPath);
+        return $this->iterateFiles($skillDir, static fn (string $path): bool => $path !== $manifestPath);
     }
 
     /**
@@ -280,9 +324,9 @@ final class SkillProvider
      *
      * @param callable(string): bool $accept
      *
-     * @return iterable<string>
+     * @return list<string>
      */
-    private function iterateFiles(string $directory, callable $accept): iterable
+    private function iterateFiles(string $directory, callable $accept): array
     {
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveCallbackFilterIterator(
@@ -300,7 +344,7 @@ final class SkillProvider
 
         sort($paths);
 
-        yield from $paths;
+        return $paths;
     }
 
     /**

@@ -119,4 +119,11 @@ class ListSkillsHandlerTest extends TestCase
             ));
         }
     }
+
+    public function testRejectsAPageSizeBelowOne(): void
+    {
+        $this->expectException(\Mcp\Exception\InvalidArgumentException::class);
+
+        new ListSkillsHandler($this->registry, pageSize: 0);
+    }
 }

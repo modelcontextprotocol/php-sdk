@@ -13,6 +13,7 @@ namespace Mcp\Tests\Unit\Server\Skill;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\Skill\FrontmatterParser;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class FrontmatterParserTest extends TestCase
@@ -141,5 +142,86 @@ class FrontmatterParserTest extends TestCase
         $metadata = (new FrontmatterParser())->parseMetadata("---\nname: a\ndescription: b\n2024: first\n---\n");
 
         $this->assertSame('{"name":"a","description":"b","2024":"first"}', json_encode($metadata, \JSON_THROW_ON_ERROR));
+    }
+
+    public function testRejectsValuesWithoutAJsonForm(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('cannot be sent as JSON');
+
+        (new FrontmatterParser())->parse("---\nname: a\nratio: .inf\n---\n");
+    }
+
+    public function testRejectsBinaryValues(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('cannot be sent as JSON');
+
+        (new FrontmatterParser())->parse("---\nname: a\nblob: !!binary /w==\n---\n");
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideUnsupportedTags(): iterable
+    {
+        yield 'object' => ['!php/object "O:8:\"stdClass\":0:{}"'];
+        yield 'const' => ['!php/const PHP_INT_MAX'];
+        yield 'enum' => ['!php/enum Foo::Bar'];
+    }
+
+    #[DataProvider('provideUnsupportedTags')]
+    public function testRejectsPhpTagsInsteadOfSilentlyDroppingThem(string $value): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('not valid YAML');
+
+        (new FrontmatterParser())->parse("---\nname: a\nvalue: {$value}\n---\n");
+    }
+
+    public function testMalformedYamlNamesTheProblem(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('not valid YAML');
+
+        (new FrontmatterParser())->parse("---\nname: [unclosed\n---\n");
+    }
+
+    public function testParsesALargeFrontmatterBlock(): void
+    {
+        $content = "---\nname: big\ndescription: Large.\nnotes: \"".str_repeat('x ', 600_000)."\"\n---\nbody";
+
+        [$frontmatter, $body] = (new FrontmatterParser())->parse($content);
+
+        $this->assertSame('big', $frontmatter['name']);
+        $this->assertSame('body', $body);
+    }
+
+    public function testClosingFenceMustBeAloneOnItsLine(): void
+    {
+        $content = "---\nname: a\n---extra\nbody";
+
+        [$frontmatter, $body] = (new FrontmatterParser())->parse($content);
+
+        $this->assertSame([], $frontmatter, '`---extra` does not close the block, so there is no frontmatter.');
+        $this->assertSame($content, $body);
+    }
+
+    public function testAHorizontalRuleInTheBodyIsNotAFence(): void
+    {
+        [$frontmatter, $body] = (new FrontmatterParser())->parse("---\nname: a\n---\nfirst\n\n---\n\nsecond");
+
+        $this->assertSame(['name' => 'a'], $frontmatter);
+        $this->assertSame("first\n\n---\n\nsecond", $body);
+    }
+
+    public function testHasFrontmatter(): void
+    {
+        $parser = new FrontmatterParser();
+
+        $this->assertTrue($parser->hasFrontmatter("---\nname: a\n---\nbody"));
+        $this->assertTrue($parser->hasFrontmatter("\xEF\xBB\xBF---\r\nname: a\r\n---\r\nbody"));
+        $this->assertFalse($parser->hasFrontmatter("# Just a template\n---\nnot a fence"));
+        $this->assertFalse($parser->hasFrontmatter("---\nnever closed"));
     }
 }

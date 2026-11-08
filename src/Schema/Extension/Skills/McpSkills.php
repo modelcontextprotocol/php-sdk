@@ -11,6 +11,7 @@
 
 namespace Mcp\Schema\Extension\Skills;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Extension\ExtensionIdentifier;
 use Mcp\Schema\Extension\ExtensionInterface;
 use Mcp\Server\Handler\Request\Skills\GetSkillHandler;
@@ -58,6 +59,9 @@ final class McpSkills implements ExtensionInterface
         private readonly SkillRegistry $registry,
         private readonly int $pageSize = 20,
     ) {
+        if ($pageSize < 1) {
+            throw new InvalidArgumentException('The page size of skills/list must be at least 1.');
+        }
     }
 
     public function getId(): ExtensionIdentifier

@@ -260,6 +260,14 @@ metadata:
 > digits and single hyphens, with no hyphen at the start or end. The description
 > has at most 1024 characters. A violation throws an `InvalidArgumentException`.
 
+A `SKILL.md` without frontmatter inside a skill, such as a template the skill ships, is
+served as a plain file. A nested skill's supporting files are part of both manifests.
+
+`compatibility` must be a string of 1 to 500 characters, as the Agent Skills
+specification says. `metadata`, `allowed-tools` and every other field pass through
+unchanged. Frontmatter that cannot be sent as JSON (`.inf`, `!!binary`) or that uses a PHP
+tag (`!php/object`) is rejected.
+
 Two skills must not share a path. A second skill at an already registered `skill://` path
 throws an `InvalidArgumentException`.
 

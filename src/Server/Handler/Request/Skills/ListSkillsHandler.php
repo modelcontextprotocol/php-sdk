@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Handler\Request\Skills;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\Extension\Skills\ListSkillsRequest;
 use Mcp\Schema\Extension\Skills\ListSkillsResult;
@@ -31,6 +32,9 @@ final class ListSkillsHandler implements RequestHandlerInterface
         private readonly SkillRegistry $registry,
         private readonly int $pageSize = 20,
     ) {
+        if ($pageSize < 1) {
+            throw new InvalidArgumentException('The page size of skills/list must be at least 1.');
+        }
     }
 
     public function supports(Request $request): bool

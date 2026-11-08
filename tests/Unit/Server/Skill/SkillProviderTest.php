@@ -12,7 +12,7 @@
 namespace Mcp\Tests\Unit\Server\Skill;
 
 use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\RuntimeException;
+use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\Extension\Skills\McpSkills;
 use Mcp\Schema\Extension\Skills\SkillResource;
 use Mcp\Server;
@@ -412,7 +412,7 @@ class SkillProviderTest extends TestCase
                 $this->fail('A second skill at the same path must be rejected.');
             } catch (InvalidArgumentException $e) {
                 $this->assertStringContainsString('skill://system-information/SKILL.md', $e->getMessage());
-                $this->assertStringContainsString($dir2, $e->getMessage());
+                $this->assertStringContainsString(basename($dir2), $e->getMessage());
             }
 
             $this->assertSame($resourcesBefore, $this->registeredResources($builder), 'The rejected skill registers nothing.');
@@ -471,8 +471,8 @@ class SkillProviderTest extends TestCase
 
             file_put_contents($skillDir.'/guide.md', 'after');
 
-            $this->expectException(RuntimeException::class);
-            $this->expectExceptionMessage('changed since the skill was registered');
+            $this->expectException(ResourceReadException::class);
+            $this->expectExceptionMessage('since the skill was registered');
             ($resource['handler'])();
         } finally {
             $this->removeDir($dir);
@@ -487,6 +487,199 @@ class SkillProviderTest extends TestCase
         Server::builder()
             ->addSkillsFromDirectory(self::FIXTURES)
             ->addSkillsFromDirectory(self::FIXTURES);
+    }
+
+    public function testNestedSkillWithSupportingFilesIsRegisteredInBothManifests(): void
+    {
+        $dir = $this->makeTempDir();
+        $outer = $this->writeSkill($dir, 'outer', "name: outer\ndescription: Holds a nested skill.");
+        file_put_contents($outer.'/outer-ref.md', 'outer');
+        $inner = $this->writeSkill($outer, 'inner', "name: inner\ndescription: The nested skill.");
+        file_put_contents($inner.'/inner-ref.md', 'inner');
+
+        try {
+            $builder = Server::builder();
+            $skills = (new SkillProvider())->registerInto($builder, new SkillRegistry(), $dir);
+
+            $this->assertCount(2, $skills);
+            $byName = [];
+            foreach ($skills as $skill) {
+                $this->assertIsArray($skill->resources);
+                $byName[$skill->frontmatter->name] = array_map(static fn (SkillResource $r): string => $r->uri, $skill->resources);
+            }
+            sort($byName['outer']);
+            sort($byName['inner']);
+
+            $this->assertSame([
+                'skill://outer/SKILL.md',
+                'skill://outer/inner/SKILL.md',
+                'skill://outer/inner/inner-ref.md',
+                'skill://outer/outer-ref.md',
+            ], $byName['outer']);
+            $this->assertSame(['skill://outer/inner/SKILL.md', 'skill://outer/inner/inner-ref.md'], $byName['inner']);
+
+            $served = array_column($this->registeredResources($builder), 'uri');
+            $this->assertSame(array_unique($served), $served, 'Every URI is registered once.');
+            $this->assertCount(4, $served);
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    public function testSkillMdWithoutFrontmatterInsideASkillIsSupportingContent(): void
+    {
+        $dir = $this->makeTempDir();
+        $skillDir = $this->writeSkill($dir, 'templated', "name: templated\ndescription: Ships a SKILL.md template.");
+        mkdir($skillDir.'/template', 0777, true);
+        file_put_contents($skillDir.'/template/SKILL.md', "# {{ name }}\n\nA template, not a skill.");
+
+        try {
+            $builder = Server::builder();
+            $skills = (new SkillProvider())->registerInto($builder, new SkillRegistry(), $dir);
+
+            $this->assertCount(1, $skills);
+            $this->assertIsArray($skills[0]->resources);
+            $listed = array_map(static fn (SkillResource $r): string => $r->uri, $skills[0]->resources);
+            $this->assertContains('skill://templated/template/SKILL.md', $listed);
+            $this->resourceByUri($builder, 'skill://templated/template/SKILL.md');
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    public function testSkillMdWithoutFrontmatterOutsideAnySkillStillFails(): void
+    {
+        $dir = $this->makeTempDir();
+        mkdir($dir.'/broken', 0777, true);
+        file_put_contents($dir.'/broken/SKILL.md', '# No frontmatter');
+
+        try {
+            $this->expectException(InvalidArgumentException::class);
+            $this->expectExceptionMessage('"name"');
+
+            (new SkillProvider())->registerInto(Server::builder(), new SkillRegistry(), $dir);
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideInvalidCompatibility(): iterable
+    {
+        yield 'a list' => ['compatibility: [claude, cursor]'];
+        yield 'a number' => ['compatibility: 3'];
+        yield 'empty' => ["compatibility: ''"];
+        yield 'too long' => ['compatibility: '.str_repeat('x', 501)];
+    }
+
+    #[DataProvider('provideInvalidCompatibility')]
+    public function testRejectsAnInvalidCompatibilityField(string $line): void
+    {
+        $dir = $this->makeTempDir();
+        $this->writeSkill($dir, 'compat', "name: compat\ndescription: Has a bad field.\n{$line}");
+
+        try {
+            $this->expectException(InvalidArgumentException::class);
+            $this->expectExceptionMessage('compatibility must be a string of 1-500 characters');
+
+            (new SkillProvider())->registerInto(Server::builder(), new SkillRegistry(), $dir);
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    public function testAcceptsCompatibilityAndPassesMetadataAndAllowedToolsThrough(): void
+    {
+        $dir = $this->makeTempDir();
+        $this->writeSkill($dir, 'compat', "name: compat\ndescription: Fine.\ncompatibility: Needs git\nallowed-tools: Bash(git:*) Read\nmetadata:\n  version: 1.0\n  owner: team");
+
+        try {
+            $skills = (new SkillProvider())->registerInto(Server::builder(), new SkillRegistry(), $dir);
+
+            $json = json_encode($skills[0]->frontmatter, \JSON_THROW_ON_ERROR);
+            $this->assertStringContainsString('"compatibility":"Needs git"', $json);
+            $this->assertStringContainsString('"allowed-tools":"Bash(git:*) Read"', $json);
+            $this->assertStringContainsString('"metadata":{"version":1,"owner":"team"}', $json);
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    public function testAcceptsZeroAsNameAndDescription(): void
+    {
+        $dir = $this->makeTempDir();
+        $this->writeSkill($dir, '0', "name: '0'\ndescription: '0'");
+
+        try {
+            $skills = (new SkillProvider())->registerInto(Server::builder(), new SkillRegistry(), $dir);
+
+            $this->assertSame('0', $skills[0]->frontmatter->name);
+            $this->assertSame('0', $skills[0]->frontmatter->description);
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    public function testReadingAFileThatWasDeletedSaysSo(): void
+    {
+        $dir = $this->makeTempDir();
+        $skillDir = $this->writeSkill($dir, 'vanishing', "name: vanishing\ndescription: Loses a file.");
+        file_put_contents($skillDir.'/guide.md', 'here');
+
+        try {
+            $builder = Server::builder();
+            (new SkillProvider())->registerInto($builder, new SkillRegistry(), $dir);
+            $resource = $this->resourceByUri($builder, 'skill://vanishing/guide.md');
+            unlink($skillDir.'/guide.md');
+
+            $this->expectException(ResourceReadException::class);
+            $this->expectExceptionMessage('Restart the server');
+            ($resource['handler'])();
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    public function testRejectsASymlinkThatPointsOutsideTheSkillsDirectory(): void
+    {
+        $dir = $this->makeTempDir();
+        $outside = $this->makeTempDir();
+        file_put_contents($outside.'/secret.txt', 'secret');
+        $skillDir = $this->writeSkill($dir, 'linked', "name: linked\ndescription: Links out.");
+        symlink($outside.'/secret.txt', $skillDir.'/secret.txt');
+
+        try {
+            $this->expectException(InvalidArgumentException::class);
+            $this->expectExceptionMessage('resolves outside the skills directory');
+
+            (new SkillProvider())->registerInto(Server::builder(), new SkillRegistry(), $dir);
+        } finally {
+            $this->removeDir($dir);
+            $this->removeDir($outside);
+        }
+    }
+
+    public function testDoesNotFollowSymlinkedDirectories(): void
+    {
+        $dir = $this->makeTempDir();
+        $outside = $this->makeTempDir();
+        file_put_contents($outside.'/secret.txt', 'secret');
+        $skillDir = $this->writeSkill($dir, 'linked-dir', "name: linked-dir\ndescription: Links a folder.");
+        symlink($outside, $skillDir.'/out');
+
+        try {
+            $builder = Server::builder();
+            $skills = (new SkillProvider())->registerInto($builder, new SkillRegistry(), $dir);
+
+            $this->assertIsArray($skills[0]->resources);
+            $this->assertCount(1, $skills[0]->resources, 'Only SKILL.md is listed.');
+            $this->assertCount(1, $this->registeredResources($builder));
+        } finally {
+            $this->removeDir($dir);
+            $this->removeDir($outside);
+        }
     }
 
     private function writeSkill(string $baseDir, string $name, string $frontmatter): string

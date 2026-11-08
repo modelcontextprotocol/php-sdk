@@ -14,6 +14,7 @@ namespace Mcp\Server\Skill;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Extension\Skills\SkillMetadata;
+use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
 /**
@@ -35,9 +36,12 @@ final class FrontmatterParser
      */
     public function parse(string $content): array
     {
-        if (!preg_match('/^(?:\xEF\xBB\xBF)?---\R(.*?)\R---\R?(.*)$/s', $content, $matches)) {
+        $split = $this->split($content);
+        if (null === $split) {
             return [[], $content];
         }
+
+        [$yaml, $body] = $split;
 
         if (!class_exists(Yaml::class)) {
             throw new RuntimeException('Parsing SKILL.md frontmatter requires the "symfony/yaml" component. Run: composer require symfony/yaml');
@@ -45,7 +49,13 @@ final class FrontmatterParser
 
         // Nested mappings stay objects, so an empty `metadata: {}` is sent as `{}` and not as `[]`.
         // The spec requires the frontmatter in a skill entry to be identical in content to the file's.
-        $data = Yaml::parse($matches[1], Yaml::PARSE_OBJECT_FOR_MAP | Yaml::PARSE_DATETIME) ?? [];
+        // PARSE_EXCEPTION_ON_INVALID_TYPE makes `!php/object` and friends fail, as they would otherwise
+        // silently become null, which is not what the file says.
+        try {
+            $data = Yaml::parse($yaml, Yaml::PARSE_OBJECT_FOR_MAP | Yaml::PARSE_DATETIME | Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE) ?? [];
+        } catch (ParseException $e) {
+            throw new InvalidArgumentException(\sprintf('SKILL.md frontmatter is not valid YAML: %s', $e->getMessage()), 0, $e);
+        }
         if ($data instanceof \stdClass) {
             $data = get_object_vars($data);
         } elseif (!\is_array($data) || ([] !== $data && array_is_list($data))) {
@@ -54,8 +64,50 @@ final class FrontmatterParser
 
         $this->rejectDates($data, '');
 
+        // NAN, INF and binary strings have no JSON form. Found here, they name the SKILL.md, and
+        // not later in a skills/list answer that fails for every skill on the page.
+        try {
+            json_encode($data, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw new InvalidArgumentException(\sprintf('SKILL.md frontmatter cannot be sent as JSON: %s. Quote the value or remove it.', $e->getMessage()), 0, $e);
+        }
+
         /* @var array<string, mixed> $data */
-        return [$data, $matches[2]];
+        return [$data, $body];
+    }
+
+    /**
+     * Whether the document opens with a frontmatter block, i.e. is meant as a skill.
+     */
+    public function hasFrontmatter(string $content): bool
+    {
+        return null !== $this->split($content);
+    }
+
+    /**
+     * Splits the leading `---` delimited block from the body. Line based and not a single regular
+     * expression, so a large block cannot hit the PCRE backtrack limit.
+     *
+     * @return array{0: string, 1: string}|null the [yaml, body] pair, or null without a frontmatter block
+     */
+    private function split(string $content): ?array
+    {
+        if (str_starts_with($content, "\xEF\xBB\xBF")) {
+            $content = substr($content, 3);
+        }
+
+        if (1 !== preg_match('/\A---\R/', $content, $opening)) {
+            return null;
+        }
+
+        $offset = \strlen($opening[0]);
+        if (1 !== preg_match('/^---(?:\R|\z)/m', $content, $closing, \PREG_OFFSET_CAPTURE, $offset)) {
+            return null;
+        }
+
+        $yaml = substr($content, $offset, $closing[0][1] - $offset);
+
+        return [preg_replace('/\R\z/', '', $yaml) ?? $yaml, substr($content, $closing[0][1] + \strlen($closing[0][0]))];
     }
 
     /**

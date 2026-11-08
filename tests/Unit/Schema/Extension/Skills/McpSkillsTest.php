@@ -58,4 +58,11 @@ class McpSkillsTest extends TestCase
         $this->assertInstanceOf(ListSkillsHandler::class, $handlers[0]);
         $this->assertInstanceOf(GetSkillHandler::class, $handlers[1]);
     }
+
+    public function testRejectsAPageSizeBelowOne(): void
+    {
+        $this->expectException(\Mcp\Exception\InvalidArgumentException::class);
+
+        new McpSkills(new SkillRegistry(), 0);
+    }
 }

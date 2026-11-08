@@ -39,11 +39,11 @@ final class SkillMetadata implements \JsonSerializable
      */
     public static function fromArray(array $data): self
     {
-        if (empty($data['name']) || !\is_string($data['name'])) {
+        if (!isset($data['name']) || !\is_string($data['name']) || '' === $data['name']) {
             throw new InvalidArgumentException('SKILL.md frontmatter must contain a non-empty string "name".');
         }
 
-        if (empty($data['description']) || !\is_string($data['description'])) {
+        if (!isset($data['description']) || !\is_string($data['description']) || '' === $data['description']) {
             throw new InvalidArgumentException('SKILL.md frontmatter must contain a non-empty string "description".');
         }
 
