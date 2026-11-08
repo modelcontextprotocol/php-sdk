@@ -256,6 +256,62 @@ Use `add()` when the metadata cannot be inferred from a handler class via reflec
 prefer `addTool/addResource/addResourceTemplate/addPrompt`, which can derive metadata from the handler's signature and
 docblock.
 
+## Element sources
+
+Your tools, resources or prompts may come from a database or another service. An element source reads them and
+returns them as a collection:
+
+```php
+use Mcp\Server\Capability\Registry\Source\ElementCollection;
+use Mcp\Server\Capability\Registry\Source\ElementSourceInterface;
+use Mcp\Server\Capability\Registry\ToolReference;
+use Mcp\Schema\Tool;
+
+final class ProductToolSource implements ElementSourceInterface
+{
+    public function __construct(private readonly ProductRepository $products)
+    {
+    }
+
+    public function provide(): ElementCollection
+    {
+        $tools = [];
+        foreach ($this->products->findPublished() as $product) {
+            $tool = new Tool('product_'.$product->id, $product->title, $product->inputSchema, $product->description, null);
+            $tools[] = new ToolReference($tool, [ProductTools::class, 'run']);
+        }
+
+        return new ElementCollection(tools: $tools);
+    }
+}
+```
+
+Register the source on the builder:
+
+```php
+$server = Server::builder()
+    ->setServerInfo('Product Server', '1.0.0')
+    ->addSource(new ProductToolSource($products))
+    ->build();
+```
+
+The server calls `provide()` when it loads the elements.
+
+An element from a source replaces one with the same identifier from a custom loader. Elements registered on the
+builder replace those of a source, and discovery never replaces an existing element.
+
+If a source throws an exception, the server logs it as an error and serves the other elements. The server calls the
+source again on each read until it succeeds. Until then, it doesn't call the sources that already succeeded. The registry
+doesn't announce elements that arrive on a later attempt, so clients see them the next time they list.
+
+While a source fails, the server advertises tools, resources and prompts, because it can't know what the source provides.
+
+A custom loader can write elements before it fails. While a custom loader fails, the server also runs everything that
+comes after it on each read, including the sources.
+
+A `ConfigurationException` stops the load instead, because it reports a mistake in your setup, e.g. a
+handler class that doesn't exist. The request that triggered the load fails with `-32603`.
+
 ## Hybrid Approach
 
 Combine discovery with manual registration for maximum flexibility:
