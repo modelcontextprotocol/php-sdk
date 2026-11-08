@@ -52,7 +52,7 @@ $server = Server::builder()
 4. **Invokable class name**: `InvokableClass::class` - class must be constructable through the container and have `__invoke` method
 
 !!! note
-    A [custom loader](../run/server-builder.md) can also pass a service id from your container (e.g. `app.weather_handler`) as the handler. The service must be callable. `addTool()`, `addResource()`, `addResourceTemplate()` and `addPrompt()` don't accept service ids, and `build()` throws a `ConfigurationException`.
+    A [custom loader](../run/server-builder.md) can also pass the id of a callable service from your container (e.g. `app.weather_handler`) as the handler. `addTool()`, `addResource()`, `addResourceTemplate()` and `addPrompt()` don't accept service ids. They cause a `ConfigurationException` when the elements load, by default on the first registry read.
 
 ### Manual Tool Registration
 
