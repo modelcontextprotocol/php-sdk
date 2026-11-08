@@ -34,6 +34,8 @@ The rest of this section:
   discovery, dependency injection, logging, pagination.
 * **[Framework integration](framework-integration.md)** — mounting the HTTP transport in
   a Symfony, Laravel, or Slim application, or running it standalone.
+* **[Web servers](web-servers.md)** — serving the endpoint with Nginx or Apache and
+  PHP-FPM.
 * **[Sessions](sessions.md)** — where per-client state lives, which matters as soon as
   you serve HTTP from more than one process.
 * **[Serving both eras](protocol-eras.md)** — the same endpoint also answers protocol

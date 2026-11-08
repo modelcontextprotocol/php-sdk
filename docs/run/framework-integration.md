@@ -41,6 +41,8 @@ $response = $server->run($transport);
 (new SapiEmitter())->emit($response);
 ```
 
+To serve this file with Nginx or Apache, see [Web servers](web-servers.md).
+
 ## Framework Integration
 
 ### Symfony Integration

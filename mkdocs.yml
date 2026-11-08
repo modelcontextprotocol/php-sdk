@@ -36,6 +36,7 @@ nav:
       - STDIO transport: run/stdio.md
       - HTTP transport: run/http.md
       - Framework integration: run/framework-integration.md
+      - Web servers: run/web-servers.md
       - Sessions: run/sessions.md
       - Serving both eras: run/protocol-eras.md
       - Caching: run/caching.md
