@@ -18,6 +18,7 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Server\Stateless\StatelessProtocol;
+use Mcp\Server\Stateless\StatelessResult;
 use Mcp\Server\Transport\Stdio\RunnerControl;
 use Mcp\Server\Transport\Stdio\RunnerControlInterface;
 use Mcp\Server\Transport\Stdio\RunnerState;
@@ -344,7 +345,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
                     // Written before resuming: resuming runs the handler on to its next frame.
                     if (null !== $frame) {
-                        $this->writeLine(json_encode($frame, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES));
+                        $this->writeLine(StatelessResult::encodeFrame($frame));
                     }
 
                     $frames->next();

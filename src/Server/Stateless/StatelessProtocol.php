@@ -829,14 +829,14 @@ final class StatelessProtocol
         $frame = ['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->codec->encodeResult($method, (array) $response->result->jsonSerialize(), $cacheable)];
 
         try {
-            json_encode($frame, \JSON_THROW_ON_ERROR);
+            $encoded = StatelessResult::encodeFrame($frame);
         } catch (\JsonException $e) {
             yield $this->toErrorResult($request, $session, $method, $id, $e)->message?->jsonSerialize();
 
             return;
         }
 
-        yield $frame;
+        yield $encoded;
     }
 
     /**

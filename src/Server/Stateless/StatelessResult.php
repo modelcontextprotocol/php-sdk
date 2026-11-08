@@ -79,6 +79,16 @@ final class StatelessResult
         return new self(null, 200, $frames);
     }
 
+    /**
+     * @param mixed $frame a frame to encode, or a string that already is its JSON
+     *
+     * @throws \JsonException when the frame cannot be encoded
+     */
+    public static function encodeFrame(mixed $frame): string
+    {
+        return \is_string($frame) ? $frame : json_encode($frame, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
+    }
+
     public function isStream(): bool
     {
         return null !== $this->frames;

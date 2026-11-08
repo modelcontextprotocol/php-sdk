@@ -18,6 +18,7 @@ use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\ResourceReadException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
@@ -35,6 +36,7 @@ use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\ListRootsRequest;
+use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\DiscoverResult;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Result\ReadResourceResult;
@@ -381,7 +383,7 @@ class StatelessProtocolTest extends TestCase
 
         foreach ($stream() as $frame) {
             if (null !== $frame) {
-                $frames[] = $frame;
+                $frames[] = \is_string($frame) ? json_decode($frame, true, flags: \JSON_THROW_ON_ERROR) : $frame;
             }
         }
 
@@ -583,6 +585,44 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(Error::INTERNAL_ERROR, $last['error']['code']);
         $this->assertSame(7, $last['id']);
+    }
+
+    #[TestDox('a streamed result is encoded once, so a one-shot serializer still reaches the client')]
+    public function testStreamedResultIsEncodedOnce(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->addTool(
+                static function (RequestContext $context): CallToolResult {
+                    $context->getClientGateway()->progress(1, 1, 'done');
+
+                    return new CallToolResult([new TextContent('ok')], structuredContent: ['items' => new class implements \JsonSerializable {
+                        private \Generator $items;
+
+                        public function __construct()
+                        {
+                            $this->items = (static function (): \Generator {
+                                yield 1;
+                            })();
+                        }
+
+                        /** @return list<mixed> */
+                        public function jsonSerialize(): array
+                        {
+                            return iterator_to_array($this->items, false);
+                        }
+                    }]);
+                },
+                name: 'one_shot_tool',
+                description: 'Returns a result that can only be serialized once',
+            )
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $result = self::callStreaming($protocol, 'one_shot_tool', ['progressToken' => 'tok-1']);
+
+        $last = self::frames($result)[1];
+
+        $this->assertSame([1], $last['result']['structuredContent']['items']);
     }
 
     #[TestDox('an error message that is not valid UTF-8 still reaches the client')]
