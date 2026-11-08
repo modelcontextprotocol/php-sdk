@@ -68,8 +68,15 @@ final class CallbackStream implements \Stringable, StreamInterface
         }
 
         $this->called = true;
+        $chunks = $this->chunks;
 
-        return ($this->chunks)();
+        // The generator takes the body over: once the runtime drops it, nothing here keeps the handler alive.
+        $this->callback = static function (): void {};
+        $this->chunks = static function (): \Generator {
+            yield from [];
+        };
+
+        return $chunks();
     }
 
     public function __toString(): string

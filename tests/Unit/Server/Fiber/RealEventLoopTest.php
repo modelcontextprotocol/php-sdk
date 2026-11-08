@@ -395,21 +395,24 @@ final class RealEventLoopTest extends TestCase
             ->build();
 
         $written = [];
+        $unwoundWhileTheBodyIsHeld = false;
         $run([
-            function () use ($server, &$written): void {
+            function () use ($server, &$written, &$unwound, &$unwoundWhileTheBodyIsHeld): void {
                 $body = $this->modernCall($server, 'notifier')->getBody();
                 $this->assertInstanceOf(CallbackStream::class, $body);
                 $chunks = $body->chunks();
                 $this->assertNotNull($chunks);
 
                 $written[] = $chunks->current();
-                unset($chunks, $body);
+                unset($chunks);
+                $unwoundWhileTheBodyIsHeld = $unwound;
+                unset($body);
             },
         ]);
 
         $this->assertCount(1, $written);
         $this->assertStringContainsString('list_changed', $written[0]);
-        $this->assertTrue($unwound);
+        $this->assertTrue($unwoundWhileTheBodyIsHeld, 'Dropping the chunks unwinds the handler while the body is still held.');
         $this->assertFalse($finished);
     }
 
