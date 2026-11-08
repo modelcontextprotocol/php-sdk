@@ -119,6 +119,34 @@ final class AuthorizationHandlerTest extends TestCase
         $this->assertStringContainsString($url, $this->runDefaultHandler($url, $this->emptyDirectory()));
     }
 
+    #[TestDox('the loopback handler passes the URL to the opener unchanged')]
+    public function testLoopbackHandlerPassesTheUrlUnchanged(): void
+    {
+        $directory = $this->emptyDirectory();
+
+        foreach (['xdg-open', 'open'] as $opener) {
+            file_put_contents($directory.'/'.$opener, "#!/bin/sh\nprintf '%s' \"\$1\" > \"\${0%/*}/opened\"\n");
+            chmod($directory.'/'.$opener, 0755);
+        }
+
+        $url = "https://auth.example.com/authorize?redirect_uri=http%3A%2F%2F127.0.0.1%3A8765&scope=a%20b&state=it's";
+
+        $this->runDefaultHandler($url, $directory);
+
+        $this->assertSame($url, file_get_contents($directory.'/opened'));
+    }
+
+    #[TestDox('the loopback handler keeps percent-encoding and shell variables out of reach of cmd.exe')]
+    public function testLoopbackHandlerOpensTheUrlWithoutAShellOnWindows(): void
+    {
+        $url = 'https://auth.example.com/authorize?redirect_uri=http%3A%2F%2F127.0.0.1&x=%PATH%';
+
+        $this->assertSame(
+            ['rundll32', 'url.dll,FileProtocolHandler', $url],
+            LoopbackAuthorizationHandler::browserCommand($url, 'Windows'),
+        );
+    }
+
     /**
      * Runs in its own process, as only the environment decides which opener the handler finds.
      */

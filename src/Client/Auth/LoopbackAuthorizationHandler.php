@@ -149,15 +149,31 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
         // Printed every time, as a backgrounded launcher can't report that no browser opened.
         file_put_contents('php://stderr', \sprintf("\nOpen this URL to authorize the application if your browser doesn't open it:\n\n  %s\n\n", $url));
 
-        // Backgrounded, because the launcher may not return until the browser exits.
-        $command = match (\PHP_OS_FAMILY) {
-            'Darwin' => \sprintf('open %s > /dev/null 2>&1 &', escapeshellarg($url)),
-            'Windows' => \sprintf('start "" %s', escapeshellarg($url)),
-            default => \sprintf('xdg-open %s > /dev/null 2>&1 &', escapeshellarg($url)),
-        };
-
-        if (\function_exists('exec')) {
-            @exec($command);
+        if (!\function_exists('proc_open')) {
+            return;
         }
+
+        $process = @proc_open(self::browserCommand($url, \PHP_OS_FAMILY), [], $pipes);
+
+        if (\is_resource($process)) {
+            proc_close($process);
+        }
+    }
+
+    /**
+     * The URL stays a separate argument, as escapeshellarg() removes "%" on Windows and cmd.exe would expand it.
+     *
+     * @internal
+     *
+     * @return list<string>
+     */
+    public static function browserCommand(string $url, string $osFamily): array
+    {
+        // sh backgrounds the opener, because it may not return until the browser exits.
+        return match ($osFamily) {
+            'Windows' => ['rundll32', 'url.dll,FileProtocolHandler', $url],
+            'Darwin' => ['/bin/sh', '-c', 'open "$1" > /dev/null 2>&1 &', 'sh', $url],
+            default => ['/bin/sh', '-c', 'xdg-open "$1" > /dev/null 2>&1 &', 'sh', $url],
+        };
     }
 }
