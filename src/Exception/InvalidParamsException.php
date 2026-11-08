@@ -16,6 +16,8 @@ namespace Mcp\Exception;
  *
  * The request itself is well-formed, so it is answered with `-32602` (Invalid params)
  * and not with `-32600` (Invalid request).
+ *
+ * @author Johannes Wachter <johannes@sulu.io>
  */
 class InvalidParamsException extends InvalidArgumentException
 {

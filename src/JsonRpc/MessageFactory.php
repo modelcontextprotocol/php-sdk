@@ -171,7 +171,7 @@ final class MessageFactory
 
             return $messageClass::fromArray($data);
         } catch (InvalidParamsException $e) {
-            throw InvalidInputMessageException::forInvalidParams($e->getMessage(), $e);
+            throw InvalidInputMessageException::forInvalidParams($e->getMessage(), $data['method'], $e);
         } catch (InvalidArgumentException $e) {
             throw new InvalidInputMessageException($e->getMessage(), 0, $e);
         }

@@ -59,8 +59,6 @@ abstract class Request implements HasMethodInterface, MessageInterface
 
         try {
             $request = static::fromParams($params);
-        } catch (InvalidParamsException $e) {
-            throw $e;
         } catch (InvalidArgumentException $e) {
             throw new InvalidParamsException($e->getMessage(), $e->getCode(), $e);
         }

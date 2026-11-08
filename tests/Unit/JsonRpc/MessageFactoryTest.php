@@ -302,6 +302,13 @@ final class MessageFactoryTest extends TestCase
         $this->assertFalse($exception->isInvalidParams());
     }
 
+    public function testParamsOfTheWrongTypeAreNotInvalidParams(): void
+    {
+        $exception = $this->invalidInput('{"jsonrpc": "2.0", "method": "prompts/get", "id": 7, "params": "name"}');
+
+        $this->assertFalse($exception->isInvalidParams());
+    }
+
     public function testUnknownMethodIsNotInvalidParams(): void
     {
         $exception = $this->invalidInput('{"jsonrpc": "2.0", "method": "unknown/method", "id": 1}');
