@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Capability\Formatter;
 
 use Mcp\Capability\Formatter\ResourceResultFormatter;
+use Mcp\Schema\Content\BlobResourceContents;
 use Mcp\Schema\Content\TextResourceContents;
 use PHPUnit\Framework\TestCase;
 
@@ -37,6 +38,61 @@ class ResourceResultFormatterTest extends TestCase
         $result = (new ResourceResultFormatter())->format('content', 'file://test');
         $this->assertCount(1, $result);
         $this->assertInstanceOf(TextResourceContents::class, $result[0]);
+    }
+
+    public function testStringThatIsNotValidUtf8IsSentAsBlob(): void
+    {
+        $latin1 = "caf\xE9";
+
+        $result = (new ResourceResultFormatter())->format($latin1, 'file://test', 'text/plain');
+
+        $this->assertCount(1, $result);
+        $this->assertInstanceOf(BlobResourceContents::class, $result[0]);
+        $this->assertSame('text/plain', $result[0]->mimeType);
+        $this->assertSame(base64_encode($latin1), $result[0]->blob);
+        $this->assertNotFalse(json_encode($result[0]), 'The blob can be encoded as JSON.');
+    }
+
+    public function testTextFileThatIsNotValidUtf8IsSentAsBlob(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'mcp-latin1-');
+        $this->assertNotFalse($path);
+        file_put_contents($path, "caf\xE9");
+
+        try {
+            $result = (new ResourceResultFormatter())->format(new \SplFileInfo($path), 'file://test', 'text/plain');
+        } finally {
+            unlink($path);
+        }
+
+        $this->assertCount(1, $result);
+        $this->assertInstanceOf(BlobResourceContents::class, $result[0]);
+        $this->assertSame('text/plain', $result[0]->mimeType);
+        $this->assertSame(base64_encode("caf\xE9"), $result[0]->blob);
+    }
+
+    public function testTextFileThatIsValidUtf8StaysText(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'mcp-utf8-');
+        $this->assertNotFalse($path);
+        file_put_contents($path, 'café');
+
+        try {
+            $result = (new ResourceResultFormatter())->format(new \SplFileInfo($path), 'file://test', 'text/plain');
+        } finally {
+            unlink($path);
+        }
+
+        $this->assertInstanceOf(TextResourceContents::class, $result[0]);
+        $this->assertSame('café', $result[0]->text);
+    }
+
+    public function testTextArrayThatIsNotValidUtf8IsSentAsBlob(): void
+    {
+        $result = (new ResourceResultFormatter())->format(['text' => "caf\xE9"], 'file://test');
+
+        $this->assertInstanceOf(BlobResourceContents::class, $result[0]);
+        $this->assertSame('text/plain', $result[0]->mimeType);
     }
 
     public function testFormatResourceContents(): void
