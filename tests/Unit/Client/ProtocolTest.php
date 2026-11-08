@@ -144,6 +144,7 @@ final class ProtocolTest extends TestCase
     {
         yield 'a lost connection' => [TransportInterface::CONNECTION_LOST];
         yield 'a response over the body limit' => [TransportInterface::RESPONSE_TOO_LARGE];
+        yield 'a redirect' => [TransportInterface::REDIRECTED];
     }
 
     #[DataProvider('endingProbeFailureProvider')]

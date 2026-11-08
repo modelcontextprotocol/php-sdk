@@ -41,6 +41,11 @@ interface TransportInterface
     public const RESPONSE_TOO_LARGE = 'responseTooLarge';
 
     /**
+     * Error data key marking an error the transport filed because the server answered with a redirect.
+     */
+    public const REDIRECTED = 'redirected';
+
+    /**
      * Connect to the MCP server and perform initialization handshake.
      *
      * This method blocks until:

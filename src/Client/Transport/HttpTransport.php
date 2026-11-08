@@ -25,9 +25,12 @@ use Mcp\Schema\Wire\McpHeader;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\HttpClient\Psr18Client;
 
 /**
  * HTTP-based client transport using PSR-18 HTTP client.
@@ -146,9 +149,23 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->listenParser = new SseParser($maxSseBufferBytes);
         $this->reconnectPolicy = $reconnectPolicy ?? new ReconnectPolicy();
         $this->clock = $clock ?? new MonotonicClock();
-        $this->httpClient = $httpClient ?? Psr18ClientDiscovery::find();
+        $this->httpClient = $httpClient ?? self::discoverClient();
         $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
+    }
+
+    private static function discoverClient(): ClientInterface
+    {
+        $client = Psr18ClientDiscovery::find();
+
+        if (!$client instanceof Psr18Client) {
+            return $client;
+        }
+
+        // Psr18Client has no withOptions() before symfony/http-client 6.2.
+        return \is_callable([$client, 'withOptions'])
+            ? $client->withOptions(['max_redirects' => 0])
+            : new Psr18Client(HttpClient::create(['max_redirects' => 0]));
     }
 
     public function connect(): void
@@ -169,8 +186,8 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->resetSseState();
 
         if ($result instanceof Error) {
-            // A retry would download the same body again.
-            if (\is_array($result->data) && true === ($result->data[self::RESPONSE_TOO_LARGE] ?? null)) {
+            // A retry would get the same body or redirect again.
+            if (\is_array($result->data) && (true === ($result->data[self::RESPONSE_TOO_LARGE] ?? null) || true === ($result->data[self::REDIRECTED] ?? null))) {
                 throw RequestException::fromError($result);
             }
 
@@ -193,8 +210,8 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     /**
      * The session ID minted by the server for this connection, if any.
      *
-     * Captured from the Mcp-Session-Id response header of a handshake-era
-     * server; always null on 2026-07-28, which removed protocol-level sessions
+     * Captured from the Mcp-Session-Id header of the `initialize` response;
+     * always null on 2026-07-28, which removed protocol-level sessions
      * (SEP-2567). Useful for logging: every connect() starts a new session
      * and close() ends it, so it cannot be reused on a later transport.
      *
@@ -257,7 +274,14 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             throw new ConnectionException('The HTTP session has expired.', 404);
         }
 
-        if ($response->hasHeader('Mcp-Session-Id')) {
+        if (null !== $redirect = self::describeRedirect($response)) {
+            $response->getBody()->close();
+            $this->failRedirected($data, $redirect);
+
+            return;
+        }
+
+        if ($response->getStatusCode() < 300 && $response->hasHeader('Mcp-Session-Id') && self::isInitialize($data)) {
             $this->sessionId = $response->getHeaderLine('Mcp-Session-Id');
             $this->logger->debug('Received session ID', ['session_id' => $this->sessionId]);
         }
@@ -393,6 +417,36 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     }
 
     /**
+     * Fails a redirected request at once, or reports a redirected message nobody waits on.
+     */
+    private function failRedirected(string $sent, string $reason): void
+    {
+        $requestId = self::requestIdOf($sent);
+        if (null === $requestId || null === $this->state) {
+            $this->handleError(new ConnectionException($reason));
+
+            return;
+        }
+
+        $this->state->storeResponse($requestId, (new Error($requestId, Error::INVALID_REQUEST, $reason, [self::REDIRECTED => true]))->jsonSerialize());
+    }
+
+    /**
+     * What to report for a 3xx answer, null for any other.
+     */
+    private static function describeRedirect(ResponseInterface $response): ?string
+    {
+        $status = $response->getStatusCode();
+        if ($status < 300 || $status >= 400) {
+            return null;
+        }
+
+        $location = $response->getHeaderLine('Location');
+
+        return \sprintf('Server answered with HTTP %d%s and the client does not follow redirects.', $status, '' !== $location ? ' to '.$location : '');
+    }
+
+    /**
      * Whether the outgoing message is a notification: a `method` and no `id`, so
      * it asks the server for nothing and no answer of its own can exist.
      */
@@ -401,6 +455,13 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $payload = json_decode($data, true);
 
         return \is_array($payload) && \array_key_exists('method', $payload) && !\array_key_exists('id', $payload);
+    }
+
+    private static function isInitialize(string $data): bool
+    {
+        $payload = json_decode($data, true);
+
+        return \is_array($payload) && 'initialize' === ($payload['method'] ?? null);
     }
 
     /**
@@ -490,8 +551,14 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
                     $request = $request->withHeader($name, $value);
                 }
 
-                $this->httpClient->sendRequest($request);
-                $this->logger->info('Session closed', ['session_id' => $this->sessionId]);
+                $response = $this->httpClient->sendRequest($request);
+
+                if (null !== $redirect = self::describeRedirect($response)) {
+                    $response->getBody()->close();
+                    $this->handleError(new ConnectionException($redirect));
+                } else {
+                    $this->logger->info('Session closed', ['session_id' => $this->sessionId]);
+                }
             } catch (\Throwable $e) {
                 $this->logger->warning('Failed to close session', ['exception' => $e]);
             }
@@ -566,8 +633,8 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     /**
      * Open the standalone GET stream, if the server offers one.
      *
-     * Failing to is not an error: the stream is optional on both sides, and
-     * everything that belongs to a request still arrives on its response.
+     * Failing to does not end the connection: the stream is optional on both sides,
+     * and everything that belongs to a request still arrives on its response.
      */
     private function openListenStream(): void
     {
@@ -589,6 +656,13 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             $response = $this->httpClient->sendRequest($request);
         } catch (\Throwable $e) {
             $this->logger->warning('Could not open the listening stream', ['exception' => $e]);
+
+            return;
+        }
+
+        if (null !== $redirect = self::describeRedirect($response)) {
+            $response->getBody()->close();
+            $this->handleError(new ConnectionException($redirect));
 
             return;
         }
@@ -859,10 +933,16 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             return;
         }
 
+        if (null !== $redirect = self::describeRedirect($response)) {
+            $response->getBody()->close();
+            $this->failSseStream('SSE stream ended before the request completed and could not be resumed: '.$redirect, [self::REDIRECTED => true]);
+
+            return;
+        }
+
         // A client error will not resolve itself: 405 means the server offers no
-        // GET stream. Nor will a redirect the HTTP client did not follow. Only a
-        // timeout or a rate limit is worth waiting out.
-        if ($status >= 300 && $status < 500 && 408 !== $status && 429 !== $status) {
+        // GET stream. Only a timeout or a rate limit is worth waiting out.
+        if ($status >= 400 && $status < 500 && 408 !== $status && 429 !== $status) {
             $response->getBody()->close();
             $this->failSseStream(\sprintf('SSE stream ended before the request completed and the server rejected resuming it with HTTP %d', $status));
 
@@ -958,8 +1038,10 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
     /**
      * Give up on the current response stream and fail the request it belongs to.
+     *
+     * @param array<string, bool>|null $data
      */
-    private function failSseStream(string $reason): void
+    private function failSseStream(string $reason, ?array $data = null): void
     {
         $this->activeStream?->close();
         $this->activeStream = null;
@@ -977,7 +1059,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             return;
         }
 
-        $this->state?->storeResponse($requestId, Error::forInternalError($reason, $requestId)->jsonSerialize());
+        $this->state?->storeResponse($requestId, (new Error($requestId, Error::INTERNAL_ERROR, $reason, $data))->jsonSerialize());
     }
 
     /**

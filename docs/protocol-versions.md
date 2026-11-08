@@ -138,6 +138,7 @@ describe.
 | `-32022` naming only handshake revisions | falls back to `initialize` |
 | `-32022` naming nothing it speaks | fails the connection |
 | a successful HTTP response with a body over the [response body limit](client/transports.md#http-transport) | fails the connection, with no retry |
+| a `3xx` HTTP response | fails the connection, with no retry |
 | any other error, an HTTP refusal without one, or no answer in time | falls back to `initialize` |
 | a `DiscoverResult` listing only handshake revisions | falls back to `initialize` |
 

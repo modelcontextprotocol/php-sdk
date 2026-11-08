@@ -126,9 +126,33 @@ it returns the response depends on the client:
   stores it on disk and blocks until the body ends. Configure a timeout on these clients to limit
   this. See [Cancellation and deadlines](#cancellation-and-deadlines).
 
+**Redirects:**
+
+If the server answers a request with a `3xx` status, the request fails at once with a
+`RequestException` that names the status and the `Location` target. During `connect()`, it throws a
+`ConnectionException` at once, with no retry and no fallback to the `initialize` handshake. To
+reach a server that moved, configure its new URL as `endpoint`.
+
+The transport turns off redirects on a `symfony/http-client` client that it discovers. Any other
+client, and a client you pass as `httpClient`, keeps its own configuration. Such a client *must not*
+follow redirects to another origin. If it does, your headers and the request body reach that
+origin, and the transport accepts its answer as the server's.
+
+To pass a `symfony/http-client` client, create it with `max_redirects` set to `0`:
+
+```php
+$httpClient = new Psr18Client(HttpClient::create(['max_redirects' => 0]));
+```
+
+!!! note
+    Before `symfony/http-client` 6.2, the transport replaces a discovered client with a new one.
+    If you configure a client through a custom discovery strategy on those versions, pass it as
+    `httpClient` instead.
+
 **Session ID:**
 
-On revision `2025-11-25` and earlier, the server may return an `Mcp-Session-Id` header.
+On revision `2025-11-25` and earlier, the server may return an `Mcp-Session-Id` header with its
+answer to `initialize`. The transport ignores this header on any other response.
 `getSessionId()` returns it, for example to log it. It returns `null` on `2026-07-28` and after
 `close()`:
 
