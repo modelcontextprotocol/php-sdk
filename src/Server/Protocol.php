@@ -506,6 +506,10 @@ class Protocol
                     if ($result instanceof NotificationSuspension) {
                         $outgoing = $result->notification;
                     } elseif ($result instanceof RequestSuspension) {
+                        if ($session instanceof EphemeralSessionInterface) {
+                            throw new SessionRequiredException('Requests to the client need a session; configure one with Builder::setSession().');
+                        }
+
                         $awaitedRequestId = $this->registerRequest($result->request, $result->timeout, $session);
                         $outgoing = $result->request->withId($awaitedRequestId->toRfc4122());
                     }

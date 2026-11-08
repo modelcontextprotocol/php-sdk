@@ -15,13 +15,16 @@ use Mcp\Exception\SessionRequiredException;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\ElicitRequest;
+use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Server\Suspension\RequestSuspension;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -186,6 +189,25 @@ final class SessionlessHttpTest extends TestCase
         $this->assertLessThan(5, microtime(true) - $started);
     }
 
+    #[TestDox('a handler suspending on a request itself fails loud, and the request never reaches the client')]
+    public function testDirectRequestSuspensionFailsLoud(): void
+    {
+        $response = $this->send('POST', $this->request('tools/call', ['name' => 'suspend-on-request', 'arguments' => new \stdClass()]));
+
+        $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
+        $this->assertSame(['code' => -32603, 'message' => 'Requests to the client need a session; configure one with Builder::setSession().'], self::decode($response)['error']);
+    }
+
+    #[TestDox('a handler suspending on a request itself after a notification never reaches the client either')]
+    public function testDirectRequestSuspensionAfterANotificationDoesNotReachTheClient(): void
+    {
+        $stream = $this->readStream($this->send('POST', $this->request('tools/call', ['name' => 'notify-then-suspend-on-request', 'arguments' => new \stdClass()])));
+
+        $this->assertStringContainsString('notifications\/progress', $stream);
+        $this->assertStringNotContainsString('"method":"ping"', $stream);
+        $this->assertStringContainsString('"text":"refused"', $stream);
+    }
+
     #[TestDox('an input-required result fails loud, as the client cannot be asked for the input')]
     public function testInputRequiredResultFailsLoud(): void
     {
@@ -311,6 +333,17 @@ final class SessionlessHttpTest extends TestCase
 
                 return self::answered($context->getClientGateway()->elicit('Name?', self::schema(), 5));
             }, 'notify-then-elicit')
+            ->addTool(static function (RequestContext $context): string {
+                \Fiber::suspend(new RequestSuspension(new PingRequest(), $context->getSession()->getId()->toRfc4122(), 5));
+
+                return 'answered';
+            }, 'suspend-on-request')
+            ->addTool(static function (RequestContext $context): string {
+                $context->getClientGateway()->notify(new ProgressNotification('p', 0.5));
+                $answer = \Fiber::suspend(new RequestSuspension(new PingRequest(), $context->getSession()->getId()->toRfc4122(), 5));
+
+                return $answer instanceof Error ? 'refused' : 'answered';
+            }, 'notify-then-suspend-on-request')
             ->addTool(static fn (): InputRequiredResult => new InputRequiredResult(['name' => ElicitRequest::forForm('Name?', self::schema())]), 'ask-for-input')
             ->addTool(static fn (RequestContext $context): string => $context->getProtocolVersion()->value, 'protocol-version')
             ->addTool(static fn (RequestContext $context): string => self::refusal(static fn (): bool => $context->getClientGateway()->supportsElicitation()), 'supports-elicitation')
