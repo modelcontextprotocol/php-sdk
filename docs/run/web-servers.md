@@ -141,11 +141,11 @@ A PHP-FPM worker handles one request at a time, and some MCP requests stay open:
 An open stream writes a keep-alive comment every 250 ms, so the read timeouts of Nginx and
 Apache don't end it. Neither does
 [`max_execution_time`](https://www.php.net/manual/en/info.configuration.php#ini.max-execution-time)
-in a non-thread-safe build, the one distributions ship as PHP-FPM: it counts CPU time, not the
-time a stream spends waiting. A thread-safe build counts elapsed time since PHP 8.3 and ends
-the stream with a fatal error. PHP-FPM's `request_terminate_timeout` counts elapsed time in
-every build and kills the worker. In both cases the client receives no closing message, so
-keep `setSubscriptionLifetime()` below these limits.
+in a non-thread-safe build on Linux, the one distributions ship as PHP-FPM: it counts CPU
+time, not the time a stream spends waiting. A thread-safe build counts elapsed time since
+PHP 8.3 and ends the stream with a fatal error. PHP-FPM's `request_terminate_timeout` counts
+elapsed time in every build and kills the worker. In both cases the client receives no closing
+message, so keep `setSubscriptionLifetime()` below these limits.
 
 ## The GET stream
 
