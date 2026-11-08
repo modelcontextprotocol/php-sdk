@@ -590,7 +590,13 @@ final class StatelessProtocol
                 return StatelessResult::error($this->dispatchError($capabilityError, $request, $session), 400);
             }
 
-            return $this->encode($method, $id, $this->dispatchResponse($result, $request, $session)->result, null === $input);
+            $response = $this->dispatchResponse($result, $request, $session);
+
+            try {
+                return $this->encode($method, $id, $response->result, null === $input);
+            } catch (\JsonException $e) {
+                return $this->toErrorResult($request, $session, $method, $id, $e);
+            }
         }
 
         return StatelessResult::error($this->dispatchError($this->unknownMethod($method, $id), $request, $session), 404);
@@ -820,7 +826,15 @@ final class StatelessProtocol
 
         $response = $this->dispatchResponse($result, $request, $session);
 
-        yield ['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->codec->encodeResult($method, (array) $response->result->jsonSerialize(), $cacheable)];
+        try {
+            $encoded = StatelessResult::encodeFrame(['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->codec->encodeResult($method, (array) $response->result->jsonSerialize(), $cacheable)]);
+        } catch (\JsonException $e) {
+            yield $this->toErrorResult($request, $session, $method, $id, $e)->message?->jsonSerialize();
+
+            return;
+        }
+
+        yield $encoded;
     }
 
     /**
@@ -950,6 +964,8 @@ final class StatelessProtocol
     /**
      * Runs a result through the wire codec. Passed as-is rather than via a
      * json round trip, which would turn a nested `{}` into `[]`.
+     *
+     * @throws \JsonException when the result cannot be encoded
      */
     private function encode(string $method, string|int $id, ResultInterface $result, bool $cacheable = true): StatelessResult
     {

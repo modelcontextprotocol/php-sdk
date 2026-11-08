@@ -79,7 +79,7 @@ final class StatelessResponder
                     // client ignores, and the write PHP needs to spot a drop.
                     echo null === $frame
                         ? ": keep-alive\n\n"
-                        : 'data: '.json_encode($frame, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES)."\n\n";
+                        : 'data: '.StatelessResult::encodeFrame($frame)."\n\n";
                     @ob_flush();
                     flush();
                 }
