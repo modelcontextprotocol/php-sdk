@@ -236,6 +236,80 @@ class StandardHeaderValidatorTest extends TestCase
         ));
     }
 
+    #[DataProvider('numericMatches')]
+    public function testNumericHeaderAgreesWithArgument(string $header, int|float $argument): void
+    {
+        $this->assertNull((new StandardHeaderValidator(self::registryWithMirroredTool()))->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['retries' => $argument]],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Retries' => $header],
+        ));
+    }
+
+    /**
+     * @return iterable<string, array{string, int|float}>
+     */
+    public static function numericMatches(): iterable
+    {
+        yield 'trailing zeros' => ['42.00', 42];
+        yield 'leading zeros' => ['0042', 42];
+        yield 'negative zero' => ['-0', 0];
+        yield 'negative zero with fraction' => ['-0.0', 0];
+        yield 'negative' => ['-42', -42];
+        yield 'wrapped' => ['=?base64?NDI=?=', 42];
+        yield 'integral float argument' => ['42', 42.0];
+        yield 'integral float argument and fraction' => ['42.0', 42.0];
+        yield 'negative zero float argument' => ['0', -0.0];
+        yield 'integer beyond the double range' => ['9007199254740993', 9007199254740993];
+        yield 'float beyond the double range' => ['9007199254740992', 9007199254740992.0];
+        yield 'non-integral float argument' => ['1.5', 1.5];
+    }
+
+    #[DataProvider('numericMismatches')]
+    public function testNumericHeaderDisagreesWithArgument(string $header, int|float $argument): void
+    {
+        $this->assertStringContainsString('does not match', (string) (new StandardHeaderValidator(self::registryWithMirroredTool()))->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['retries' => $argument]],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Retries' => $header],
+        ));
+    }
+
+    /**
+     * @return iterable<string, array{string, int|float}>
+     */
+    public static function numericMismatches(): iterable
+    {
+        yield 'integers sharing a double' => ['9007199254740992', 9007199254740993];
+        yield 'integers sharing a double, the other way around' => ['9007199254740993', 9007199254740992];
+        yield 'negative integers sharing a double' => ['-9007199254740992', -9007199254740993];
+        yield 'integers near PHP_INT_MAX' => ['9223372036854775806', \PHP_INT_MAX];
+        yield 'integer and float sharing a double' => ['9007199254740993', 9007199254740992.0];
+        yield 'fraction rounding up' => ['41.99999999999999999999', 42];
+        yield 'fraction rounding down' => ['42.00000000000000000001', 42];
+        yield 'fraction rounding to an integral float' => ['41.99999999999999999999', 42.0];
+        yield 'wrapped trailing newline' => ['=?base64?NDIK?=', 42];
+    }
+
+    #[DataProvider('nonScalarArguments')]
+    public function testNonScalarArgumentDisagreesWithHeader(array|object $argument): void
+    {
+        $this->assertStringContainsString('cannot be mirrored', (string) (new StandardHeaderValidator(self::registryWithMirroredTool()))->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['anything' => $argument]],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Anything' => '7'],
+        ));
+    }
+
+    /**
+     * @return iterable<string, array{array<mixed>|object}>
+     */
+    public static function nonScalarArguments(): iterable
+    {
+        yield 'list' => [[8]];
+        yield 'object' => [(object) ['id' => 8]];
+    }
+
     #[TestDox('a numeric-looking string argument keeps its exact-match comparison')]
     public function testNumericLookingStringArgumentIsNotComparedNumerically(): void
     {
@@ -332,6 +406,7 @@ class StandardHeaderValidatorTest extends TestCase
                     'type' => 'object',
                     'properties' => [
                         'retries' => ['type' => 'integer', 'x-mcp-header' => 'Retries'],
+                        'anything' => ['x-mcp-header' => 'Anything'],
                         'target' => [
                             'type' => 'object',
                             'properties' => ['region' => ['type' => 'string', 'x-mcp-header' => 'Region']],

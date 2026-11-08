@@ -251,10 +251,8 @@ final class StandardHeaderValidator
             default => null,
         };
 
-        // A non-scalar cannot be mirrored at all, so the annotation on it is
-        // the tool definition's problem rather than this request's.
         if (null === $expected) {
-            return null;
+            return \sprintf('%s header is present, but the body argument cannot be mirrored.', $headerName);
         }
 
         // Numerically for numbers, so "42.0" and "42" agree — the spec asks for
@@ -262,8 +260,8 @@ final class StandardHeaderValidator
         // argument's actual type (not is_numeric, which a numeric-looking
         // string like "042" would also satisfy) and a decimal header (not
         // "4e1"), so a string argument keeps its exact-match comparison.
-        if ((\is_int($argument) || \is_float($argument)) && 1 === preg_match('/^-?\d+(?:\.\d+)?$/', $decoded)) {
-            return (float) $decoded === (float) $argument
+        if ((\is_int($argument) || \is_float($argument)) && 1 === preg_match('/^-?\d+(?:\.\d+)?$/D', $decoded)) {
+            return self::isSameNumber($decoded, $argument)
                 ? null
                 : \sprintf('%s header "%s" does not match the body argument "%s".', $headerName, $decoded, $expected);
         }
@@ -273,6 +271,22 @@ final class StandardHeaderValidator
         }
 
         return null;
+    }
+
+    private static function isSameNumber(string $decimal, int|float $argument): bool
+    {
+        if (\is_float($argument) && floor($argument) !== $argument) {
+            return (float) $decimal === $argument;
+        }
+
+        // As digits, since distinct integers beyond 2^53 share a float.
+        if (1 !== preg_match('/^(-?)0*(\d+?)(?:\.0+)?$/D', $decimal, $parts)) {
+            return false;
+        }
+
+        $normalized = ('0' === $parts[2] ? '' : $parts[1]).$parts[2];
+
+        return $normalized === (\is_int($argument) ? (string) $argument : \sprintf('%.0F', $argument + 0.0));
     }
 
     /**
