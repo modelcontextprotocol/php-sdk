@@ -342,7 +342,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         } catch (AuthorizationException $e) {
             $reduced = array_values(array_diff($scopes, ['offline_access']));
 
-            if ($reduced === $scopes || (!str_contains($e->getMessage(), 'invalid_scope') && !str_contains($e->getMessage(), 'not_allowed'))) {
+            if ($reduced === $scopes || !$e instanceof OAuthErrorException || !\in_array($e->error, ['invalid_scope', 'not_allowed'], true)) {
                 throw $e;
             }
 
@@ -414,7 +414,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         }
 
         if (isset($callback['error'])) {
-            throw new AuthorizationException(\sprintf('The authorization server denied the request: %s%s', $callback['error'], isset($callback['error_description']) ? ' ('.$callback['error_description'].')' : ''));
+            throw new OAuthErrorException(\sprintf('The authorization server denied the request: %s%s', $callback['error'], isset($callback['error_description']) ? ' ('.$callback['error_description'].')' : ''), $callback['error']);
         }
 
         // RFC 9207: compared as a string, and required if the server announced it, to catch a mix-up.

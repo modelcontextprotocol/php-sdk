@@ -748,6 +748,61 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertNotContains('https://auth.example.com/register', $server->requested);
     }
 
+    #[TestDox('an error that only mentions a refused scope in its text does not send the user back')]
+    public function testErrorDescriptionDoesNotTriggerTheOfflineAccessFallback(): void
+    {
+        $server = new FakeOAuthServer(serverScopes: ['offline_access']);
+        $handler = new class implements AuthorizationHandlerInterface {
+            public int $calls = 0;
+
+            public function authorize(string $authorizationUrl, string $redirectUri): array
+            {
+                ++$this->calls;
+                parse_str((string) parse_url($authorizationUrl, \PHP_URL_QUERY), $query);
+
+                return ['error' => 'access_denied', 'error_description' => 'not_allowed', 'state' => \is_string($query['state'] ?? null) ? $query['state'] : ''];
+            }
+        };
+
+        try {
+            $this->authenticator($server, $handler)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The denied authorization should have failed.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('access_denied', $e->getMessage());
+        }
+
+        $this->assertSame(1, $handler->calls);
+    }
+
+    #[TestDox('an offline_access refused at the authorization endpoint is given up')]
+    public function testGivesUpOfflineAccessRefusedAtTheAuthorizationEndpoint(): void
+    {
+        $server = new FakeOAuthServer(serverScopes: ['offline_access']);
+        $handler = new class(new StubAuthorizationHandler($server)) implements AuthorizationHandlerInterface {
+            public int $calls = 0;
+
+            public function __construct(private readonly AuthorizationHandlerInterface $handler)
+            {
+            }
+
+            public function authorize(string $authorizationUrl, string $redirectUri): array
+            {
+                if (1 === ++$this->calls) {
+                    parse_str((string) parse_url($authorizationUrl, \PHP_URL_QUERY), $query);
+
+                    return ['error' => 'invalid_scope', 'state' => \is_string($query['state'] ?? null) ? $query['state'] : ''];
+                }
+
+                return $this->handler->authorize($authorizationUrl, $redirectUri);
+            }
+        };
+
+        $this->authenticator($server, $handler)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame(2, $handler->calls);
+        $this->assertArrayNotHasKey('scope', $server->authorization);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {

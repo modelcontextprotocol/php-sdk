@@ -12,7 +12,7 @@
 namespace Mcp\Exception;
 
 /**
- * Thrown when an authorization server answers a token request with an OAuth error.
+ * Thrown when an authorization server answers with an OAuth error code.
  *
  * @internal
  *
