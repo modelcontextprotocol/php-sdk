@@ -20,6 +20,7 @@ use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
+use Mcp\Server\Transport\Http\OAuth\ScopePolicy;
 use Mcp\Server\Transport\StatelessHttpTransport;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -100,6 +101,45 @@ final class AccessTokenFlowTest extends TestCase
         $this->assertSame('dave', $this->text($transport->handle($request)));
     }
 
+    public function testBatchDoesNotGetPastTheScopesOfItsMessages(): void
+    {
+        $ran = false;
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->addTool(static function () use (&$ran): string {
+                $ran = true;
+
+                return 'deleted';
+            }, name: 'delete_file')
+            ->build();
+
+        $session = $this->serve($server, $this->request(json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'method' => 'initialize',
+            'params' => [
+                'protocolVersion' => ProtocolVersion::V2025_03_26->value,
+                'capabilities' => new \stdClass(),
+                'clientInfo' => ['name' => 'client', 'version' => '1.0.0'],
+            ],
+        ], \JSON_THROW_ON_ERROR), 'alice'), [])->getHeaderLine('Mcp-Session-Id');
+
+        $batch = json_encode([[
+            'jsonrpc' => '2.0',
+            'id' => 2,
+            'method' => 'tools/call',
+            'params' => ['name' => 'delete_file', 'arguments' => new \stdClass()],
+        ]], \JSON_THROW_ON_ERROR);
+
+        $response = $this->serve($server, $this->request($batch, 'alice', [
+            'Mcp-Session-Id' => $session,
+            'MCP-Protocol-Version' => ProtocolVersion::V2025_03_26->value,
+        ]), [$this->authorization(new ScopePolicy(tools: ['delete_file' => ['files:write']]))]);
+
+        $this->assertSame(400, $response->getStatusCode());
+        $this->assertFalse($ran);
+    }
+
     public static function whoami(RequestContext $context): string
     {
         return $context->getAccessToken()?->getSubject() ?? 'anonymous';
@@ -121,7 +161,7 @@ final class AccessTokenFlowTest extends TestCase
         return $server->run(new StreamableHttpTransport($request, $this->factory, $this->factory, middleware: $middleware ?? [$this->authorization()]));
     }
 
-    private function authorization(): AuthorizationMiddleware
+    private function authorization(?ScopePolicy $scopePolicy = null): AuthorizationMiddleware
     {
         $validator = new class implements AuthorizationTokenValidatorInterface {
             public function validate(string $accessToken): AuthorizationResult
@@ -133,6 +173,7 @@ final class AccessTokenFlowTest extends TestCase
         return new AuthorizationMiddleware(
             $validator,
             new ProtectedResourceMetadata('http://localhost/mcp', ['http://localhost:8180']),
+            $scopePolicy,
             responseFactory: $this->factory,
             streamFactory: $this->factory,
         );

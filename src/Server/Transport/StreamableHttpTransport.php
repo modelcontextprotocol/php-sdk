@@ -78,8 +78,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     private ?string $immediateResponse = null;
     private ?int $immediateStatusCode = null;
 
-    /** @var list<string> responses to the requests of the current POST */
-    private array $responses = [];
+    private ?string $jsonRpcResponse = null;
 
     /** @var list<MiddlewareInterface>|null null until {@see self::listen()} resolves the defaults */
     private ?array $middleware;
@@ -186,7 +185,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             return;
         }
 
-        $this->responses[] = $data;
+        $this->jsonRpcResponse = $data;
     }
 
     public function listen(): ResponseInterface
@@ -220,7 +219,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         $this->immediateStatusCode = null;
 
         if (null !== $immediateResponse) {
-            $this->responses = [];
+            $this->jsonRpcResponse = null;
 
             return $this->responseFactory->createResponse($immediateStatusCode ?? 200)
                 ->withHeader('Content-Type', 'application/json')
@@ -251,25 +250,25 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
     protected function createJsonResponse(): ResponseInterface
     {
-        // A POST without requests (only responses or notifications) is accepted
+        // A POST without a request (a response or a notification) is accepted
         // without a body, so the session's queued messages stay for a later answer.
-        if ([] === $this->responses) {
+        if (null === $this->jsonRpcResponse) {
             return $this->responseFactory->createResponse(202);
         }
 
-        $responses = $this->responses;
-        $this->responses = [];
+        $jsonRpcResponse = $this->jsonRpcResponse;
+        $this->jsonRpcResponse = null;
 
-        // A JSON answer holds the responses alone, so messages queued for the
-        // session make it a stream that carries them ahead of the responses.
+        // A JSON answer holds the response alone, so messages queued for the
+        // session make it a stream that carries them ahead of the response.
         $queued = array_column($this->getOutgoingMessages($this->sessionId), 'message');
 
         if ([] === $queued) {
             $response = $this->responseFactory->createResponse(200)
                 ->withHeader('Content-Type', 'application/json')
-                ->withBody($this->streamFactory->createStream(1 === \count($responses) ? $responses[0] : '['.implode(',', $responses).']'));
+                ->withBody($this->streamFactory->createStream($jsonRpcResponse));
         } else {
-            $events = array_map(static fn (string $message): string => "event: message\ndata: {$message}\n\n", [...$queued, ...$responses]);
+            $events = array_map(static fn (string $message): string => "event: message\ndata: {$message}\n\n", [...$queued, $jsonRpcResponse]);
 
             $response = $this->responseFactory->createResponse(200)
                 ->withHeader('Content-Type', 'text/event-stream')
@@ -288,24 +287,13 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     {
         $fiber = $this->sessionFiber;
 
-        // The other requests of a batch whose handler did not suspend.
-        $responses = $this->responses;
-        $this->responses = [];
-
-        $callback = function () use ($fiber, $responses): void {
+        $callback = function () use ($fiber): void {
             if (null === $fiber) {
                 return;
             }
 
             try {
                 $this->logger->info('SSE: Starting request processing loop');
-
-                foreach ($responses as $message) {
-                    echo "event: message\n";
-                    echo "data: {$message}\n\n";
-                    @ob_flush();
-                    flush();
-                }
 
                 $lastKeepAlive = null;
 

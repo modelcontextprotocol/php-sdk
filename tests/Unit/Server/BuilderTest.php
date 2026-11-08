@@ -439,7 +439,7 @@ final class BuilderTest extends TestCase
 
         $decoded = $factory->create('{"jsonrpc":"2.0","id":1,"method":"com.example/things.list"}');
 
-        $this->assertInstanceOf(ThingListRequest::class, $decoded[0]);
+        $this->assertInstanceOf(ThingListRequest::class, $decoded);
     }
 
     #[TestDox('enableExtension() throws when two enabled extensions define the same RPC method')]

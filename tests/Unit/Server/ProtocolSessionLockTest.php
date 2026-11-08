@@ -229,21 +229,6 @@ final class ProtocolSessionLockTest extends TestCase
         $this->assertFalse($this->store->exists($sessionId));
     }
 
-    #[TestDox('a refused batch is answered under the empty id, as a batch failure is')]
-    public function testRefusedBatchIsAnsweredUnderTheEmptyId(): void
-    {
-        $lock = new RecordingSessionLock($this->log, acquirable: false);
-        $protocol = $this->protocol($lock);
-        $sessionId = $this->existingSession();
-        $transport = new RecordingTransport();
-
-        $protocol->processInput($transport, '[{"jsonrpc":"2.0","id":1,"method":"ping"},{"jsonrpc":"2.0","id":2,"method":"ping"}]', $sessionId);
-
-        $this->assertCount(1, $transport->sent);
-        $this->assertSame(503, $transport->sent[0]['context']['status_code']);
-        $this->assertSame('', json_decode($transport->sent[0]['message'], true)['id']);
-    }
-
     #[TestDox('a client response refused for a busy session is not answered under its id, which is the client\'s own request id')]
     public function testRefusedClientResponseIsNotAnsweredUnderItsId(): void
     {
@@ -259,20 +244,6 @@ final class ProtocolSessionLockTest extends TestCase
         $error = json_decode($transport->sent[0]['message'], true);
         $this->assertNull($error['id']);
         $this->assertSame(Error::SERVER_ERROR, $error['error']['code']);
-    }
-
-    #[TestDox('a refused batch of client responses is not answered under the empty id either')]
-    public function testRefusedBatchOfClientResponsesIsNotAnsweredUnderTheEmptyId(): void
-    {
-        $lock = new RecordingSessionLock($this->log, acquirable: false);
-        $protocol = $this->protocol($lock);
-        $sessionId = $this->existingSession();
-        $transport = new RecordingTransport();
-
-        $protocol->processInput($transport, '[{"jsonrpc":"2.0","id":1000,"result":{}},{"jsonrpc":"2.0","method":"notifications/initialized"}]', $sessionId);
-
-        $this->assertCount(1, $transport->sent);
-        $this->assertNull(json_decode($transport->sent[0]['message'], true)['id']);
     }
 
     #[TestDox('a client response whose processing fails is not answered at all, like a notification')]

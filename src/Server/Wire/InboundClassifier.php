@@ -34,8 +34,7 @@ use Mcp\Server\Stateless\RequestMeta;
  *  - Notifications carry no claim of their own, so for those the header decides.
  *  - `GET` and `DELETE` are handshake-era session operations: the modern era is
  *    POST-only.
- *  - A batch is classified element-wise. The modern era removed batching, so an
- *    array holding a modern claim is refused rather than split.
+ *  - A JSON-RPC batch is refused in both eras.
  *
  * The classifier returns plain values and never throws: an era to route to, or
  * a rejection carrying the error to answer with.
@@ -73,14 +72,13 @@ final class InboundClassifier
             return EraClassification::legacy();
         }
 
-        $headerVersion = self::header($headers, self::PROTOCOL_VERSION_HEADER);
-
-        if (array_is_list($decoded)) {
-            return $this->classifyBatch($decoded, $headerVersion);
+        // Decoding to arrays hides the difference between [] and {}, or a list and {"0":...}.
+        if (str_starts_with(ltrim($body), '[')) {
+            return EraClassification::reject(Error::forInvalidRequest('JSON-RPC batching is not supported; send one message per request.'), 400);
         }
 
         /* @var array<string, mixed> $decoded */
-        return $this->classifyMessage($decoded, $headerVersion);
+        return $this->classifyMessage($decoded, self::header($headers, self::PROTOCOL_VERSION_HEADER));
     }
 
     /**
@@ -114,34 +112,6 @@ final class InboundClassifier
         }
 
         return null;
-    }
-
-    /**
-     * @param list<mixed> $messages
-     */
-    private function classifyBatch(array $messages, ?string $headerVersion): EraClassification
-    {
-        foreach ($messages as $message) {
-            if (!\is_array($message) || array_is_list($message)) {
-                continue;
-            }
-
-            /** @var array<string, mixed> $message */
-            $classification = $this->classifyMessage($message, $headerVersion);
-
-            if ($classification->isRejected()) {
-                return $classification;
-            }
-
-            if ($classification->modern) {
-                return EraClassification::reject(
-                    Error::forInvalidRequest(\sprintf('Protocol revision %s removed JSON-RPC batching; send one message per request.', $classification->claimedVersion)),
-                    400,
-                );
-            }
-        }
-
-        return EraClassification::legacy();
     }
 
     /**

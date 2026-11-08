@@ -25,7 +25,6 @@ use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\LoggingMessageNotification;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -122,22 +121,12 @@ final class StdioTransportTest extends TestCase
         $this->assertFalse($state->isInitialized());
     }
 
-    /**
-     * @return iterable<string, array{string}>
-     */
-    public static function progressAmongNotificationsProvider(): iterable
+    #[TestDox('progress and other notifications read in one go reach the caller in the order they were sent')]
+    public function testProgressKeepsItsPlaceAmongNotifications(): void
     {
         $progress = '{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"t","progress":1}}';
         $log = '{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"done"}}';
 
-        yield 'one per line' => [$progress."\n".$log."\n"];
-        yield 'in one batch' => ['['.$progress.','.$log.']'."\n"];
-    }
-
-    #[DataProvider('progressAmongNotificationsProvider')]
-    #[TestDox('progress and other notifications read in one go reach the caller in the order they were sent: $_dataName')]
-    public function testProgressKeepsItsPlaceAmongNotifications(string $lines): void
-    {
         $order = [];
         $protocol = new Protocol(notificationHandlers: [new LoggingNotificationHandler(static function (LoggingMessageNotification $n) use (&$order): void {
             $order[] = 'log '.$n->data;
@@ -151,7 +140,7 @@ final class StdioTransportTest extends TestCase
         (new \ReflectionProperty($protocol, 'progressToken'))->setValue($protocol, 't');
 
         // The partial line keeps the stream open, so the read is about ordering and not the server leaving.
-        $this->setStdout($transport, $this->stream($lines.'{"partial":'));
+        $this->setStdout($transport, $this->stream($progress."\n".$log."\n".'{"partial":'));
         $this->invokeProcessInput($transport);
 
         $this->assertSame(['progress 1', 'log done'], $order);

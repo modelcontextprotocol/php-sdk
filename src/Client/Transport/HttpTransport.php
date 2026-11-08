@@ -864,8 +864,8 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
     private function isSseStreamExpected(): bool
     {
-        // Without a request ID (a batch, or a response the server answered
-        // with a stream) nothing tells when the stream is done.
+        // Without a request ID (a response the server answered with a stream)
+        // nothing tells when the stream is done.
         if ($this->sseRequestCompleted || null === $this->sseRequestId || null === $this->state) {
             return false;
         }
@@ -986,15 +986,8 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             return false;
         }
 
-        foreach (array_is_list($decoded) ? $decoded : [$decoded] as $message) {
-            // One the protocol cannot read is dropped there, so the request is still waiting.
-            if (\is_array($message) && !isset($message['method']) && ($message['id'] ?? null) === $requestId
-                && self::isWellFormedAnswer($message)) {
-                return true;
-            }
-        }
-
-        return false;
+        // One the protocol cannot read is dropped there, so the request is still waiting.
+        return !isset($decoded['method']) && ($decoded['id'] ?? null) === $requestId && self::isWellFormedAnswer($decoded);
     }
 
     /**
@@ -1028,7 +1021,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     }
 
     /**
-     * The ID of an outgoing request, or null for a notification, a response or a batch.
+     * The ID of an outgoing request, or null for a notification or a response.
      */
     private static function requestIdOf(string $data): int|string|null
     {

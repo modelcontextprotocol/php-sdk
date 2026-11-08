@@ -78,10 +78,9 @@ final class InboundClassifierTest extends TestCase
             [self::VERSION_HEADER => '2030-01-01'],
         ];
 
-        yield 'a batch of handshake-era messages' => [
-            'POST',
-            '['.self::message('tools/list').','.self::message('prompts/list').']',
-        ];
+        yield 'an empty JSON object' => ['POST', '{}'];
+
+        yield 'a JSON object with numeric keys' => ['POST', '{"0":'.self::message('tools/list').'}'];
 
         yield 'an empty body' => ['POST', ''];
 
@@ -193,6 +192,24 @@ final class InboundClassifierTest extends TestCase
             '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"'.RequestMeta::PROTOCOL_VERSION.'":42}}}',
             [],
             -32602,
+            400,
+        ];
+
+        yield 'a batch' => [
+            '['.self::message('tools/list').','.self::message('prompts/list').']',
+            [],
+            -32600,
+            400,
+        ];
+
+        yield 'an empty batch' => ['[]', [], -32600, 400];
+
+        yield 'a batch after leading whitespace' => [" \n[".self::message('tools/list').']', [], -32600, 400];
+
+        yield 'a batch of one' => [
+            '['.self::message('tools/list').']',
+            [],
+            -32600,
             400,
         ];
 

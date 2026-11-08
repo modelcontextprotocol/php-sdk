@@ -7,6 +7,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Server
 
+* [BC Break] Remove JSON-RPC batch support: a JSON array is refused with `-32600`, and HTTP status `400` over HTTP, for every protocol revision. This includes `2025-03-26`, which requires batches and which the server still negotiates. Batching was removed from MCP in `2025-06-18`.
+* [BC Break] `ScopePolicy::requiredFor()` takes one decoded message, renames its parameter from `$payload` to `$message` and returns only the default scopes for a list.
 * [BC Break] Require `phpdocumentor/reflection-docblock` `^6.0`, and with it `phpdocumentor/type-resolver` `^2.0` and `phpstan/phpdoc-parser` `^2.0`. Older versions cannot parse types like `non-empty-array<T>`, and the SDK silently ignores such a `@param`.
 * Require `psr/container` `^1.1`, as `Container` is not compatible with `1.0`.
 * [BC Break] `DocBlockParser::parseDocBlock()` no longer accepts `null`; pass `ReflectionMethod::getDocComment()` as is
@@ -41,7 +43,13 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Client
 
+* [BC Break] Remove JSON-RPC batch support: a JSON array from the server is dropped with a warning. Batching was removed from MCP in `2025-06-18`.
 * Fix `Client::connect()` leaving the previous transport open when called again: it closes the current transport first, so no stdio process or HTTP session is left behind.
+
+### JSON-RPC
+
+* [BC Break] `MessageFactory::create()` returns one `MessageInterface` and throws `InvalidInputMessageException` for invalid input, instead of returning a list holding messages and exceptions.
+* [BC Break] Remove `MessageFactory::DEFAULT_MAX_BATCH_SIZE` and the `$maxBatchSize` parameter of `MessageFactory::__construct()` and `MessageFactory::make()`, whose first parameter is now `$additional`.
 
 0.9.0
 -----

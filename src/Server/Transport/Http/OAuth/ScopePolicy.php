@@ -18,9 +18,9 @@ use Mcp\Exception\InvalidArgumentException;
  * {@see \Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware}.
  *
  * A request needs the default scopes, plus those of its JSON-RPC method, plus —
- * for `tools/call` — those of the tool it calls. A batch needs the union of its
- * messages. A token lacking any of them is answered with `403 insufficient_scope`
- * naming every scope the request needs, so the client can step up in one go.
+ * for `tools/call` — those of the tool it calls. A token lacking any of them is
+ * answered with `403 insufficient_scope` naming every scope the request needs, so
+ * the client can step up in one go.
  *
  * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#scope-challenge-handling
  *
@@ -67,30 +67,27 @@ final class ScopePolicy
     }
 
     /**
-     * Scopes the decoded JSON-RPC payload needs; null payload means only the defaults.
+     * Scopes the decoded JSON-RPC message needs; anything but a message means only the defaults.
      *
      * @return list<string>
      */
-    public function requiredFor(mixed $payload = null): array
+    public function requiredFor(mixed $message = null): array
     {
         // Keyed by scope to dedupe on insert, read back by value: keys would turn "42" into an int.
         $required = array_combine($this->default, $this->default);
 
-        $messages = \is_array($payload) && array_is_list($payload) ? $payload : [$payload];
-        foreach ($messages as $message) {
-            if (!\is_array($message) || !\is_string($method = $message['method'] ?? null)) {
-                continue;
-            }
+        if (!\is_array($message) || !\is_string($method = $message['method'] ?? null)) {
+            return array_values($required);
+        }
 
-            foreach ($this->methods[$method] ?? [] as $scope) {
+        foreach ($this->methods[$method] ?? [] as $scope) {
+            $required[$scope] = $scope;
+        }
+
+        $name = $message['params']['name'] ?? null;
+        if ('tools/call' === $method && \is_string($name)) {
+            foreach ($this->tools[$name] ?? [] as $scope) {
                 $required[$scope] = $scope;
-            }
-
-            $name = $message['params']['name'] ?? null;
-            if ('tools/call' === $method && \is_string($name)) {
-                foreach ($this->tools[$name] ?? [] as $scope) {
-                    $required[$scope] = $scope;
-                }
             }
         }
 

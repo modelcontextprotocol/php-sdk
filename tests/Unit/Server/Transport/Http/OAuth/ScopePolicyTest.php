@@ -40,14 +40,14 @@ final class ScopePolicyTest extends TestCase
         $this->assertSame(['mcp'], $policy->requiredFor(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list']));
     }
 
-    public function testBatchNeedsUnionOfItsMessages(): void
+    public function testAnythingButAMessageNeedsOnlyTheDefaults(): void
     {
-        $policy = new ScopePolicy(methods: ['resources/read' => ['resources']], tools: ['read_file' => ['files:read']]);
+        $policy = new ScopePolicy(default: ['mcp'], tools: ['read_file' => ['files:read']]);
 
-        $this->assertSame(['files:read', 'resources'], $policy->requiredFor([
+        $this->assertSame(['mcp'], $policy->requiredFor());
+        $this->assertSame(['mcp'], $policy->requiredFor('a string'));
+        $this->assertSame(['mcp'], $policy->requiredFor([
             ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/call', 'params' => ['name' => 'read_file']],
-            ['jsonrpc' => '2.0', 'id' => 2, 'method' => 'resources/read', 'params' => ['uri' => 'file:///a']],
-            ['jsonrpc' => '2.0', 'id' => 3, 'method' => 'tools/call', 'params' => ['name' => 'read_file']],
         ]));
     }
 

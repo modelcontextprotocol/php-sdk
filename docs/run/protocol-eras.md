@@ -93,7 +93,7 @@ Every request is classified once, before anything else looks at it. The decision
 | no such member | handshake era — `initialize` included |
 | a notification with no member, under a modern header | modern era |
 | `GET` / `DELETE` | handshake era |
-| a batch with a message that names a modern revision | refused with `-32600` |
+| a JSON array (a batch) | refused with `-32600` |
 
 The `MCP-Protocol-Version` header never decides. It is cross-checked against the body, and a
 request whose header contradicts its `_meta` is refused with `-32020` before either leg sees
