@@ -89,7 +89,7 @@ jobs:
       - name: Stdio integration tests
         if: ${{ !cancelled() && steps.composer.outcome == 'success' }}
         timeout-minutes: 3
-        run: php vendor/bin/phpunit --testsuite=integration --group=os --debug
+        run: php vendor/bin/phpunit --testsuite=integration --group=os
 
   integration:
     runs-on: ubuntu-latest

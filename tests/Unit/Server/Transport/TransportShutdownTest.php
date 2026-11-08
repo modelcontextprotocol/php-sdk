@@ -50,7 +50,7 @@ final class TransportShutdownTest extends TestCase
 
     public function testStdioTransportSurvivesAStoreOutageWhenListening(): void
     {
-        $pipes = stream_socket_pair(\STREAM_PF_UNIX, \STREAM_SOCK_STREAM, \STREAM_IPPROTO_IP);
+        $pipes = stream_socket_pair('Windows' === \PHP_OS_FAMILY ? \STREAM_PF_INET : \STREAM_PF_UNIX, \STREAM_SOCK_STREAM, \STREAM_IPPROTO_IP);
         $this->assertIsArray($pipes);
         fclose($pipes[0]);
         $transport = new StdioTransport($pipes[1], $this->stream(), $this->logger);

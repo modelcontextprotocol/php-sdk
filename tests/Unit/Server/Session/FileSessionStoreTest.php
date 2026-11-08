@@ -168,8 +168,8 @@ class FileSessionStoreTest extends TestCase
         chmod($this->directory, 0555);
         clearstatcache(true, $this->directory);
 
-        if (is_writable($this->directory)) {
-            $this->markTestSkipped('Permission bits do not restrict writes here (running as root, or a filesystem that ignores them).');
+        if ('Windows' === \PHP_OS_FAMILY || is_writable($this->directory)) {
+            $this->markTestSkipped('Permission bits do not restrict writes here (Windows, running as root, or a filesystem that ignores them).');
         }
 
         // The store's only throw must stay inside the package hierarchy, so a
@@ -219,8 +219,8 @@ class FileSessionStoreTest extends TestCase
         chmod($this->directory, 0555);
         clearstatcache(true, $this->directory);
 
-        if (is_writable($this->directory)) {
-            $this->markTestSkipped('Permission bits do not restrict writes here (running as root, or a filesystem that ignores them).');
+        if ('Windows' === \PHP_OS_FAMILY || is_writable($this->directory)) {
+            $this->markTestSkipped('Permission bits do not restrict writes here (Windows, running as root, or a filesystem that ignores them).');
         }
 
         $this->assertFalse($store->write(new UuidV4(), 'payload'));
@@ -256,8 +256,8 @@ class FileSessionStoreTest extends TestCase
         chmod($this->directory, 0555);
         clearstatcache(true, $this->directory);
 
-        if (is_writable($this->directory)) {
-            $this->markTestSkipped('Permission bits do not restrict writes here (running as root, or a filesystem that ignores them).');
+        if ('Windows' === \PHP_OS_FAMILY || is_writable($this->directory)) {
+            $this->markTestSkipped('Permission bits do not restrict writes here (Windows, running as root, or a filesystem that ignores them).');
         }
 
         // The file is still there, so its id must not be reported as deleted.
