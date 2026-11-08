@@ -21,7 +21,7 @@ use Mcp\Exception\InvalidArgumentException;
 final class AccessToken implements \JsonSerializable
 {
     /**
-     * Seconds before the nominal expiry at which a token counts as expired, so it doesn't expire in flight.
+     * Seconds before the expiry at which a stored token isn't worth reusing, as it could expire in flight.
      */
     private const EXPIRY_LEEWAY_SECONDS = 30;
 
@@ -72,7 +72,12 @@ final class AccessToken implements \JsonSerializable
             return false;
         }
 
-        return ($now ?? time()) + self::EXPIRY_LEEWAY_SECONDS >= $this->expiresAt;
+        return ($now ?? time()) >= $this->expiresAt;
+    }
+
+    public function isExpiringSoon(?int $now = null): bool
+    {
+        return $this->isExpired(($now ?? time()) + self::EXPIRY_LEEWAY_SECONDS);
     }
 
     /**

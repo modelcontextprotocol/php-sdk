@@ -52,20 +52,30 @@ final class AccessTokenTest extends TestCase
         AccessToken::fromResponse(['token_type' => 'Bearer']);
     }
 
-    #[TestDox('a token is treated as expired shortly before it actually is')]
-    public function testExpiresEarly(): void
+    #[TestDox('a token expires at its expiry')]
+    public function testExpires(): void
     {
         $token = new AccessToken('abc', expiresAt: 1000);
 
-        $this->assertFalse($token->isExpired(900));
-        $this->assertTrue($token->isExpired(980));
-        $this->assertTrue($token->isExpired(1001));
+        $this->assertFalse($token->isExpired(999));
+        $this->assertTrue($token->isExpired(1000));
+    }
+
+    #[TestDox('a token is expiring soon shortly before it actually expires')]
+    public function testIsExpiringSoon(): void
+    {
+        $token = new AccessToken('abc', expiresAt: 1000);
+
+        $this->assertFalse($token->isExpiringSoon(900));
+        $this->assertTrue($token->isExpiringSoon(980));
+        $this->assertTrue($token->isExpiringSoon(1001));
     }
 
     #[TestDox('a token without an expiry never goes stale on its own')]
     public function testNeverExpiresWithoutExpiry(): void
     {
         $this->assertFalse((new AccessToken('abc'))->isExpired());
+        $this->assertFalse((new AccessToken('abc'))->isExpiringSoon());
     }
 
     #[TestDox('scope coverage decides whether a challenge needs a new authorization')]

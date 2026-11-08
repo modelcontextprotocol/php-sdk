@@ -288,7 +288,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return false;
         }
 
-        return !$token->isExpired() && $token->covers($scopes);
+        return !$token->isExpiringSoon() && $token->covers($scopes);
     }
 
     /**

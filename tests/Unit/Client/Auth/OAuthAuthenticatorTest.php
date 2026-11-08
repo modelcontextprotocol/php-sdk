@@ -847,6 +847,30 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame($expectedGrant, $server->token['grant_type'] ?? null);
     }
 
+    #[TestDox('a token that lives no longer than the expiry margin is still sent')]
+    public function testSendsAShortLivedToken(): void
+    {
+        $server = new FakeOAuthServer();
+        $server->expiresIn = 30;
+        $authenticator = $this->authenticator($server);
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('Bearer access-token-1', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
+    }
+
+    #[TestDox('a stored token that is about to expire is refreshed instead of reused')]
+    public function testRefreshesAStoredTokenThatIsAboutToExpire(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expiring', 'Bearer', time() + 10, 'a-refresh-token'));
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('refresh_token', $server->token['grant_type'] ?? null);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {
@@ -1009,6 +1033,8 @@ final class FakeOAuthServer implements ClientInterface
 
     public ?string $unknownClient = null;
 
+    public int $expiresIn = 3600;
+
     /** @var ?string[] */
     public ?array $grantTypes = ['authorization_code', 'refresh_token'];
 
@@ -1144,10 +1170,10 @@ final class FakeOAuthServer implements ClientInterface
         }
 
         if (!$this->refreshTokens) {
-            return self::json(['access_token' => 'access-token-'.++$this->issued, 'token_type' => 'Bearer', 'expires_in' => 3600]);
+            return self::json(['access_token' => 'access-token-'.++$this->issued, 'token_type' => 'Bearer', 'expires_in' => $this->expiresIn]);
         }
 
-        return self::json(['access_token' => 'access-token-'.++$this->issued, 'token_type' => 'Bearer', 'expires_in' => 3600, 'refresh_token' => 'refresh-token-'.$this->issued, 'scope' => $scope]);
+        return self::json(['access_token' => 'access-token-'.++$this->issued, 'token_type' => 'Bearer', 'expires_in' => $this->expiresIn, 'refresh_token' => 'refresh-token-'.$this->issued, 'scope' => $scope]);
     }
 
     /**
