@@ -35,6 +35,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
   * Fix the server resuming a request handler's fiber that the runtime had suspended: the handler's await returned early or threw (`Must call resume() or throw() before calling suspend() again`), and the runtime later resumed a fiber that had moved on — under Revolt, terminating the event loop. Without a scheduler, such a handler now fails the request with a `LogicException` naming `Builder::setFiberScheduler()`. `Protocol::__construct()` and `StatelessProtocol::__construct()` take the scheduler as optional last argument.
   * What a handler throws while the runtime drives its fiber reaches the server, as it does when the server drives it, never the runtime.
   * [BC Break] A handler calling `\Fiber::suspend()` itself with anything but a `NotificationSuspension` or `RequestSuspension` fails the request without a scheduler, also when no event loop is involved. It used to be resumed with `null`.
+  * Fix a request failing with `503`, and a resumed request losing its session writes, while another request of the session holds the session lock across an await: both wait for the lock on the event loop.
+  * Fix a handler still running after its request was answered, e.g. without a fiber scheduler: it no longer fires `ResponseEvent` or `ErrorEvent`, what it throws is logged, and calling the `ClientGateway` throws.
 
 ### Client
 
