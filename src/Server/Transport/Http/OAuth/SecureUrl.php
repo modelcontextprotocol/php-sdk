@@ -32,7 +32,8 @@ final class SecureUrl
      */
     public static function parse(mixed $url, string $label): array
     {
-        $parts = \is_string($url) ? parse_url($url) : false;
+        // parse_url() reads a host differently than browsers do around a backslash, and turns control characters into underscores.
+        $parts = \is_string($url) && 1 !== preg_match('/[\x00-\x20\x7f\\\\]/', $url) ? parse_url($url) : false;
 
         if (false === $parts || !isset($parts['scheme'], $parts['host'])) {
             throw new InvalidArgumentException(\sprintf('The %s must be an absolute URL.', $label));

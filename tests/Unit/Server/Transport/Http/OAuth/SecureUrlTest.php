@@ -66,6 +66,15 @@ final class SecureUrlTest extends TestCase
         yield 'relative' => ['/realms/mcp'];
         yield 'no host' => ['https:///realms/mcp'];
         yield 'not a string' => [null];
+        yield 'backslash before userinfo on http' => ['http://evil.example\@localhost/x'];
+        yield 'backslash before userinfo on https' => ['https://evil.example\@auth.example.com/x'];
+        yield 'backslash in the path' => ['https://auth.example.com\realms/mcp'];
+        yield 'tab in the host' => ["http://evil.example\t.localhost"];
+        yield 'newline in the host' => ["https://auth.example\n.com"];
+        yield 'trailing newline' => ["https://auth.example.com\n"];
+        yield 'NUL in the host' => ["http://evil.example\0.localhost"];
+        yield 'space in the host' => ['https://auth.example .com'];
+        yield 'DEL in the host' => ["http://evil.example\x7f.localhost"];
     }
 
     #[DataProvider('provideRejectedUrls')]
