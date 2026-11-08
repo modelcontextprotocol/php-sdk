@@ -67,7 +67,6 @@ final class CallToolHandler implements RequestHandlerInterface
         $toolName = $request->name;
         $arguments = $request->arguments;
 
-        // The arguments may carry sensitive input, so only the name is logged at info level.
         $this->logger->info('Calling tool', ['name' => $toolName]);
 
         try {
