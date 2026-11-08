@@ -163,6 +163,39 @@ class NotificationBusTest extends TestCase
     /**
      * @param \Closure(int): NotificationBusInterface $createBus
      */
+    /**
+     * @param \Closure(int): NotificationBusInterface $createBus
+     */
+    #[DataProvider('boundedBuses')]
+    #[TestDox('a subscriber that fell behind the backlog reads the newest entries, oldest first')]
+    public function testAFallenBehindSubscriberReadsTheNewestInOrder(\Closure $createBus): void
+    {
+        $bus = $createBus(2);
+        $cursor = $bus->cursor();
+
+        $bus->publish(new ToolListChangedNotification());
+        $bus->publish(new PromptListChangedNotification());
+        $bus->publish(new ResourceUpdatedNotification('file:///a'));
+
+        [$found, $next] = $bus->since($cursor);
+
+        $this->assertCount(2, $found);
+        $this->assertInstanceOf(PromptListChangedNotification::class, $found[0]);
+        $this->assertInstanceOf(ResourceUpdatedNotification::class, $found[1]);
+        $this->assertSame($bus->cursor(), $next);
+    }
+
+    #[DataProvider('buses')]
+    #[TestDox('a subscriber ahead of the bus is handed back the bus cursor')]
+    public function testASubscriberAheadOfTheBusIsBroughtBack(NotificationBusInterface $bus): void
+    {
+        $bus->publish(new ToolListChangedNotification());
+
+        [, $next] = $bus->since($bus->cursor() + 5);
+
+        $this->assertSame($bus->cursor(), $next);
+    }
+
     #[DataProvider('boundedBuses')]
     #[TestDox('a backlog below one entry is refused')]
     public function testZeroBacklogIsRefused(\Closure $createBus): void
