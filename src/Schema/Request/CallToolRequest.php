@@ -37,6 +37,11 @@ final class CallToolRequest extends Request
         return 'tools/call';
     }
 
+    public static function requiresJsonTypes(): bool
+    {
+        return true;
+    }
+
     protected static function paramsToArray(\stdClass $params): array
     {
         $array = parent::paramsToArray($params);

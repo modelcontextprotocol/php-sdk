@@ -45,7 +45,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] Keep the JSON types of `tools/call` arguments, so validation sees what the client sent: `{}` and `{"0":"x"}` are objects, `[]` and `["x"]` are arrays. Nested JSON objects in `CallToolRequest::$arguments` and in the arguments of `ToolHandlerInterface::execute()` are `\stdClass`.
 * [BC Break] Tool parameters without a type, or typed `mixed`, receive nested JSON objects as `\stdClass`. Parameters typed `array` still receive arrays at every level. Parameters typed `object` or `\stdClass`, which always failed with a `TypeError`, receive `\stdClass`.
 * [BC Break] Reject `tools/call` when `arguments` is not a JSON object with `-32600`, including `"arguments": []`.
-* [BC Break] Reject a JSON-RPC message with a member name starting with a NUL byte with `-32600`, as a PHP object cannot hold such a name.
+* [BC Break] Reject `tools/call` with `-32600` when its message has a member name starting with a NUL byte, as its arguments cannot keep their JSON types then.
 * [BC Break] `array<string, T>` parameters generate `{"type": "object"}` instead of `{"type": "array"}`, and `array<int, T>` parameters accept a JSON array or a JSON object.
 
 ### Client

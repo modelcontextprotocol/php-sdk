@@ -199,6 +199,28 @@ final class StdioDualEraTest extends TestCase
         yield 'null' => ['null'];
     }
 
+    public function testMemberNameStartingWithANulByteKeepsOtherRequests(): void
+    {
+        $params = ['_probe' => ["\0x" => 1]];
+        $openings = [
+            'handshake' => [
+                self::initialize(1),
+                ['jsonrpc' => '2.0', 'method' => 'notifications/initialized'],
+                ['jsonrpc' => '2.0', 'id' => 2, 'method' => 'tools/list', 'params' => $params],
+            ],
+            'modern' => [self::modern(2, 'tools/list', $params)],
+        ];
+
+        foreach ($openings as $messages) {
+            $lines = $this->exchange(self::builder(), $messages);
+
+            $answer = $lines[\count($lines) - 1];
+
+            $this->assertSame(2, $answer['id']);
+            $this->assertArrayHasKey('tools', $answer['result']);
+        }
+    }
+
     public function testMemberNameStartingWithANulByteIsRefused(): void
     {
         $params = ['name' => 'echo', 'arguments' => ["\0text" => 'hi']];

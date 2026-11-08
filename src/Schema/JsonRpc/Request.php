@@ -73,6 +73,14 @@ abstract class Request implements HasMethodInterface, MessageInterface
     }
 
     /**
+     * Whether the request cannot be served from params that lost the difference between `{}` and `[]`.
+     */
+    public static function requiresJsonTypes(): bool
+    {
+        return false;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected static function paramsToArray(\stdClass $params): array

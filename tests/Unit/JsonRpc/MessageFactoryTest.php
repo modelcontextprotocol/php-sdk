@@ -80,6 +80,55 @@ final class MessageFactoryTest extends TestCase
         $this->factory->create('{"id":1,"\u0000x":1,}');
     }
 
+    /**
+     * @param class-string $expected
+     */
+    #[DataProvider('provideMessagesWithAMemberNameStartingWithNul')]
+    public function testMemberNameStartingWithNulKeepsTheMessage(string $json, string $expected): void
+    {
+        $this->assertInstanceOf($expected, $this->factory->create($json));
+    }
+
+    /**
+     * @return iterable<string, array{string, class-string}>
+     */
+    public static function provideMessagesWithAMemberNameStartingWithNul(): iterable
+    {
+        yield 'request' => ['{"jsonrpc":"2.0","id":1,"method":"ping","params":{"_meta":{"\u0000x":1}}}', PingRequest::class];
+        yield 'notification' => ['{"jsonrpc":"2.0","method":"notifications/initialized","params":{"_meta":{"\u0000x":1}}}', InitializedNotification::class];
+        yield 'response' => ['{"jsonrpc":"2.0","id":1,"result":{"content":{"\u0000x":1}}}', Response::class];
+        yield 'error' => ['{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"m","data":{"\u0000x":1}}}', Error::class];
+    }
+
+    public function testMemberNameStartingWithNulRefusesAToolCall(): void
+    {
+        try {
+            $this->factory->create('{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"t","arguments":{"a":{"\u0000x":1}}}}');
+        } catch (InvalidInputMessageException $e) {
+            $this->assertSame(7, $e->getRequestId());
+
+            return;
+        }
+
+        $this->fail('The tool call should have been refused.');
+    }
+
+    public function testBatchWithAMemberNameStartingWithNulIsRejected(): void
+    {
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('must be a single JSON object');
+
+        $this->factory->create(' [{"jsonrpc":"2.0","id":1,"method":"ping","params":{"_meta":{"\u0000x":1}}}]');
+    }
+
+    public function testAnObjectWithNumericKeysAndAMemberNameStartingWithNulIsNotABatch(): void
+    {
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('missing "method"');
+
+        $this->factory->create('{"0":{"\u0000x":1}}');
+    }
+
     public function testAnObjectWithNumericKeysIsNotABatch(): void
     {
         $this->expectException(InvalidInputMessageException::class);

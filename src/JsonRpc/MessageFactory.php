@@ -106,17 +106,18 @@ final class MessageFactory
                 throw $e;
             }
 
-            throw self::invalidMemberName($input);
+            // A PHP object cannot hold a property whose name starts with NUL.
+            $data = json_decode($input, true, flags: \JSON_THROW_ON_ERROR);
         }
 
-        if (!$data instanceof \stdClass) {
+        if (!$data instanceof \stdClass && (!\is_array($data) || str_starts_with(ltrim($input), '['))) {
             throw new InvalidInputMessageException('A JSON-RPC message must be a single JSON object.');
         }
 
         try {
             return $this->createMessage($data);
         } catch (InvalidInputMessageException $e) {
-            $id = $data->id ?? null;
+            $id = ((array) $data)['id'] ?? null;
             if (\is_string($id) || \is_int($id)) {
                 $e->setRequestId($id);
             }
@@ -126,28 +127,13 @@ final class MessageFactory
     }
 
     /**
-     * Valid JSON, but a PHP object cannot hold a property whose name starts with NUL.
-     *
-     * @throws \JsonException when the input is malformed after that name
-     */
-    private static function invalidMemberName(string $input): InvalidInputMessageException
-    {
-        $exception = new InvalidInputMessageException('A JSON-RPC message must not have a member name starting with a NUL byte.');
-        $id = json_decode($input, true, flags: \JSON_THROW_ON_ERROR)['id'] ?? null;
-
-        if (\is_string($id) || \is_int($id)) {
-            $exception->setRequestId($id);
-        }
-
-        return $exception;
-    }
-
-    /**
      * Creates a single message object from parsed JSON data.
+     *
+     * @param \stdClass|array<string, mixed> $message
      *
      * @throws InvalidInputMessageException
      */
-    private function createMessage(\stdClass $message): MessageInterface
+    private function createMessage(\stdClass|array $message): MessageInterface
     {
         /** @var array<string, mixed> $data */
         $data = Json::objectsToArrays($message);
@@ -171,8 +157,12 @@ final class MessageFactory
 
             $messageClass = $this->findMessageClassByMethod($data['method']);
 
+            if (\is_array($message) && is_subclass_of($messageClass, Request::class) && $messageClass::requiresJsonTypes()) {
+                throw new InvalidInputMessageException(\sprintf('"%s" cannot be served from a message with a member name starting with a NUL byte.', $data['method']));
+            }
+
             // Each message knows which of its params are free-form JSON, so it gets them as decoded.
-            if (isset($message->params)) {
+            if ($message instanceof \stdClass && isset($message->params)) {
                 $data['params'] = $message->params;
             }
 
