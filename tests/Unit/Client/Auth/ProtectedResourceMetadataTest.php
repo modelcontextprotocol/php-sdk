@@ -93,4 +93,49 @@ final class ProtectedResourceMetadataTest extends TestCase
 
         ProtectedResourceMetadata::fromArray(['authorization_servers' => ['https://auth.example.com']]);
     }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function invalidResourceProvider(): iterable
+    {
+        yield 'a fragment' => ['https://mcp.example.com/api#tenant-a'];
+        yield 'an empty fragment' => ['https://mcp.example.com/api#'];
+        yield 'userinfo hiding the host behind a backslash' => ['https://victim.example\@evil.example/mcp'];
+        yield 'an empty user' => ['https://@evil.example/mcp'];
+        yield 'only a password' => ['https://:x@evil.example/mcp'];
+        yield 'a user and password' => ['https://a:b@mcp.example.com/mcp'];
+        yield 'plain http on a public host' => ['http://mcp.example.com/mcp'];
+        yield 'no scheme' => ['mcp.example.com'];
+        yield 'only a path' => ['/mcp'];
+        yield 'not a URL with a host' => ['urn:x:y'];
+    }
+
+    #[DataProvider('invalidResourceProvider')]
+    #[TestDox('a document declaring an invalid resource identifier is rejected: $_dataName')]
+    public function testRejectsAnInvalidResource(string $resource): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        ProtectedResourceMetadata::fromArray(['resource' => $resource]);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function validResourceProvider(): iterable
+    {
+        yield 'a loopback host over http' => ['http://localhost:8000/mcp'];
+        yield 'IPv6 loopback over http' => ['http://[::1]:8000/mcp'];
+        yield 'a query' => ['https://mcp.example.com/mcp?tenant=a'];
+        yield 'an at sign in the path' => ['https://mcp.example.com/@tenant/mcp'];
+        yield 'an uppercase scheme and host' => ['HTTPS://MCP.example.com/mcp'];
+    }
+
+    #[DataProvider('validResourceProvider')]
+    #[TestDox('a document may declare the resource identifier: $_dataName')]
+    public function testAcceptsAValidResource(string $resource): void
+    {
+        $this->assertSame($resource, ProtectedResourceMetadata::fromArray(['resource' => $resource])->resource);
+    }
 }

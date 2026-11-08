@@ -307,6 +307,35 @@ final class MetadataDiscoveryTest extends TestCase
         $this->assertSame(['https://mcp.example.com/custom/location.json'], $client->requested);
     }
 
+    #[TestDox('an invalid resource identifier does not stop a later location')]
+    public function testContinuesAfterAnInvalidResource(): void
+    {
+        $path = 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp';
+        $root = 'https://mcp.example.com/.well-known/oauth-protected-resource';
+        $client = new RecordingClient([
+            $path => self::json(['resource' => 'https://mcp.example.com/mcp#tenant-a']),
+            $root => self::json(['resource' => 'https://mcp.example.com']),
+        ]);
+
+        $metadata = $this->discovery($client)->discoverProtectedResource('https://mcp.example.com/mcp');
+
+        $this->assertNotNull($metadata);
+        $this->assertSame('https://mcp.example.com', $metadata->resource);
+        $this->assertSame([$path, $root], $client->requested);
+    }
+
+    #[TestDox('an invalid resource identifier at a challenge URL yields nothing, without guessing')]
+    public function testIgnoresAnInvalidResourceAtTheChallengeUrl(): void
+    {
+        $url = 'https://mcp.example.com/custom/location.json';
+        $client = new RecordingClient([
+            $url => self::json(['resource' => 'https://mcp.example.com/mcp#tenant-a']),
+        ]);
+
+        $this->assertNull($this->discovery($client)->discoverProtectedResource('https://mcp.example.com/mcp', $url));
+        $this->assertSame([$url], $client->requested);
+    }
+
     #[TestDox('a transport failure is not fatal, the next location is still tried')]
     public function testSurvivesATransportFailure(): void
     {

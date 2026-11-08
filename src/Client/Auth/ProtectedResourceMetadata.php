@@ -12,6 +12,7 @@
 namespace Mcp\Client\Auth;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Transport\Http\OAuth\SecureUrl;
 
 /**
  * What an MCP server publishes about itself as a protected resource (RFC 9728).
@@ -44,6 +45,13 @@ final class ProtectedResourceMetadata
     {
         if (!isset($data['resource']) || !\is_string($data['resource'])) {
             throw new InvalidArgumentException('The protected resource metadata is missing a string "resource".');
+        }
+
+        $parts = SecureUrl::parse($data['resource'], 'protected resource');
+
+        // RFC 9728 section 1.2 rules out fragments; RFC 9110 section 4.2.4 treats untrusted userinfo as an error.
+        if (isset($parts['fragment']) || isset($parts['user']) || isset($parts['pass'])) {
+            throw new InvalidArgumentException(\sprintf('The protected resource "%s" must not have a fragment or userinfo.', $data['resource']));
         }
 
         $scopes = $data['scopes_supported'] ?? null;
