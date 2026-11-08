@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Transport;
 
+use Mcp\Exception\SessionStoreException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Server\Authorization\AccessToken;
@@ -166,20 +167,34 @@ abstract class BaseTransport implements TransportInterface
         }
     }
 
-    protected function handleMessage(string $payload, ?Uuid $sessionId, ?AccessToken $accessToken = null): void
+    protected function handleMessage(string $payload, ?Uuid $sessionId, ?AccessToken $accessToken = null, ?string $principal = null): void
     {
         if (\is_callable($this->messageListener)) {
-            ($this->messageListener)($this, $payload, $sessionId, $accessToken);
+            ($this->messageListener)($this, $payload, $sessionId, $accessToken, $principal);
+        }
+    }
+
+    /**
+     * Ends the session of a transport shutting down, which has no client to report a store failure to.
+     */
+    protected function endSessionOnShutdown(?Uuid $sessionId): void
+    {
+        try {
+            $this->handleSessionEnd($sessionId);
+        } catch (SessionStoreException $e) {
+            $this->logger->error('Session store is unavailable, the session was not ended.', ['exception' => $e]);
         }
     }
 
     /**
      * @return bool false when the listener reported that the session does not exist
+     *
+     * @throws SessionStoreException when the listener cannot tell who opened the session
      */
-    protected function handleSessionEnd(?Uuid $sessionId): bool
+    protected function handleSessionEnd(?Uuid $sessionId, ?string $principal = null): bool
     {
         if ($sessionId && \is_callable($this->sessionEndListener)) {
-            return false !== ($this->sessionEndListener)($sessionId);
+            return false !== ($this->sessionEndListener)($sessionId, $principal);
         }
 
         return true;

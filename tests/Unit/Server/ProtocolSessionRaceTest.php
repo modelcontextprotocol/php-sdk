@@ -36,6 +36,7 @@ final class ProtocolSessionRaceTest extends TestCase
         $sessions = new SessionManager($store, gcProbability: 0);
         $sessionId = Uuid::v4();
         $session = $sessions->createWithId($sessionId);
+        $session->set('_mcp.principal', null);
         $session->set('_mcp.pending_requests', ['00000000-0000-4000-8000-000000000007' => ['request_id' => '00000000-0000-4000-8000-000000000007', 'timeout' => 120, 'timestamp' => time()]]);
         $session->save();
 
@@ -62,6 +63,7 @@ final class ProtocolSessionRaceTest extends TestCase
         $sessions = new SessionManager($store, gcProbability: 0);
         $sessionId = Uuid::v4();
         $session = $sessions->createWithId($sessionId);
+        $session->set('_mcp.principal', null);
         $session->set('_mcp.pending_requests', [
             '00000000-0000-4000-8000-000000000007' => ['request_id' => '00000000-0000-4000-8000-000000000007', 'timeout' => 5, 'timestamp' => time() - 10],
             '00000000-0000-4000-8000-000000000008' => ['request_id' => '00000000-0000-4000-8000-000000000008', 'timeout' => 120, 'timestamp' => time()],

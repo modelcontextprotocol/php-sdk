@@ -313,17 +313,43 @@ challenge a client steps up from. Use `$token->hasScope()` for decisions that de
 arguments beyond the tool name. With a `ScopePolicy`, the token's scopes include those implied by
 its hierarchy.
 
+## Sessions and the Principal
+
+A handshake-era session only serves the principal that opened it, as the
+[security best practices](https://modelcontextprotocol.io/specification/2025-11-25/basic/security_best_practices#session-hijacking)
+recommend. The principal is the issuer, client and subject of the access token. They stay the same
+when the client refreshes its token, so the session survives the refresh.
+
+When another principal sends the session's `Mcp-Session-Id`, the server answers 404, as for an
+unknown session, and a `DELETE` does not end the session.
+
+A token without a `sub` claim only identifies its issuer and client, so all tokens of one client share
+their sessions. If your authorization server identifies users by another claim, set the
+`StreamableHttpTransport::PRINCIPAL_ATTRIBUTE` request attribute from it. A session opened without a
+token only serves requests without a token.
+
 ## Authenticating Outside the SDK
 
 If your application or framework already authenticates the request, skip `AuthorizationMiddleware`
 and hand the result to the transport as the PSR-7 request attribute `AccessToken::class`. Both HTTP
-transports read it from there, so handlers get it through `RequestContext::getAccessToken()` as usual:
+transports read it from there, so handlers get it through `RequestContext::getAccessToken()` as usual,
+and a session only serves the principal of the token that opened it:
 
 ```php
 use Mcp\Server\Authorization\AccessToken;
 
 $request = $request->withAttribute(AccessToken::class, new AccessToken($scopes, $claims));
 $transport = new StreamableHttpTransport($request);
+```
+
+If the claims do not identify the user, or there is no token, set the
+`StreamableHttpTransport::PRINCIPAL_ATTRIBUTE` attribute as well. It takes a non-empty string, so cast
+an integer user id. The server answers any other value with a 500:
+
+```php
+use Mcp\Server\Transport\StreamableHttpTransport;
+
+$request = $request->withAttribute(StreamableHttpTransport::PRINCIPAL_ATTRIBUTE, (string) $userId);
 ```
 
 ## Custom Token Validators

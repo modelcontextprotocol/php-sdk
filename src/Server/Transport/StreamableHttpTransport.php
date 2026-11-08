@@ -13,6 +13,7 @@ namespace Mcp\Server\Transport;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\SessionStoreException;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Authorization\AccessToken;
@@ -58,6 +59,14 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
     public const SESSION_HEADER = 'Mcp-Session-Id';
     public const PROTOCOL_VERSION_HEADER = 'Mcp-Protocol-Version';
+
+    /**
+     * PSR-7 request attribute holding a non-empty string that identifies the authenticated principal.
+     *
+     * A session only serves the principal that opened it. Without this attribute, the principal is
+     * the one of the request's {@see AccessToken}; set it to identify users another way.
+     */
+    public const PRINCIPAL_ATTRIBUTE = 'mcp.principal';
 
     /**
      * Upper bound on the request body read for a POST, guarding against memory
@@ -206,10 +215,11 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     /**
      * @param string           $body        the request body, already read and bounded by {@see self::handleRequest()}
      * @param AccessToken|null $accessToken the token the request was authorized with, see {@see self::accessToken()}
+     * @param string|null      $principal   the principal the request was authenticated as, see {@see self::PRINCIPAL_ATTRIBUTE}
      */
-    protected function handlePostRequest(string $body, ?AccessToken $accessToken = null): ResponseInterface
+    protected function handlePostRequest(string $body, ?AccessToken $accessToken = null, ?string $principal = null): ResponseInterface
     {
-        $this->handleMessage($body, $this->sessionId, $accessToken);
+        $this->handleMessage($body, $this->sessionId, $accessToken, $principal);
 
         // Consume the immediate response exactly once, so a transport instance
         // reused for a later POST does not replay it.
@@ -235,13 +245,24 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         return $this->createJsonResponse();
     }
 
-    protected function handleDeleteRequest(): ResponseInterface
+    /**
+     * @param string|null $principal the principal the request was authenticated as, see {@see self::PRINCIPAL_ATTRIBUTE}
+     */
+    protected function handleDeleteRequest(?string $principal = null): ResponseInterface
     {
         if (!$this->sessionId) {
             return $this->createErrorResponse(Error::forInvalidRequest(self::SESSION_HEADER.' header is required.'), 400);
         }
 
-        if (!$this->handleSessionEnd($this->sessionId)) {
+        try {
+            $ended = $this->handleSessionEnd($this->sessionId, $principal);
+        } catch (SessionStoreException $e) {
+            $this->logger->error('Session store is unavailable.', ['session_id' => $this->sessionId->toRfc4122(), 'exception' => $e]);
+
+            return $this->createErrorResponse(Error::forInternalError('Session store is unavailable.'), 503);
+        }
+
+        if (!$ended) {
             return $this->createErrorResponse(Error::forInvalidRequest('Session not found or has expired.'), 404);
         }
 
@@ -517,9 +538,17 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             return $this->createErrorResponse(Error::forInvalidRequest(self::SESSION_HEADER.' header must be a valid UUID.'), 400);
         }
 
+        $principal = $request->getAttribute(self::PRINCIPAL_ATTRIBUTE) ?? self::accessToken($request)?->getPrincipal();
+
+        if (null !== $principal && (!\is_string($principal) || '' === $principal)) {
+            $this->logger->error(\sprintf('The "%s" request attribute must be a non-empty string, got "%s".', self::PRINCIPAL_ATTRIBUTE, get_debug_type($principal)));
+
+            return $this->createErrorResponse(Error::forInternalError('Internal error'), 500);
+        }
+
         return match ($request->getMethod()) {
-            'POST' => $this->handlePostRequest($body ?? '', self::accessToken($request)),
-            'DELETE' => $this->handleDeleteRequest(),
+            'POST' => $this->handlePostRequest($body ?? '', self::accessToken($request), $principal),
+            'DELETE' => $this->handleDeleteRequest($principal),
             default => $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405),
         };
     }

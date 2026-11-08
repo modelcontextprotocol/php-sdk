@@ -155,7 +155,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
         $this->logger->info('StdioTransport finished listening.');
         if (\in_array($this->runnerControl->getState(), [RunnerState::RUNNING, RunnerState::STOP_AND_END_SESSION], true)) {
             $this->logger->info('StdioTransport end session.');
-            $this->handleSessionEnd($this->sessionId);
+            $this->endSessionOnShutdown($this->sessionId);
         }
 
         return 0;
@@ -459,7 +459,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
     public function close(): void
     {
-        $this->handleSessionEnd($this->sessionId);
+        $this->endSessionOnShutdown($this->sessionId);
         if (\is_resource($this->input)) {
             fclose($this->input);
         }

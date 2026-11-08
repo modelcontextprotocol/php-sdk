@@ -82,6 +82,16 @@ final class AccessToken implements \JsonSerializable
     }
 
     /**
+     * Who the token identifies: its issuer, client and subject, which outlive a token refresh.
+     */
+    public function getPrincipal(): string
+    {
+        $issuer = $this->getClaim('iss');
+
+        return serialize([\is_string($issuer) ? $issuer : null, $this->getClientId(), $this->getSubject()]);
+    }
+
+    /**
      * Never serialized: the token must not outlive its request in a session store.
      */
     public function jsonSerialize(): mixed

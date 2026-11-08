@@ -74,6 +74,11 @@ class Protocol
 
     public const SESSION_LOGGING_LEVEL = '_mcp.logging_level';
 
+    private const SESSION_NOT_FOUND_MESSAGE = 'Session not found or has expired.';
+
+    /** Session key for the fingerprint of the principal that opened the session, null when it was opened without one */
+    private const SESSION_PRINCIPAL = '_mcp.principal';
+
     /**
      * Deliberately generic: unexpected throwables carry internal details such as file paths, class
      * names and argument types, which must not be handed to the peer. The full exception is logged.
@@ -147,7 +152,7 @@ class Protocol
     {
         $transport->onMessage($this->processInput(...));
 
-        $transport->onSessionEnd($this->destroySession(...));
+        $transport->onSessionEnd($this->endSession(...));
 
         // The transport keeps these callbacks, so they reference it weakly to not keep it alive.
         $transportRef = \WeakReference::create($transport);
@@ -175,13 +180,14 @@ class Protocol
      *
      * @param TransportInterface<mixed> $transport
      * @param AccessToken|null          $accessToken the token the input was authorized with, if the transport authorizes
+     * @param string|null               $principal   who the input was authenticated as, if the transport authenticates
      */
-    public function processInput(TransportInterface $transport, string $input, ?Uuid $sessionId, ?AccessToken $accessToken = null): void
+    public function processInput(TransportInterface $transport, string $input, ?Uuid $sessionId, ?AccessToken $accessToken = null, ?string $principal = null): void
     {
         // Last line of defense: a malformed message must never escape as a PHP error and take the
         // server process down.
         try {
-            $this->doProcessInput($transport, $input, $sessionId, $accessToken);
+            $this->doProcessInput($transport, $input, $sessionId, $accessToken, $principal);
         } catch (\Throwable $e) {
             $this->logger->error(\sprintf('Uncaught exception while processing input: %s', $e->getMessage()), ['exception' => $e]);
 
@@ -192,7 +198,7 @@ class Protocol
             }
 
             try {
-                $this->sendResponse($transport, Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $id), null);
+                $this->sendResponse($transport, Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $id), null, ['status_code' => 500]);
             } catch (\Throwable $e) {
                 $this->logger->error(\sprintf('Failed to send internal error response: %s', $e->getMessage()), ['exception' => $e]);
             }
@@ -226,7 +232,7 @@ class Protocol
     /**
      * @param TransportInterface<mixed> $transport
      */
-    private function doProcessInput(TransportInterface $transport, string $input, ?Uuid $sessionId, ?AccessToken $accessToken): void
+    private function doProcessInput(TransportInterface $transport, string $input, ?Uuid $sessionId, ?AccessToken $accessToken, ?string $principal): void
     {
         $this->logger->info('Received message to process.');
         $this->logger->debug('Received message payload.', ['message' => $input]);
@@ -238,7 +244,8 @@ class Protocol
         } catch (\JsonException $e) {
             $this->logger->warning('Failed to decode json message.', ['exception' => $e]);
             $error = Error::forParseError($e->getMessage());
-            $this->sendResponse($transport, $error, null);
+            // The status keeps a refusal from carrying the queue of a session nobody checked yet, here and below.
+            $this->sendResponse($transport, $error, null, ['status_code' => 400]);
 
             return;
         } catch (InvalidInputMessageException $e) {
@@ -247,13 +254,29 @@ class Protocol
         }
 
         // Taken before the session is read and held until it is saved, so no other request of
-        // the session reads a state this one is about to replace. A session created here for
-        // an `initialize` is not known to anyone else yet and needs no lock, and an unknown
-        // session id is refused by resolveSession() without one; the session is looked up
-        // again under the lock, as it may have ended while this request waited.
-        $takesLock = null !== $sessionId && null !== $this->sessionLock && $this->sessionManager->exists($sessionId);
+        // the session reads a state this one is about to replace. An `initialize` never reads an
+        // existing session and an unknown session id is refused by resolveSession(), so neither
+        // needs the lock. The session is looked up again under the lock, as it may have ended
+        // while this request waited.
+        $takesLock = null !== $sessionId && null !== $this->sessionLock && !$message instanceof InitializeRequest && $this->sessionManager->exists($sessionId);
 
         if ($takesLock) {
+            // Who opened the session is checked before waiting for the lock too, so that another
+            // principal can neither tell the session is busy nor keep it busy.
+            try {
+                $serves = $this->servesPrincipal($this->sessionManager->createWithId($sessionId), $principal);
+            } catch (SessionStoreException $e) {
+                $this->refuseUnavailableStore($transport, $sessionId, self::findResponseId($input), $e);
+
+                return;
+            }
+
+            if (!$serves) {
+                $this->refuseOtherPrincipal($transport, $sessionId);
+
+                return;
+            }
+
             try {
                 $refusal = $this->acquireSessionLock($sessionId) ? null : Error::forServerError(self::SESSION_BUSY_MESSAGE, self::findResponseId($input));
             } catch (SessionLockException) {
@@ -268,7 +291,7 @@ class Protocol
         }
 
         try {
-            $this->handleMessage($transport, $sessionId, $message, $accessToken);
+            $this->handleMessage($transport, $sessionId, $message, $accessToken, $principal);
         } finally {
             if ($takesLock) {
                 $this->releaseSessionLock($sessionId);
@@ -279,9 +302,9 @@ class Protocol
     /**
      * @param TransportInterface<mixed> $transport
      */
-    private function handleMessage(TransportInterface $transport, ?Uuid $sessionId, MessageInterface|InvalidInputMessageException $message, ?AccessToken $accessToken): void
+    private function handleMessage(TransportInterface $transport, ?Uuid $sessionId, MessageInterface|InvalidInputMessageException $message, ?AccessToken $accessToken, ?string $principal): void
     {
-        $session = $this->resolveSession($transport, $sessionId, $message);
+        $session = $this->resolveSession($transport, $sessionId, $message, $principal);
         if (null === $session) {
             return;
         }
@@ -1107,19 +1130,22 @@ class Protocol
      *
      * @param TransportInterface<mixed> $transport
      * @param Uuid|null                 $sessionId The session ID from the transport
+     * @param string|null               $principal Who the messages were authenticated as
      */
-    private function resolveSession(TransportInterface $transport, ?Uuid $sessionId, MessageInterface|InvalidInputMessageException $message): ?SessionInterface
+    private function resolveSession(TransportInterface $transport, ?Uuid $sessionId, MessageInterface|InvalidInputMessageException $message, ?string $principal): ?SessionInterface
     {
         if ($message instanceof InitializeRequest) {
             // Spec: An initialize request must not have a session ID.
             if ($sessionId) {
                 $error = Error::forInvalidRequest('A session ID MUST NOT be sent with an "initialize" request.');
-                $this->sendResponse($transport, $error, null);
+                $this->sendResponse($transport, $error, null, ['status_code' => 400]);
 
                 return null;
             }
 
             $session = $this->sessionManager->create();
+            $session->set(self::SESSION_PRINCIPAL, self::fingerprint($principal));
+
             $this->logger->debug('Created new session for initialize', [
                 'session_id' => $session->getId()->toRfc4122(),
             ]);
@@ -1140,25 +1166,88 @@ class Protocol
         try {
             $exists = $this->sessionManager->exists($sessionId);
         } catch (SessionStoreException $e) {
-            // Not a 404: the session may well exist, so the client should retry instead of re-initializing.
-            $this->logger->error('Session store is unavailable.', [
-                'session_id' => $sessionId->toRfc4122(),
-                'exception' => $e,
-            ]);
-            $error = Error::forInternalError('Session store is unavailable.', self::findRequestId($message));
-            $this->sendResponse($transport, $error, null, ['status_code' => 503]);
+            $this->refuseUnavailableStore($transport, $sessionId, self::findRequestId($message), $e);
 
             return null;
         }
 
         if (!$exists) {
-            $error = Error::forInvalidRequest('Session not found or has expired.');
+            $error = Error::forInvalidRequest(self::SESSION_NOT_FOUND_MESSAGE);
             $this->sendResponse($transport, $error, null, ['status_code' => 404]);
 
             return null;
         }
 
-        return $this->sessionManager->createWithId($sessionId);
+        $session = $this->sessionManager->createWithId($sessionId);
+
+        try {
+            $serves = $this->servesPrincipal($session, $principal);
+        } catch (SessionStoreException $e) {
+            $this->refuseUnavailableStore($transport, $sessionId, self::findRequestId($message), $e);
+
+            return null;
+        }
+
+        if (!$serves) {
+            $this->refuseOtherPrincipal($transport, $sessionId);
+
+            return null;
+        }
+
+        return $session;
+    }
+
+    /**
+     * Whether the session serves the principal: the one that opened it, or no principal for a session opened without one.
+     *
+     * A session that does not record who opened it serves no one.
+     *
+     * @throws SessionStoreException when the session exists but its data cannot be read
+     */
+    private function servesPrincipal(SessionInterface $session, ?string $principal): bool
+    {
+        if ($session->get(self::SESSION_PRINCIPAL, false) === self::fingerprint($principal)) {
+            return true;
+        }
+
+        if ([] === $session->all()) {
+            throw new SessionStoreException(\sprintf('Session "%s" could not be read.', $session->getId()->toRfc4122()));
+        }
+
+        return false;
+    }
+
+    /**
+     * Not a 404: the session may well exist, so the client should retry instead of re-initializing.
+     *
+     * @param TransportInterface<mixed> $transport
+     */
+    private function refuseUnavailableStore(TransportInterface $transport, Uuid $sessionId, string|int|null $requestId, SessionStoreException $exception): void
+    {
+        $this->logger->error('Session store is unavailable.', [
+            'session_id' => $sessionId->toRfc4122(),
+            'exception' => $exception,
+        ]);
+        $this->sendResponse($transport, Error::forInternalError('Session store is unavailable.', $requestId), null, ['status_code' => 503]);
+    }
+
+    /**
+     * @param TransportInterface<mixed> $transport
+     */
+    private function refuseOtherPrincipal(TransportInterface $transport, Uuid $sessionId): void
+    {
+        $this->logger->warning('Refused a request of another principal than the one that opened the session.', [
+            'session_id' => $sessionId->toRfc4122(),
+        ]);
+
+        // Answered like an unknown session, so that another principal cannot tell the session exists.
+        $error = Error::forInvalidRequest(self::SESSION_NOT_FOUND_MESSAGE);
+        $this->sendResponse($transport, $error, null, ['status_code' => 404]);
+    }
+
+    private static function fingerprint(?string $principal): ?string
+    {
+        return null === $principal ? null : hash('sha256', $principal);
     }
 
     /**
@@ -1171,6 +1260,26 @@ class Protocol
             $message instanceof InvalidInputMessageException => $message->getRequestId(),
             default => null,
         };
+    }
+
+    /**
+     * Ends a session at the request of a client, which must be the principal that opened it.
+     *
+     * @return bool false when the session does not exist, or is another principal's
+     *
+     * @throws SessionStoreException when who opened the session cannot be established; the session is not ended
+     */
+    private function endSession(Uuid $sessionId, ?string $principal = null): bool
+    {
+        if ($this->sessionManager->exists($sessionId) && !$this->servesPrincipal($this->sessionManager->createWithId($sessionId), $principal)) {
+            $this->logger->warning('Refused to end a session for another principal than the one that opened it.', [
+                'session_id' => $sessionId->toRfc4122(),
+            ]);
+
+            return false;
+        }
+
+        return $this->destroySession($sessionId);
     }
 
     /**
