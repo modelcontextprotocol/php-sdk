@@ -826,10 +826,8 @@ final class StatelessProtocol
 
         $response = $this->dispatchResponse($result, $request, $session);
 
-        $frame = ['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->codec->encodeResult($method, (array) $response->result->jsonSerialize(), $cacheable)];
-
         try {
-            $encoded = StatelessResult::encodeFrame($frame);
+            $encoded = StatelessResult::encodeFrame(['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->codec->encodeResult($method, (array) $response->result->jsonSerialize(), $cacheable)]);
         } catch (\JsonException $e) {
             yield $this->toErrorResult($request, $session, $method, $id, $e)->message?->jsonSerialize();
 

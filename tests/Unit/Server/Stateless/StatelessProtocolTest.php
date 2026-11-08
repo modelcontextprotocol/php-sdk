@@ -625,6 +625,35 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame([1], $last['result']['structuredContent']['items']);
     }
 
+    #[TestDox('a streamed result whose own serializer fails ends the stream with an internal error')]
+    public function testStreamedResultWhoseSerializerFailsIsAnInternalError(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->addTool(
+                static function (RequestContext $context): CallToolResult {
+                    $context->getClientGateway()->progress(1, 1, 'done');
+
+                    return new class([new TextContent('ok')]) extends CallToolResult {
+                        public function jsonSerialize(): array
+                        {
+                            throw new \JsonException('Malformed UTF-8 characters');
+                        }
+                    };
+                },
+                name: 'failing_serializer_tool',
+                description: 'Returns a result that cannot serialize itself',
+            )
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $result = self::callStreaming($protocol, 'failing_serializer_tool', ['progressToken' => 'tok-1']);
+
+        $last = self::frames($result)[1];
+
+        $this->assertSame(Error::INTERNAL_ERROR, $last['error']['code']);
+        $this->assertSame(7, $last['id']);
+    }
+
     #[TestDox('an error message that is not valid UTF-8 still reaches the client')]
     public function testErrorMessageJsonCannotCarryIsSubstituted(): void
     {
