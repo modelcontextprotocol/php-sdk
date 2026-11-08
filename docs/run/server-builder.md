@@ -347,44 +347,46 @@ A fiber scheduler lets handlers await I/O while the event loop serves other requ
 - A [session lock](sessions.md#concurrent-requests) stays held while a handler awaits I/O. Another request of the
   same session in the same process waits on the event loop until the lock is free. This wait has no timeout. If
   another process holds the lock, the lock backend blocks the event loop while it waits, up to its timeout.
-### Handler Fiber Context
+### Fiber Context
 
-Handlers run in fibers, which do not automatically inherit context from the caller.
-Use `setFiberFactory()` to propagate context such as the active OpenTelemetry span:
+Some libraries keep their context per fiber. For example, OpenTelemetry raises a warning when code reads its context
+in a fiber it doesn't know. Set a fiber context to carry the context of the caller into the fiber of the handler:
 
 ```php
 use Mcp\Server;
-use Mcp\Server\FiberFactoryInterface;
+use Mcp\Server\Fiber\FiberContextInterface;
 use OpenTelemetry\Context\Context;
 
-$server = Server::builder()
-    ->setFiberFactory(new class implements FiberFactoryInterface {
-        public function create(\Closure $callback): \Fiber
-        {
-            $context = Context::getCurrent();
+final class OpenTelemetryFiberContext implements FiberContextInterface
+{
+    public function wrap(\Closure $handler): \Closure
+    {
+        // runs in the context of the caller
+        $context = Context::getCurrent();
 
-            return new \Fiber(static function () use ($context, $callback) {
-                $scope = $context->activate();
-                try {
-                    return $callback();
-                } finally {
-                    $scope->detach();
-                }
-            });
-        }
-    })
-    ->build();
+        // runs in the fiber of the handler
+        return static function () use ($context, $handler): mixed {
+            $scope = $context->activate();
+
+            try {
+                return $handler();
+            } finally {
+                $scope->detach();
+            }
+        };
+    }
+}
+
+$server = Server::builder()
+    ->setFiberContext(new OpenTelemetryFiberContext());
 ```
 
-The factory runs in the parent context and must return an **unstarted** fiber that invokes the
-callback once, preserving its return value, exceptions and suspensions. Attach context inside
-the fiber and release it in `finally`, including when a suspended fiber is discarded.
-The SDK continues to start and resume the fiber.
+The returned closure must call `$handler` once and return its result. The `finally` block also runs when the server
+discards a suspended fiber.
 
-This example uses OpenTelemetry's default fiber-bound context storage, which keeps contexts
-isolated across suspensions and resumptions. It requires the application's `open-telemetry/context`
-package; the SDK does not depend on OpenTelemetry. The factory applies to both protocol eras,
-including `buildStateless()`. Without a factory, the SDK creates ordinary PHP fibers as before.
+Under an event loop, every request runs in its own fiber, so OpenTelemetry raises the same warning in `wrap()`. Activate
+a context in that fiber first, for example with `Context::getRoot()->activate()`. Fibers that a handler starts itself
+(e.g. with `Amp\async()`) don't get the context.
 
 ## Complete Example
 
@@ -465,7 +467,7 @@ $server = Server::builder()
 | `setContainer()` | container | Set PSR-11 container |
 | `setEventDispatcher()` | eventDispatcher | Set PSR-14 event dispatcher, see [Events](../advanced/events.md) |
 | `setFiberScheduler()` | scheduler | Wait on an event loop (Revolt, ReactPHP) while a handler awaits I/O, see [Fiber Scheduler](#fiber-scheduler) |
-| `setFiberFactory()` | fiberFactory | Propagate execution context into handler fibers |
+| `setFiberContext()` | context | Carry execution context into handler fibers, see [Fiber Context](#fiber-context) |
 | `setSchemaGenerator()` | schemaGenerator | Replace the generator that builds input schemas from PHP types, see [Schema generation](../servers/schemas.md) |
 | `setSchemaValidator()` | schemaValidator | Replace the validator for tool arguments and structured output, see [Schema generation](../servers/schemas.md) |
 | `setReferenceHandler()` | referenceHandler | Replace the class that calls the handlers of tools, resources and prompts |

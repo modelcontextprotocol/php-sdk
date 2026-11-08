@@ -12,12 +12,12 @@
 namespace Mcp\Tests\Unit\Fixtures;
 
 use Mcp\Exception\LogicException;
-use Mcp\Server\FiberFactoryInterface;
+use Mcp\Server\Fiber\FiberContextInterface;
 
 /**
  * @author bbdu3 <ergouyang854@gamil.com>
  */
-final class ContextFiberFactory implements FiberFactoryInterface
+final class RecordingFiberContext implements FiberContextInterface
 {
     public string $parent = 'parent';
     public int $created = 0;
@@ -31,26 +31,26 @@ final class ContextFiberFactory implements FiberFactoryInterface
         $this->contexts = new \WeakMap();
     }
 
-    public function create(\Closure $callback): \Fiber
+    public function wrap(\Closure $handler): \Closure
     {
         $context = $this->current();
         ++$this->created;
 
-        return new \Fiber(function () use ($context, $callback) {
+        return function () use ($context, $handler) {
             $this->contexts[\Fiber::getCurrent() ?? throw new LogicException('No active fiber.')] = $context;
             try {
-                return $callback();
+                return $handler();
             } finally {
                 unset($this->contexts[\Fiber::getCurrent()]);
                 ++$this->released;
             }
-        });
+        };
     }
 
     public function current(): string
     {
         $fiber = \Fiber::getCurrent();
 
-        return null === $fiber ? $this->parent : $this->contexts[$fiber];
+        return null === $fiber ? $this->parent : ($this->contexts[$fiber] ?? $this->parent);
     }
 }

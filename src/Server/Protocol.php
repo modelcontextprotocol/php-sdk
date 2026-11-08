@@ -32,6 +32,7 @@ use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Fiber\EventLoopSessionLock;
+use Mcp\Server\Fiber\FiberContextInterface;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\Fiber\HandlerFibers;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
@@ -135,7 +136,7 @@ class Protocol
         private readonly ?RequestStateCodec $requestStateCodec = null,
         ?SessionLockInterface $sessionLock = null,
         private readonly ?FiberSchedulerInterface $fiberScheduler = null,
-        private readonly ?FiberFactoryInterface $fiberFactory = null,
+        private readonly ?FiberContextInterface $fiberContext = null,
     ) {
         $this->sessionLock = null !== $sessionLock && null !== $fiberScheduler ? new EventLoopSessionLock($sessionLock, $fiberScheduler) : $sessionLock;
         $this->awaitedRequestIds = new \WeakMap();
@@ -457,7 +458,7 @@ class Protocol
                     }
 
                     return $result;
-                }, $this->fiberScheduler, static fn (\Throwable $e): ?Error => $protocol->get()?->errorForThrowable($e, $request, $session), $this->logger, $this->fiberFactory);
+                }, $this->fiberScheduler, static fn (\Throwable $e): ?Error => $protocol->get()?->errorForThrowable($e, $request, $session), $this->logger, $this->fiberContext);
 
                 $result = HandlerFibers::start($fiber);
 

@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Tests\Unit\Server;
+namespace Mcp\Tests\Unit\Server\Fiber;
 
 use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Elicitation\ElicitationSchema;
@@ -22,7 +22,7 @@ use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\StatelessHttpTransport;
 use Mcp\Server\Transport\StdioTransport;
 use Mcp\Server\Transport\StreamableHttpTransport;
-use Mcp\Tests\Unit\Fixtures\ContextFiberFactory;
+use Mcp\Tests\Unit\Fixtures\RecordingFiberContext;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -31,43 +31,43 @@ use Psr\Http\Message\ResponseInterface;
 /**
  * @author bbdu3 <ergouyang854@gamil.com>
  */
-final class FiberFactoryTest extends TestCase
+final class FiberContextTest extends TestCase
 {
     #[DataProvider('httpModes')]
     public function testContextSurvivesInterleavedRequestsAndErrors(string $mode, bool $fail): void
     {
-        $factory = new ContextFiberFactory();
+        $context = new RecordingFiberContext();
         $seen = [];
-        $builder = $this->builder($factory)->addTool(static function (RequestContext $context) use ($factory, &$seen, $fail): string {
-            $seen[] = $factory->current();
-            $context->getClientGateway()->progress(1, 2);
-            $seen[] = $factory->current();
+        $builder = $this->builder($context)->addTool(static function (RequestContext $request) use ($context, &$seen, $fail): string {
+            $seen[] = $context->current();
+            $request->getClientGateway()->progress(1, 2);
+            $seen[] = $context->current();
             if ($fail) {
                 throw new RuntimeException('handler failed');
             }
 
-            return $factory->current();
+            return $context->current();
         }, name: 'probe');
         $server = 'standalone' === $mode ? $builder->buildStateless() : $builder->build();
         $session = 'legacy' === $mode ? $this->post($server, $this->initialize())->getHeaderLine('Mcp-Session-Id') : null;
-        $created = $factory->created;
-        $released = $factory->released;
+        $created = $context->created;
+        $released = $context->released;
 
-        $factory->parent = 'first';
+        $context->parent = 'first';
         $first = $this->post($server, $this->call('legacy' !== $mode), $session);
-        $this->assertSame('first', $factory->current());
-        $factory->parent = 'second';
+        $this->assertSame('first', $context->current());
+        $context->parent = 'second';
         $second = $this->post($server, $this->call('legacy' !== $mode), $session);
         $this->assertSame(['first', 'second'], $seen);
-        $this->assertSame($released, $factory->released);
+        $this->assertSame($released, $context->released);
 
-        $factory->parent = 'outside';
+        $context->parent = 'outside';
         $secondBody = $this->consume($second);
         $firstBody = $this->consume($first);
         $this->assertSame(['first', 'second', 'second', 'first'], $seen);
-        $this->assertSame('outside', $factory->current());
-        $this->assertSame($created + 2, $factory->created);
-        $this->assertSame($released + 2, $factory->released);
+        $this->assertSame('outside', $context->current());
+        $this->assertSame($created + 2, $context->created);
+        $this->assertSame($released + 2, $context->released);
         if ($fail) {
             $this->assertStringContainsString('"code":-32603', $firstBody);
             $this->assertStringContainsString('"code":-32603', $secondBody);
@@ -91,48 +91,48 @@ final class FiberFactoryTest extends TestCase
     #[DataProvider('httpModes')]
     public function testContextIsReleasedWithoutSuspension(string $mode, bool $fail): void
     {
-        $factory = new ContextFiberFactory();
-        $builder = $this->builder($factory)->addTool(static function () use ($factory, $fail): string {
+        $context = new RecordingFiberContext();
+        $builder = $this->builder($context)->addTool(static function () use ($context, $fail): string {
             if ($fail) {
-                throw new RuntimeException($factory->current());
+                throw new RuntimeException($context->current());
             }
 
-            return $factory->current();
+            return $context->current();
         }, name: 'probe');
         $server = 'standalone' === $mode ? $builder->buildStateless() : $builder->build();
         $session = 'legacy' === $mode ? $this->post($server, $this->initialize())->getHeaderLine('Mcp-Session-Id') : null;
         $body = $this->consume($this->post($server, $this->call('legacy' !== $mode), $session));
 
         $this->assertStringContainsString($fail ? '"code":-32603' : '"text":"parent"', $body);
-        $this->assertSame($factory->created, $factory->released);
-        $this->assertSame('parent', $factory->current());
+        $this->assertSame($context->created, $context->released);
+        $this->assertSame('parent', $context->current());
     }
 
     public function testContextIsReleasedWhenAStreamIsAbandoned(): void
     {
-        $factory = new ContextFiberFactory();
-        $server = $this->builder($factory)->addTool(static function (RequestContext $context) use ($factory): string {
-            $context->getClientGateway()->progress(1, 2);
+        $context = new RecordingFiberContext();
+        $server = $this->builder($context)->addTool(static function (RequestContext $request) use ($context): string {
+            $request->getClientGateway()->progress(1, 2);
 
-            return $factory->current();
+            return $context->current();
         }, name: 'probe')->buildStateless();
         $response = $this->post($server, $this->call(true));
-        $this->assertSame(1, $factory->created);
-        $this->assertSame(0, $factory->released);
+        $this->assertSame(1, $context->created);
+        $this->assertSame(0, $context->released);
         unset($response);
 
-        $this->assertSame(1, $factory->released);
-        $this->assertSame('parent', $factory->current());
+        $this->assertSame(1, $context->released);
+        $this->assertSame('parent', $context->current());
     }
 
     public function testContextIsReleasedWhenElicitationDiscardsTheFiber(): void
     {
-        $factory = new ContextFiberFactory();
+        $context = new RecordingFiberContext();
         $seen = null;
-        $server = $this->builder($factory)->setRequestState(str_repeat('k', 32))
-            ->addTool(static function (RequestContext $context) use ($factory, &$seen): string {
-                $seen = $factory->current();
-                $context->getClientGateway()->elicit('Name?', new ElicitationSchema(['n' => new StringSchemaDefinition('N')], ['n']));
+        $server = $this->builder($context)->setRequestState(str_repeat('k', 32))
+            ->addTool(static function (RequestContext $request) use ($context, &$seen): string {
+                $seen = $context->current();
+                $request->getClientGateway()->elicit('Name?', new ElicitationSchema(['n' => new StringSchemaDefinition('N')], ['n']));
 
                 return 'unreachable';
             }, name: 'probe')->buildStateless();
@@ -142,19 +142,19 @@ final class FiberFactoryTest extends TestCase
 
         $this->assertStringContainsString('"resultType":"input_required"', $body);
         $this->assertSame('parent', $seen);
-        $this->assertSame(1, $factory->released);
-        $this->assertSame('parent', $factory->current());
+        $this->assertSame(1, $context->released);
+        $this->assertSame('parent', $context->current());
     }
 
     #[DataProvider('eras')]
     public function testStdioUsesTheFactory(bool $modern): void
     {
-        $factory = new ContextFiberFactory();
-        $builder = $this->builder($factory)->addTool(static function (RequestContext $context) use ($factory): string {
-            $before = $factory->current();
-            $context->getClientGateway()->progress(1, 2);
+        $context = new RecordingFiberContext();
+        $builder = $this->builder($context)->addTool(static function (RequestContext $request) use ($context): string {
+            $before = $context->current();
+            $request->getClientGateway()->progress(1, 2);
 
-            return $before.':'.$factory->current();
+            return $before.':'.$context->current();
         }, name: 'probe');
         $input = fopen('php://temp', 'r+');
         $this->assertNotFalse($input);
@@ -173,7 +173,7 @@ final class FiberFactoryTest extends TestCase
             $this->assertNotFalse($written);
             $this->assertStringContainsString('"text":"parent:parent"', $written);
             $this->assertStringContainsString('"progressToken":"p"', $written);
-            $this->assertSame($factory->created, $factory->released);
+            $this->assertSame($context->created, $context->released);
         } finally {
             unlink($path);
         }
@@ -188,9 +188,9 @@ final class FiberFactoryTest extends TestCase
         yield 'modern' => [true];
     }
 
-    private function builder(ContextFiberFactory $factory): Builder
+    private function builder(RecordingFiberContext $context): Builder
     {
-        return Server::builder()->setServerInfo('context-test', '1')->setFiberFactory($factory);
+        return Server::builder()->setServerInfo('context-test', '1')->setFiberContext($context);
     }
 
     /**

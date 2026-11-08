@@ -45,6 +45,7 @@ use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
+use Mcp\Server\Fiber\FiberContextInterface;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\Handler\ElementHandlerInterface;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
@@ -107,7 +108,6 @@ final class Builder
     private CacheInterface|CacheItemPoolInterface|null $discoveryCache = null;
 
     private ?EventDispatcherInterface $eventDispatcher = null;
-    private ?FiberFactoryInterface $fiberFactory = null;
 
     private ?ContainerInterface $container = null;
 
@@ -142,6 +142,8 @@ final class Builder
     private float $subscriptionLifetime = 30.0;
 
     private ?FiberSchedulerInterface $fiberScheduler = null;
+
+    private ?FiberContextInterface $fiberContext = null;
 
     /** @var array<string, string> RPC method to the extension identifier defining it */
     private array $extensionMethods = [];
@@ -367,6 +369,16 @@ final class Builder
     public function setFiberScheduler(FiberSchedulerInterface $scheduler): self
     {
         $this->fiberScheduler = $scheduler;
+
+        return $this;
+    }
+
+    /**
+     * Carries execution context, e.g. the active OpenTelemetry context, into the fibers request handlers run in.
+     */
+    public function setFiberContext(FiberContextInterface $context): self
+    {
+        $this->fiberContext = $context;
 
         return $this;
     }
@@ -615,13 +627,6 @@ final class Builder
     public function setEventDispatcher(EventDispatcherInterface $eventDispatcher): self
     {
         $this->eventDispatcher = $eventDispatcher;
-
-        return $this;
-    }
-
-    public function setFiberFactory(FiberFactoryInterface $fiberFactory): self
-    {
-        $this->fiberFactory = $fiberFactory;
 
         return $this;
     }
@@ -1030,7 +1035,7 @@ final class Builder
             requestStateCodec: $this->requestStateCodec(),
             sessionLock: $this->sessionLock,
             fiberScheduler: $this->fiberScheduler,
-            fiberFactory: $this->fiberFactory,
+            fiberContext: $this->fiberContext,
         );
 
         $modernVersions = $this->modernVersions ?? ProtocolVersion::modernVersions();
@@ -1076,7 +1081,7 @@ final class Builder
             eventDispatcher: $parts['eventDispatcher'],
             requestStateBinder: $this->requestStateBinder,
             fiberScheduler: $this->fiberScheduler,
-            fiberFactory: $this->fiberFactory,
+            fiberContext: $this->fiberContext,
         );
     }
 
