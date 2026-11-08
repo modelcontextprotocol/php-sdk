@@ -192,7 +192,7 @@ final class AuthorizationMiddlewareTest extends MiddlewareTestCase
         $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
         $this->assertFalse($response->hasHeader('WWW-Authenticate'));
         $this->assertSame(
-            ['jsonrpc' => '2.0', 'error' =>['code' => -32600, 'message' => 'Request body exceeds the maximum allowed size of 10 bytes.']],
+            ['jsonrpc' => '2.0', 'error' => ['code' => -32600, 'message' => 'Request body exceeds the maximum allowed size of 10 bytes.']],
             json_decode((string) $response->getBody(), true),
         );
         $this->assertNull($handler->request);
