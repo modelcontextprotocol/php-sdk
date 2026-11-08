@@ -23,6 +23,9 @@ use PHPUnit\Framework\TestCase;
  */
 final class AuthorizationHandlerTest extends TestCase
 {
+    /** @var string[] */
+    private array $directories = [];
+
     #[TestDox('the loopback handler answers the browser and returns what it landed with')]
     public function testLoopbackHandlerCatchesTheCallback(): void
     {
@@ -105,6 +108,58 @@ final class AuthorizationHandlerTest extends TestCase
             $this->assertStringContainsString('Could not reach', $e->getMessage());
         } finally {
             fclose($listener);
+        }
+    }
+
+    #[TestDox('the loopback handler shows the URL when no browser can be opened')]
+    public function testLoopbackHandlerShowsTheUrlWithoutABrowser(): void
+    {
+        $url = 'https://auth.example.com/authorize?client_id=abc';
+
+        $this->assertStringContainsString($url, $this->runDefaultHandler($url, $this->emptyDirectory()));
+    }
+
+    /**
+     * Runs in its own process, as only the environment decides which opener the handler finds.
+     */
+    private function runDefaultHandler(string $url, string $path): string
+    {
+        if ('Windows' === \PHP_OS_FAMILY) {
+            $this->markTestSkipped('Windows finds its opener in the system directory, whatever the PATH is.');
+        }
+
+        $code = \sprintf(
+            'require %s; try { (new %s(null, 1))->authorize(%s, %s); } catch (%s) {}',
+            var_export(\dirname(__DIR__, 4).'/vendor/autoload.php', true),
+            LoopbackAuthorizationHandler::class,
+            var_export($url, true),
+            var_export(\sprintf('http://127.0.0.1:%d/callback', self::freePort()), true),
+            AuthorizationException::class,
+        );
+
+        $process = proc_open([\PHP_BINARY, '-r', $code], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, ['PATH' => $path]);
+        $this->assertIsResource($process);
+
+        $errorOutput = (string) stream_get_contents($pipes[2]);
+        proc_close($process);
+
+        return $errorOutput;
+    }
+
+    private function emptyDirectory(): string
+    {
+        $directory = sys_get_temp_dir().'/mcp-loopback-'.bin2hex(random_bytes(6));
+        mkdir($directory);
+        $this->directories[] = $directory;
+
+        return $directory;
+    }
+
+    protected function tearDown(): void
+    {
+        foreach ($this->directories as $directory) {
+            array_map('unlink', glob($directory.'/*') ?: []);
+            rmdir($directory);
         }
     }
 

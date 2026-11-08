@@ -49,7 +49,7 @@ $auth = OAuth::forApplication('My App')
 
 The SDK contains two handlers:
 
-- `LoopbackAuthorizationHandler` is the default. It opens the system browser and listens on the port of the redirect URI until the browser returns. Use it for desktop and command line applications.
+- `LoopbackAuthorizationHandler` is the default. It opens the system browser and listens on the port of the redirect URI until the browser returns. It also writes the URL to `STDERR`, so you can open it yourself if no browser starts. Use it for desktop and command line applications.
 - `HeadlessAuthorizationHandler` requests the authorization URL itself and reads the code from the redirect. It only works if the authorization server grants access without asking the user (e.g. a test server).
 
 For anything else, implement `AuthorizationHandlerInterface`. It has one method:

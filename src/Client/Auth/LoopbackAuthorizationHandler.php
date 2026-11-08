@@ -146,6 +146,9 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
 
         $this->logger->info('Opening the authorization page in the browser', ['url' => $url]);
 
+        // Printed every time, as a backgrounded launcher can't report that no browser opened.
+        file_put_contents('php://stderr', \sprintf("\nOpen this URL to authorize the application if your browser doesn't open it:\n\n  %s\n\n", $url));
+
         // Backgrounded, because the launcher may not return until the browser exits.
         $command = match (\PHP_OS_FAMILY) {
             'Darwin' => \sprintf('open %s > /dev/null 2>&1 &', escapeshellarg($url)),
@@ -154,14 +157,7 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
         };
 
         if (\function_exists('exec')) {
-            @exec($command, $output, $status);
-
-            if (0 === $status) {
-                return;
-            }
+            @exec($command);
         }
-
-        // No browser to open, or opening it failed: the user can still follow the link.
-        fwrite(\STDERR, \sprintf("\nOpen this URL to authorize the application:\n\n  %s\n\n", $url));
     }
 }
