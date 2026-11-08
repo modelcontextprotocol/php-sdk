@@ -41,6 +41,11 @@ class Session implements SessionInterface
     private bool $stored = false;
 
     /**
+     * Whether the first read of this session returned nothing.
+     */
+    private bool $nothingRead = false;
+
+    /**
      * Keys changed since the last save, or null once clear() or hydrate() replaced all of them.
      *
      * @var array<string, true>|null
@@ -184,6 +189,13 @@ class Session implements SessionInterface
         return $this->readData();
     }
 
+    public function isUnreadable(): bool
+    {
+        $this->readData();
+
+        return $this->nothingRead && !$this->stored && $this->store->exists($this->id);
+    }
+
     public function hydrate(array $attributes): void
     {
         $this->data = $attributes;
@@ -201,7 +213,13 @@ class Session implements SessionInterface
      */
     private function readData(): array
     {
-        return $this->data ??= $this->load() ?? [];
+        if (!isset($this->data)) {
+            $data = $this->load();
+            $this->nothingRead = null === $data;
+            $this->data = $data ?? [];
+        }
+
+        return $this->data;
     }
 
     /**

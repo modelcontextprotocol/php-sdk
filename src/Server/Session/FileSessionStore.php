@@ -47,13 +47,25 @@ class FileSessionStore implements SessionStoreInterface
     {
         $path = $this->pathFor($id);
 
+        clearstatcache(true, $path);
+
         if (!is_file($path)) {
             return false;
         }
 
         $mtime = @filemtime($path) ?: 0;
 
-        return ($this->clock->now()->getTimestamp() - $mtime) <= $this->ttl;
+        if (($this->clock->now()->getTimestamp() - $mtime) > $this->ttl) {
+            return false;
+        }
+
+        if (0 === @filesize($path)) {
+            $this->logger->warning('Ignored an empty session file.', ['path' => $path]);
+
+            return false;
+        }
+
+        return true;
     }
 
     public function read(Uuid $id): string|false

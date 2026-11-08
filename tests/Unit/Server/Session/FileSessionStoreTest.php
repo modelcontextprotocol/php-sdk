@@ -283,6 +283,23 @@ class FileSessionStoreTest extends TestCase
         $this->assertSame([], $logger->warnings);
     }
 
+    #[TestDox('does not report a zero-byte session file as existing, and says so')]
+    public function testZeroByteFileDoesNotExist(): void
+    {
+        $logger = new WarningCollectingLogger();
+        $store = new FileSessionStore($this->directory, logger: $logger);
+        $id = new UuidV4();
+        $store->write($id, '{"initialized":true}');
+        $this->assertTrue($store->exists($id));
+
+        $path = $this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122();
+        file_put_contents($path, '');
+
+        $this->assertFalse($store->exists($id));
+        $this->assertSame('Ignored an empty session file.', $logger->warnings[0]['message']);
+        $this->assertSame($path, $logger->warnings[0]['context']['path']);
+    }
+
     #[TestDox('reports a zero-byte session file as nothing read, and says so')]
     public function testReadReportsZeroByteFileAsNothingRead(): void
     {

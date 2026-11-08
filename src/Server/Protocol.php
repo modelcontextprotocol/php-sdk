@@ -266,7 +266,8 @@ class Protocol
             // Who opened the session is checked before waiting for the lock too, so that another
             // principal can neither tell the session is busy nor keep it busy.
             try {
-                $serves = $this->servesPrincipal($this->sessionManager->createWithId($sessionId), $principal);
+                $session = $this->sessionManager->createWithId($sessionId);
+                $serves = $this->servesPrincipal($session, $principal);
             } catch (SessionStoreException $e) {
                 $this->refuseUnavailableStore($transport, $sessionId, self::findResponseId($input), $e);
 
@@ -274,7 +275,7 @@ class Protocol
             }
 
             if (!$serves) {
-                $this->refuseOtherPrincipal($transport, $sessionId);
+                $this->refuseOtherPrincipal($transport, $session);
 
                 return;
             }
@@ -1191,7 +1192,7 @@ class Protocol
         }
 
         if (!$serves) {
-            $this->refuseOtherPrincipal($transport, $sessionId);
+            $this->refuseOtherPrincipal($transport, $session);
 
             return null;
         }
@@ -1204,7 +1205,7 @@ class Protocol
      *
      * A session that does not record who opened it serves no one.
      *
-     * @throws SessionStoreException when the session exists but its data cannot be read
+     * @throws SessionStoreException when the store holds the session but fails to return it
      */
     private function servesPrincipal(SessionInterface $session, ?string $principal): bool
     {
@@ -1212,7 +1213,7 @@ class Protocol
             return true;
         }
 
-        if ([] === $session->all()) {
+        if ($session->isUnreadable()) {
             throw new SessionStoreException(\sprintf('Session "%s" could not be read.', $session->getId()->toRfc4122()));
         }
 
@@ -1236,15 +1237,24 @@ class Protocol
     /**
      * @param TransportInterface<mixed> $transport
      */
-    private function refuseOtherPrincipal(TransportInterface $transport, Uuid $sessionId): void
+    private function refuseOtherPrincipal(TransportInterface $transport, SessionInterface $session): void
     {
-        $this->logger->warning('Refused a request of another principal than the one that opened the session.', [
-            'session_id' => $sessionId->toRfc4122(),
-        ]);
+        $this->logRefusal('a request', $session);
 
         // Answered like an unknown session, so that another principal cannot tell the session exists.
         $error = Error::forInvalidRequest(self::SESSION_NOT_FOUND_MESSAGE);
         $this->sendResponse($transport, $error, null, ['status_code' => 404]);
+    }
+
+    private function logRefusal(string $what, SessionInterface $session): void
+    {
+        $reason = $session->has(self::SESSION_PRINCIPAL)
+            ? 'the session was opened by another principal.'
+            : 'the session does not record who opened it, so it was cleared, is corrupt or predates the principal binding.';
+
+        $this->logger->warning(\sprintf('Refused %s: %s', $what, $reason), [
+            'session_id' => $session->getId()->toRfc4122(),
+        ]);
     }
 
     private static function fingerprint(?string $principal): ?string
@@ -1273,10 +1283,10 @@ class Protocol
      */
     private function endSession(Uuid $sessionId, ?string $principal = null): bool
     {
-        if ($this->sessionManager->exists($sessionId) && !$this->servesPrincipal($this->sessionManager->createWithId($sessionId), $principal)) {
-            $this->logger->warning('Refused to end a session for another principal than the one that opened it.', [
-                'session_id' => $sessionId->toRfc4122(),
-            ]);
+        $session = $this->sessionManager->createWithId($sessionId);
+
+        if ($this->sessionManager->exists($sessionId) && !$this->servesPrincipal($session, $principal)) {
+            $this->logRefusal('a DELETE', $session);
 
             return false;
         }

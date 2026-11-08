@@ -353,6 +353,90 @@ class SessionTest extends TestCase
         $this->assertTrue($session->save());
     }
 
+    public function testNewSessionIsNotUnreadable(): void
+    {
+        $this->assertFalse((new Session(new InMemorySessionStore()))->isUnreadable());
+    }
+
+    public function testSessionTheStoreHoldsAndReturnsIsNotUnreadable(): void
+    {
+        $store = new InMemorySessionStore();
+        $id = Uuid::v4();
+        $store->write($id, '[]');
+
+        $this->assertFalse((new Session($store, $id))->isUnreadable());
+    }
+
+    public function testSessionTheStoreHoldsButFailsToReturnIsUnreadable(): void
+    {
+        [$store, $id] = $this->storeFailingToReturnASession();
+
+        $this->assertTrue((new Session($store, $id))->isUnreadable());
+    }
+
+    public function testSessionClearedBeforeItsFirstReadIsNotUnreadable(): void
+    {
+        $store = new InMemorySessionStore();
+        $id = Uuid::v4();
+        $store->write($id, '{"key":"value"}');
+        $session = new Session($store, $id);
+
+        $session->clear();
+
+        $this->assertFalse($session->isUnreadable());
+    }
+
+    public function testSessionHydratedBeforeItsFirstReadIsNotUnreadable(): void
+    {
+        $store = new InMemorySessionStore();
+        $id = Uuid::v4();
+        $store->write($id, '{"key":"value"}');
+        $session = new Session($store, $id);
+
+        $session->hydrate(['other' => 'value']);
+
+        $this->assertFalse($session->isUnreadable());
+    }
+
+    public function testSessionClearedAfterAFailedReadStaysUnreadable(): void
+    {
+        [$store, $id] = $this->storeFailingToReturnASession();
+        $session = new Session($store, $id);
+        $session->all();
+
+        $session->clear();
+
+        $this->assertTrue($session->isUnreadable());
+    }
+
+    public function testNewSessionIsNotUnreadableOnceSaved(): void
+    {
+        $store = new InMemorySessionStore();
+        $session = new Session($store);
+        $session->set('key', 'value');
+
+        $session->save();
+
+        $this->assertFalse($session->isUnreadable());
+    }
+
+    /**
+     * @return array{InMemorySessionStore, Uuid}
+     */
+    private function storeFailingToReturnASession(): array
+    {
+        $store = new class extends InMemorySessionStore {
+            public function read(Uuid $id): string|false
+            {
+                return false;
+            }
+        };
+        $id = Uuid::v4();
+        $store->write($id, '{"key":"value"}');
+
+        return [$store, $id];
+    }
+
     public function testAllReturnsEmptyArrayForNullPayload(): void
     {
         $store = $this->getMockBuilder(InMemorySessionStore::class)
