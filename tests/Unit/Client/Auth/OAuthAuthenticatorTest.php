@@ -871,6 +871,34 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('refresh_token', $server->token['grant_type'] ?? null);
     }
 
+    #[TestDox('a step-up keeps the scopes of a stored token')]
+    public function testStepUpKeepsTheScopesOfAStoredToken(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('stored', 'Bearer', time() + 3600, null, ['mcp:read']));
+        $authenticator = $this->authenticator($server, storage: $storage);
+
+        $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+        $rejected = $authenticator->authenticate($this->request());
+        $authenticator->handleChallenge($rejected, $server->challenge(['mcp:write'], 403, 'insufficient_scope'));
+
+        $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
+    }
+
+    #[TestDox('a stored offline_access does not override turning it off')]
+    public function testStoredOfflineAccessIsNotRequestedWhenTurnedOff(): void
+    {
+        $server = new FakeOAuthServer(serverScopes: ['offline_access']);
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('stored', 'Bearer', time() + 3600, null, ['mcp:read', 'offline_access']));
+        $authenticator = $this->authenticator($server, storage: $storage, configuration: OAuth::forApplication('test')->setOfflineAccess(false));
+
+        $authenticator->handleChallenge((new Psr17Factory())->createRequest('POST', self::ENDPOINT)->withHeader('Authorization', 'Bearer stored'), $server->challenge(['mcp:write'], 403, 'insufficient_scope'));
+
+        $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {

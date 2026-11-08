@@ -97,10 +97,10 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->issuer = $metadata->issuer;
         $this->resource = $resource;
 
-        $scopes = $this->selectScopes($challenge, $scopesSupported, $metadata);
+        $stored = $this->storage->getToken($metadata->issuer, $resource);
+        $scopes = $this->selectScopes($challenge, $scopesSupported, $metadata, $stored);
         // The resource never requires offline_access, which only gets a refresh token.
         $needed = array_values(array_diff($scopes, ['offline_access']));
-        $stored = $this->storage->getToken($metadata->issuer, $resource);
 
         if (null !== $stored && $this->isUsable($stored, $needed, $request)) {
             $this->logger->debug('Reusing a stored access token', ['issuer' => $metadata->issuer, 'resource' => $resource]);
@@ -248,7 +248,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      *
      * @return string[]
      */
-    private function selectScopes(AuthorizationChallenge $challenge, ?array $scopesSupported, AuthorizationServerMetadata $metadata): array
+    private function selectScopes(AuthorizationChallenge $challenge, ?array $scopesSupported, AuthorizationServerMetadata $metadata, ?AccessToken $stored): array
     {
         $scopes = $this->configuration->scopes;
 
@@ -258,7 +258,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             $scopes = [...$scopes, ...$challenge->getScopes()];
         }
 
-        $scopes = array_values(array_unique([...$this->requestedScopes, ...$scopes]));
+        $held = array_diff($stored->scopes ?? [], ['offline_access']);
+        $scopes = array_values(array_unique([...$this->requestedScopes, ...$held, ...$scopes]));
 
         if ($this->offlineAccessRefused) {
             return array_values(array_diff($scopes, ['offline_access']));
