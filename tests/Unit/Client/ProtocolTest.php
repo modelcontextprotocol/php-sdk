@@ -137,8 +137,18 @@ final class ProtocolTest extends TestCase
         $this->assertSame(ProtocolVersion::V2025_11_25, $protocol->getState()->getProtocolVersion());
     }
 
-    #[TestDox('a connection lost during the probe fails the attempt instead of falling back')]
-    public function testLostConnectionDuringProbeDoesNotFallBack(): void
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function endingProbeFailureProvider(): iterable
+    {
+        yield 'a lost connection' => [TransportInterface::CONNECTION_LOST];
+        yield 'a response over the body limit' => [TransportInterface::RESPONSE_TOO_LARGE];
+    }
+
+    #[DataProvider('endingProbeFailureProvider')]
+    #[TestDox('$_dataName during the probe fails the attempt instead of falling back')]
+    public function testProbeFailureThatEndsTheAttemptDoesNotFallBack(string $marker): void
     {
         $transport = new RecordingTransport(ProtocolVersion::V2025_11_25->value, ignoreDiscovery: true);
         $protocol = new Protocol();
@@ -146,7 +156,7 @@ final class ProtocolTest extends TestCase
 
         $fiber = new \Fiber(static fn () => $protocol->initialize($config));
         $suspended = $fiber->start();
-        $fiber->resume(new Error($suspended['request_id'], Error::INTERNAL_ERROR, 'The server process closed its output.', [TransportInterface::CONNECTION_LOST => true]));
+        $fiber->resume(new Error($suspended['request_id'], Error::INTERNAL_ERROR, 'The server process closed its output.', [$marker => true]));
 
         $this->assertTrue($fiber->isTerminated());
         $error = $fiber->getReturn();

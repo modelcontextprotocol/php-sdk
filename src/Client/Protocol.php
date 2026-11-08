@@ -319,7 +319,7 @@ class Protocol
         \assert(null !== $this->envelope);
 
         if ($probe instanceof Error) {
-            if (\is_array($probe->data) && true === ($probe->data[TransportInterface::CONNECTION_LOST] ?? null)) {
+            if (\is_array($probe->data) && (true === ($probe->data[TransportInterface::CONNECTION_LOST] ?? null) || true === ($probe->data[TransportInterface::RESPONSE_TOO_LARGE] ?? null))) {
                 return $probe;
             }
 

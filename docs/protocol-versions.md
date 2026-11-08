@@ -137,6 +137,7 @@ describe.
 | `-32022` naming a modern revision it speaks | retries the probe with that revision |
 | `-32022` naming only handshake revisions | falls back to `initialize` |
 | `-32022` naming nothing it speaks | fails the connection |
+| a body over the HTTP transport's [response body limit](client/transports.md#http-transport) | fails the connection, with no retry |
 | any other error, an HTTP refusal without one, or no answer in time | falls back to `initialize` |
 | a `DiscoverResult` listing only handshake revisions | falls back to `initialize` |
 

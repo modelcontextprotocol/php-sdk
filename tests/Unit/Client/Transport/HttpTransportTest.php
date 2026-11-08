@@ -18,6 +18,7 @@ use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
 use Mcp\Client\Protocol;
 use Mcp\Client\State\ClientState;
 use Mcp\Client\Transport\HttpTransport;
+use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
@@ -1161,6 +1162,7 @@ final class HttpTransportTest extends TestCase
         $this->assertStringContainsString('1024 byte limit', $result->message);
         $this->assertStringContainsString('maxResponseBodyBytes', $result->message);
         $this->assertStringNotContainsString('ended', $result->message);
+        $this->assertSame([TransportInterface::RESPONSE_TOO_LARGE => true], $result->data);
         $this->assertSame([], $messages);
         $this->assertLessThanOrEqual(1025, $body->bytesRead);
         $this->assertTrue($body->closed);
@@ -1320,22 +1322,51 @@ final class HttpTransportTest extends TestCase
         $this->assertSame([$answer], $messages);
     }
 
-    #[TestDox('a response over the body limit during connect() fails with a ConnectionException')]
-    public function testBodyOverTheLimitDuringConnect(): void
+    /**
+     * @return iterable<string, array{ProtocolVersion, ?ProtocolVersion, string}>
+     */
+    public static function connectBodyLimitProvider(): iterable
     {
+        yield 'the probe, with a fallback' => [ProtocolVersion::V2026_07_28, ProtocolVersion::V2025_11_25, 'server/discover'];
+        yield 'the probe, without a fallback' => [ProtocolVersion::V2026_07_28, null, 'server/discover'];
+        yield 'the handshake' => [ProtocolVersion::V2025_11_25, ProtocolVersion::V2025_11_25, 'initialize'];
+    }
+
+    #[DataProvider('connectBodyLimitProvider')]
+    #[TestDox('a response over the body limit fails connect() at once, without a retry or a fallback: $_dataName')]
+    public function testBodyOverTheLimitFailsConnect(ProtocolVersion $version, ?ProtocolVersion $fallback, string $oversizedMethod): void
+    {
+        $httpClient = new RecordingHttpClient(static function (array $message) use ($oversizedMethod): ResponseInterface {
+            if ($oversizedMethod === ($message['method'] ?? null)) {
+                return new Response(200, ['Content-Type' => 'application/json'], new OversizedStream(1024 * 1024));
+            }
+
+            if ('initialize' !== ($message['method'] ?? null)) {
+                return new Response(202);
+            }
+
+            return new Response(200, ['Content-Type' => 'application/json'], (string) json_encode(['jsonrpc' => '2.0', 'id' => $message['id'], 'result' => [
+                'protocolVersion' => ProtocolVersion::V2025_11_25->value,
+                'capabilities' => new \stdClass(),
+                'serverInfo' => ['name' => 'legacy-server', 'version' => '1.0.0'],
+            ]]));
+        });
+
         $client = Client::builder()
             ->setClientInfo('test-client', '1.0.0')
-            ->setProtocolVersion(ProtocolVersion::V2025_11_25)
+            ->setProtocolVersion($version)
+            ->setFallbackProtocolVersion($fallback)
             ->setInitTimeout(5)
             ->build();
 
-        $this->expectException(ConnectionException::class);
-        $this->expectExceptionMessage('maxResponseBodyBytes');
+        try {
+            $client->connect($this->createTransport(httpClient: $httpClient, maxResponseBodyBytes: 1024));
+            $this->fail('connect() must not succeed on a response over the limit.');
+        } catch (ConnectionException $e) {
+            $this->assertStringStartsWith('Initialization failed: The response body exceeds the 1024 byte limit.', $e->getMessage());
+        }
 
-        $client->connect($this->createTransport(
-            httpClient: new RecordingHttpClient(static fn (array $message): ResponseInterface => new Response(200, ['Content-Type' => 'application/json'], new OversizedStream(1024 * 1024))),
-            maxResponseBodyBytes: 1024,
-        ));
+        $this->assertSame([$oversizedMethod], array_column($httpClient->messages, 'method'));
     }
 
     #[TestDox('the response body limit must be a positive number of bytes')]

@@ -108,7 +108,8 @@ $transport = new HttpTransport('http://localhost:8000', maxResponseBodyBytes: 64
 ```
 
 - A successful response over the limit fails the request with a `RequestException`, and the transport
-  closes the body. During `connect()`, it throws a `ConnectionException`.
+  closes the body. During `connect()`, it throws a `ConnectionException` at once, with no retry and no
+  fallback to the `initialize` handshake.
 - An error status over the limit fails the request as usual. The transport reads the body up to the
   limit, and it may log the first 4 KiB.
 - SSE streams have their own limit: `maxSseBufferBytes` limits the size of one incomplete event.

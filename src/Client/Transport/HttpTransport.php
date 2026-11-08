@@ -17,6 +17,7 @@ use Mcp\Client\MonotonicClock;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
+use Mcp\Exception\RequestException;
 use Mcp\Exception\TimeoutException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
@@ -168,6 +169,11 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->resetSseState();
 
         if ($result instanceof Error) {
+            // A retry would download the same body again.
+            if (\is_array($result->data) && true === ($result->data[self::RESPONSE_TOO_LARGE] ?? null)) {
+                throw RequestException::fromError($result);
+            }
+
             throw new ConnectionException('Initialization failed: '.$result->message);
         }
 
@@ -295,7 +301,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         if ($truncated) {
-            $this->failRequest($data, \sprintf('The response body exceeds the %d byte limit. Raise the "maxResponseBodyBytes" argument of HttpTransport to accept it.', $this->maxResponseBodyBytes));
+            $this->failRequest($data, \sprintf('The response body exceeds the %d byte limit. Raise the "maxResponseBodyBytes" argument of HttpTransport to accept it.', $this->maxResponseBodyBytes), [self::RESPONSE_TOO_LARGE => true]);
 
             return;
         }
@@ -372,7 +378,10 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->failRequest($sent, 'The response ended without answering the request: '.$reason);
     }
 
-    private function failRequest(string $sent, string $message): void
+    /**
+     * @param array<string, bool>|null $data
+     */
+    private function failRequest(string $sent, string $message, ?array $data = null): void
     {
         $requestId = self::requestIdOf($sent);
         if (null === $requestId || null === $this->state) {
@@ -380,7 +389,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         $this->logger->warning($message, ['request_id' => $requestId]);
-        $this->state->storeResponse($requestId, Error::forInternalError($message, $requestId)->jsonSerialize());
+        $this->state->storeResponse($requestId, (new Error($requestId, Error::INTERNAL_ERROR, $message, $data))->jsonSerialize());
     }
 
     /**
