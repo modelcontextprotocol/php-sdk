@@ -522,7 +522,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             if (null === $body) {
                 $this->logger->warning('Rejected POST body exceeding the maximum allowed size.', ['limit' => $this->maxBodyBytes]);
 
-                return $this->createErrorResponse(Error::forInvalidRequest(\sprintf('Request body exceeds the maximum allowed size of %d bytes.', $this->maxBodyBytes)), 413);
+                return $this->createErrorResponse(Error::forBodyTooLarge($this->maxBodyBytes), 413);
             }
         }
 

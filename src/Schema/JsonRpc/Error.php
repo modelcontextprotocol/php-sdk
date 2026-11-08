@@ -138,6 +138,11 @@ class Error implements MessageInterface
         return new self($id, self::HEADER_MISMATCH, $message);
     }
 
+    final public static function forBodyTooLarge(int $maxBytes): self
+    {
+        return self::forInvalidRequest(\sprintf('Request body exceeds the maximum allowed size of %d bytes.', $maxBytes));
+    }
+
     /**
      * @param ClientCapabilities $requiredCapabilities the capabilities the server needs to process the request
      */

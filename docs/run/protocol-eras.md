@@ -240,3 +240,6 @@ new StatelessHttpTransport(
 
 An empty `middleware` list turns off all middleware, without a warning. The transport answers
 `OPTIONS` with `204` and any other method except `POST` with `405`.
+
+An `AuthorizationMiddleware` in the `middleware` list has its own body limit, see
+[Request Body Size Limit](http.md#request-body-size-limit).

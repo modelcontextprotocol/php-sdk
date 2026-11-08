@@ -28,6 +28,16 @@ class ErrorCodesTest extends TestCase
         $this->assertSame(-32020, $error->code);
     }
 
+    #[TestDox('a body over the limit carries -32600, the limit and no id')]
+    public function testBodyTooLarge(): void
+    {
+        $error = Error::forBodyTooLarge(10);
+
+        $this->assertSame(Error::INVALID_REQUEST, $error->code);
+        $this->assertSame('Request body exceeds the maximum allowed size of 10 bytes.', $error->message);
+        $this->assertNull($error->getId());
+    }
+
     #[TestDox('missing client capability carries -32021 and the required capabilities')]
     public function testMissingClientCapability(): void
     {

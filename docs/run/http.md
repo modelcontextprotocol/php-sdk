@@ -207,6 +207,22 @@ When the request stream advertises a size, the transport rejects it up-front. Ot
 unknown size) the body is read incrementally and aborted as soon as it crosses the cap, so an unbounded stream cannot
 exhaust memory. A value below `1` throws `InvalidArgumentException`.
 
+An `AuthorizationMiddleware` with a `ScopePolicy` that has method or tool rules reads the body before the transport,
+with its own limit. Pass the same value to both, as the lower one wins and a lower transport limit only applies after
+the middleware has read and decoded the body:
+
+```php
+use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
+use Mcp\Server\Transport\StreamableHttpTransport;
+
+$maxBodyBytes = 16 * 1024 * 1024;
+
+$transport = new StreamableHttpTransport($request, middleware: [
+    ...StreamableHttpTransport::defaultMiddleware(),
+    new AuthorizationMiddleware($validator, $metadata, $scopePolicy, maxBodyBytes: $maxBodyBytes),
+], maxBodyBytes: $maxBodyBytes);
+```
+
 ## JSON-RPC Batches
 
 The SDK doesn't support JSON-RPC batches. The server answers a JSON array with HTTP status `400` and error

@@ -12,6 +12,7 @@
 namespace Mcp\Server\Transport\Http\Middleware;
 
 use Http\Discovery\Psr17FactoryDiscovery;
+use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
@@ -25,6 +26,8 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * Enforces MCP HTTP authorization: the MCP server as OAuth 2.1 resource server.
@@ -33,6 +36,7 @@ use Psr\Http\Server\RequestHandlerInterface;
  * - Validates Bearer tokens via the configured validator
  * - Returns 401 with WWW-Authenticate header on missing/invalid tokens
  * - Returns 403 insufficient_scope when the token lacks a scope the {@see ScopePolicy} requires
+ * - Returns 413 when a body the {@see ScopePolicy} inspects exceeds the byte cap
  * - Hands the validated {@see AccessToken} to the transport as request attribute,
  *   from where handlers read it via {@see \Mcp\Server\RequestContext::getAccessToken()}
  *
@@ -51,7 +55,8 @@ final class AuthorizationMiddleware implements MiddlewareInterface
      * @param AuthorizationTokenValidatorInterface $validator        Token validator implementation
      * @param ProtectedResourceMetadata            $resourceMetadata Metadata of this resource, its URL is advertised in challenges
      * @param ScopePolicy|null                     $scopePolicy      Scopes required per request, none if null
-     * @param int                                  $maxBodyBytes     Upper bound for reading the body when the scope policy inspects it
+     * @param int                                  $maxBodyBytes     Upper bound for reading the body when the scope policy inspects it, a larger body gets 413; set it together with the transport's `maxBodyBytes`
+     * @param LoggerInterface                      $logger           Receives a warning when a body exceeds `maxBodyBytes`
      */
     public function __construct(
         private readonly AuthorizationTokenValidatorInterface $validator,
@@ -60,6 +65,7 @@ final class AuthorizationMiddleware implements MiddlewareInterface
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         private readonly int $maxBodyBytes = StreamableHttpTransport::DEFAULT_MAX_BODY_BYTES,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
@@ -95,7 +101,11 @@ final class AuthorizationMiddleware implements MiddlewareInterface
             if ('POST' === $request->getMethod() && $this->scopePolicy->inspectsBody()) {
                 $body = $this->readBoundedBody($request->getBody(), $this->maxBodyBytes);
                 if (null === $body) {
-                    return $this->buildErrorResponse(AuthorizationResult::badRequest('invalid_request', 'Request body is too large.'));
+                    $this->logger->warning('Rejected POST body exceeding the maximum allowed size.', ['limit' => $this->maxBodyBytes]);
+
+                    return $this->responseFactory->createResponse(413)
+                        ->withHeader('Content-Type', 'application/json')
+                        ->withBody($this->streamFactory->createStream(json_encode(Error::forBodyTooLarge($this->maxBodyBytes), \JSON_THROW_ON_ERROR)));
                 }
 
                 // Handed on byte for byte: the transport reads the body again.
