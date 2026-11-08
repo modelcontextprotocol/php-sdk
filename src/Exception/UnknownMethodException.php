@@ -14,6 +14,6 @@ namespace Mcp\Exception;
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-class UnknownMethodException extends InvalidInputMessageException
+final class UnknownMethodException extends InvalidInputMessageException
 {
 }
