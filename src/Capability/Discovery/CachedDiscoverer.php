@@ -28,6 +28,7 @@ use Psr\SimpleCache\CacheInterface;
 final class CachedDiscoverer implements DiscovererInterface
 {
     private const CACHE_PREFIX = 'mcp_discovery_';
+    private const GENERATION_KEY = self::CACHE_PREFIX.'generation';
 
     public function __construct(
         private readonly DiscovererInterface $discoverer,
@@ -46,14 +47,9 @@ final class CachedDiscoverer implements DiscovererInterface
      */
     public function discover(string $basePath, array $directories, array $excludeDirs = [], array $namePatterns = self::DEFAULT_NAME_PATERNS): DiscoveryState
     {
-        $cacheKey = $this->generateCacheKey($basePath, $directories, $excludeDirs);
+        $cacheKey = $this->generateCacheKey($this->generation(), $basePath, $directories, $excludeDirs, $namePatterns);
 
-        if ($this->cache instanceof CacheItemPoolInterface) {
-            $item = $this->cache->getItem($cacheKey);
-            $cachedResult = $item->get();
-        } else {
-            $cachedResult = $this->cache->get($cacheKey);
-        }
+        $cachedResult = $this->read($cacheKey);
 
         if (null !== $cachedResult) {
             $this->logger->debug('Using cached discovery results', [
@@ -73,11 +69,7 @@ final class CachedDiscoverer implements DiscovererInterface
 
         $discoveryState = $this->discoverer->discover($basePath, $directories, $excludeDirs, $namePatterns);
 
-        if ($this->cache instanceof CacheItemPoolInterface) {
-            $this->cache->save($item->set($discoveryState));
-        } else {
-            $this->cache->set($cacheKey, $discoveryState);
-        }
+        $this->write($cacheKey, $discoveryState);
 
         return $discoveryState;
     }
@@ -87,25 +79,69 @@ final class CachedDiscoverer implements DiscovererInterface
      *
      * @param array<string> $directories
      * @param array<string> $excludeDirs
+     * @param array<string> $namePatterns
      */
-    private function generateCacheKey(string $basePath, array $directories, array $excludeDirs): string
+    private function generateCacheKey(string $generation, string $basePath, array $directories, array $excludeDirs, array $namePatterns): string
     {
         $keyData = [
+            'generation' => $generation,
             'base_path' => $basePath,
             'directories' => $directories,
             'exclude_dirs' => $excludeDirs,
+            'name_patterns' => $namePatterns,
         ];
 
         return self::CACHE_PREFIX.md5(serialize($keyData));
     }
 
     /**
-     * Clear the discovery cache.
+     * Clear the discovery cache, leaving other entries of a shared cache in place.
      * Useful for development or when files change.
+     *
+     * Cleared entries become unreachable and stay until the cache expires or evicts them.
      */
     public function clearCache(): void
     {
-        $this->cache->clear();
+        if ($this->cache instanceof CacheItemPoolInterface) {
+            $this->cache->deleteItem(self::GENERATION_KEY);
+        } else {
+            $this->cache->delete(self::GENERATION_KEY);
+        }
+
         $this->logger->info('Discovery cache cleared');
+    }
+
+    private function generation(): string
+    {
+        $generation = $this->read(self::GENERATION_KEY);
+
+        if (\is_string($generation)) {
+            return $generation;
+        }
+
+        $generation = bin2hex(random_bytes(8));
+        $this->write(self::GENERATION_KEY, $generation);
+
+        return $generation;
+    }
+
+    private function read(string $key): mixed
+    {
+        if ($this->cache instanceof CacheItemPoolInterface) {
+            return $this->cache->getItem($key)->get();
+        }
+
+        return $this->cache->get($key);
+    }
+
+    private function write(string $key, mixed $value): void
+    {
+        if ($this->cache instanceof CacheItemPoolInterface) {
+            $this->cache->save($this->cache->getItem($key)->set($value));
+
+            return;
+        }
+
+        $this->cache->set($key, $value);
     }
 }
