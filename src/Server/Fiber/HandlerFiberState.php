@@ -33,6 +33,8 @@ final class HandlerFiberState
 
     private bool $abandoned = false;
 
+    private bool $driven = false;
+
     /**
      * @param (\Closure(\Throwable): ?Error)|null $errorForFailure
      */
@@ -81,6 +83,19 @@ final class HandlerFiberState
     }
 
     /**
+     * The server drives the fiber, and so is there to rethrow what its handler throws.
+     */
+    public function driven(): void
+    {
+        $this->driven = true;
+    }
+
+    public function released(): void
+    {
+        $this->driven = false;
+    }
+
+    /**
      * The server answered the request of this fiber and no longer waits for it, while the runtime may still resume it.
      */
     public function abandoned(): void
@@ -104,6 +119,13 @@ final class HandlerFiberState
     {
         if ($this->abandoned) {
             $this->logger->error(\sprintf('A request handler failed after its request was answered: %s', $throwable->getMessage()), ['exception' => $throwable]);
+
+            return;
+        }
+
+        // Thrown while its discarded fiber unwinds, so the server would never rethrow it.
+        if (!$this->driven) {
+            $this->logger->error('A request handler failed while its fiber was discarded.', ['exception' => $throwable]);
 
             return;
         }
