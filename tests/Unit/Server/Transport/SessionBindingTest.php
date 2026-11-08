@@ -12,11 +12,17 @@
 namespace Mcp\Tests\Unit\Server\Transport;
 
 use Mcp\Exception\SessionStoreException;
+use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Notification\ResourceUpdatedNotification;
 use Mcp\Server;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\Handler\Request\PingHandler;
+use Mcp\Server\Protocol;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\Session;
+use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Http\Middleware\PassthroughMiddleware;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
@@ -38,6 +44,9 @@ use Symfony\Component\Uid\Uuid;
  */
 final class SessionBindingTest extends TestCase
 {
+    private const PING = '{"jsonrpc":"2.0","id":2,"method":"ping"}';
+    private const QUEUED_URI = 'urn:queued-for-alice';
+
     private Psr17Factory $factory;
     private UnreadableSessionStore $store;
     private Server $server;
@@ -247,6 +256,42 @@ final class SessionBindingTest extends TestCase
         $this->assertSame(200, $this->callWith($session, [])->getStatusCode());
     }
 
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideInputsRefusedBeforeTheSessionIsChecked(): iterable
+    {
+        yield 'malformed JSON' => ['{'];
+        yield 'an initialize request' => ['{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"client","version":"1.0.0"}}}'];
+    }
+
+    #[DataProvider('provideInputsRefusedBeforeTheSessionIsChecked')]
+    public function testInputRefusedBeforeTheSessionIsCheckedLeavesItsQueueAlone(string $input): void
+    {
+        $protocol = $this->protocol();
+        $session = $this->sessionWithQueuedMessage($protocol);
+
+        $response = $this->post($protocol, $input, $session, 'carol');
+
+        $this->assertStringNotContainsString(self::QUEUED_URI, (string) $response->getBody());
+        $this->assertSame(400, $response->getStatusCode());
+        $this->assertStringContainsString(self::QUEUED_URI, (string) $this->post($protocol, self::PING, $session, 'alice')->getBody());
+    }
+
+    public function testInternalErrorBeforeTheSessionIsCheckedLeavesItsQueueAlone(): void
+    {
+        $session = $this->sessionWithQueuedMessage($this->protocol());
+        $this->store->gcFails = true;
+
+        $response = $this->post($this->protocol(gcProbability: 1), self::PING, $session, 'carol');
+
+        $this->assertStringNotContainsString(self::QUEUED_URI, (string) $response->getBody());
+        $this->assertSame(500, $response->getStatusCode());
+
+        $this->store->gcFails = false;
+        $this->assertStringContainsString(self::QUEUED_URI, (string) $this->post($this->protocol(), self::PING, $session, 'alice')->getBody());
+    }
+
     public function testSessionOpenedWithoutPrincipalOnlyServesRequestsWithoutOne(): void
     {
         $passthrough = [new PassthroughMiddleware()];
@@ -290,6 +335,40 @@ final class SessionBindingTest extends TestCase
         }
 
         return $this->serve($request, [new PassthroughMiddleware()]);
+    }
+
+    private function protocol(int $gcProbability = 0): Protocol
+    {
+        return new Protocol(
+            requestHandlers: [new PingHandler()],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: new SessionManager($this->store, gcProbability: $gcProbability, gcDivisor: 1),
+        );
+    }
+
+    /**
+     * Opens a session of alice, with a message queued outside of any request.
+     */
+    private function sessionWithQueuedMessage(Protocol $protocol): Uuid
+    {
+        $session = new Session($this->store);
+        $session->set('_mcp.principal', hash('sha256', 'alice'));
+        $session->set('initialized', true);
+        $protocol->sendNotification(new ResourceUpdatedNotification(self::QUEUED_URI), $session);
+        $session->save();
+
+        return $session->getId();
+    }
+
+    private function post(Protocol $protocol, string $input, Uuid $session, string $principal): ResponseInterface
+    {
+        $request = $this->request('POST', $input, null, $session->toRfc4122())
+            ->withAttribute(StreamableHttpTransport::PRINCIPAL_ATTRIBUTE, $principal);
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory, middleware: [new PassthroughMiddleware()]);
+        $protocol->connect($transport);
+
+        return $transport->listen();
     }
 
     private function server(Server $server, ServerRequestInterface $request): ResponseInterface
@@ -404,6 +483,16 @@ final class UnreadableSessionStore extends InMemorySessionStore
 {
     public bool $unreadable = false;
     public bool $unavailable = false;
+    public bool $gcFails = false;
+
+    public function gc(): array
+    {
+        if ($this->gcFails) {
+            throw new SessionStoreException('Session store is unavailable.');
+        }
+
+        return parent::gc();
+    }
 
     public function exists(Uuid $id): bool
     {

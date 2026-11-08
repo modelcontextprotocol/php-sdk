@@ -41,6 +41,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
   * Fix a request failing with `503`, and a resumed request losing its session writes, while another request of the session holds the session lock across an await: both wait for the lock on the event loop.
   * Fix a handler still running after its request was answered, e.g. without a fiber scheduler: it no longer fires `ResponseEvent` or `ErrorEvent`, what it throws is logged, and calling the `ClientGateway` throws.
 * [BC Break] Bind handshake-era sessions to the principal that opened them: `AccessToken::getPrincipal()`, or the `StreamableHttpTransport::PRINCIPAL_ATTRIBUTE` request attribute when set. Requests of another principal, and to sessions opened before the upgrade, are answered with `404`, and to a session the store cannot read with `503`. `Protocol::processInput()`, the transports' `handleMessage()`, `handleSessionEnd()`, `handlePostRequest()` and `handleDeleteRequest()`, and the `onMessage()` and `onSessionEnd()` listeners take a `?string $principal` as last argument.
+* [BC Break] Answer malformed JSON and an `initialize` sent with a session id with HTTP `400`, and a failure before the session is checked with `500`, instead of `200`. Such an answer no longer carries, or removes, the messages queued for the session in `Mcp-Session-Id`.
 
 ### Client
 

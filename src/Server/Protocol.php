@@ -198,7 +198,7 @@ class Protocol
             }
 
             try {
-                $this->sendResponse($transport, Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $id), null);
+                $this->sendResponse($transport, Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $id), null, ['status_code' => 500]);
             } catch (\Throwable $e) {
                 $this->logger->error(\sprintf('Failed to send internal error response: %s', $e->getMessage()), ['exception' => $e]);
             }
@@ -244,7 +244,8 @@ class Protocol
         } catch (\JsonException $e) {
             $this->logger->warning('Failed to decode json message.', ['exception' => $e]);
             $error = Error::forParseError($e->getMessage());
-            $this->sendResponse($transport, $error, null);
+            // The status keeps a refusal from carrying the queue of a session nobody checked yet, here and below.
+            $this->sendResponse($transport, $error, null, ['status_code' => 400]);
 
             return;
         } catch (InvalidInputMessageException $e) {
@@ -1137,7 +1138,7 @@ class Protocol
             // Spec: An initialize request must not have a session ID.
             if ($sessionId) {
                 $error = Error::forInvalidRequest('A session ID MUST NOT be sent with an "initialize" request.');
-                $this->sendResponse($transport, $error, null);
+                $this->sendResponse($transport, $error, null, ['status_code' => 400]);
 
                 return null;
             }
