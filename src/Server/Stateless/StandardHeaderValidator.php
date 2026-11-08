@@ -30,7 +30,8 @@ final class StandardHeaderValidator
     public const NAME_HEADER = McpHeader::NAME;
     public const PARAM_HEADER_PREFIX = McpHeader::PARAM_PREFIX;
 
-    private const MAX_SAFE_INTEGER = 9007199254740991;
+    // The spec's limit for mirrored integers, beyond which doubles lose precision.
+    private const MAX_SAFE_INTEGER = 2 ** 53 - 1;
 
     public function __construct(
         private readonly ?RegistryInterface $registry = null,
