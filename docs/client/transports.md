@@ -29,6 +29,15 @@ $transport = new StdioTransport(
 If the server process exits while a request waits for its answer, the request fails at once with a
 `RequestException`.
 
+On Windows, use PHP 8.5 or newer. With older versions, the client blocks while the server sends no output, and its
+timeouts have no effect.
+
+Windows starts the command directly, so a batch file like `npx` must run through `cmd`:
+
+```php
+$transport = new StdioTransport('cmd', ['/c', 'npx', '-y', '@acme/weather-server']);
+```
+
 ## HTTP Transport
 
 Communicates with remote MCP servers over HTTP:

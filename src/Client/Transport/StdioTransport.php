@@ -216,7 +216,8 @@ class StdioTransport extends BaseTransport
         }
 
         $process = proc_open(
-            $cmd,
+            // cmd.exe cannot pass every argument on, and escapeshellarg() blanks what it cannot quote.
+            'Windows' === \PHP_OS_FAMILY ? [$this->command, ...$this->args] : $cmd,
             $descriptors,
             $pipes,
             $this->cwd,

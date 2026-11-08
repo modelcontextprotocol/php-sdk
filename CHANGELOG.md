@@ -61,6 +61,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Client
 
+* [BC Break] Start a stdio server on Windows without `cmd.exe`, as it corrupted arguments containing `"`, `%` or `!`. A batch file like `npx` now needs `command: 'cmd'` and `args: ['/c', 'npx', ...]`.
 * Fix the stdio client hanging on Windows while the server stays silent, without enforcing its timeouts: `StdioTransport` now reads only once `stream_select()` reports output. Requires PHP 8.5, as `stream_select()` on Windows reports an idle pipe as readable before that.
 * [BC Break] Remove JSON-RPC batch support: a JSON array from the server is dropped with a warning. Batching was removed from MCP in `2025-06-18`.
 * Fix `Client::connect()` leaving the previous transport open when called again: it closes the current transport first, so no stdio process or HTTP session is left behind.
