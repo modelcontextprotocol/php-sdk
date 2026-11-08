@@ -11,7 +11,6 @@
 
 namespace Mcp\Tests\Unit\Server\Authorization;
 
-use Mcp\Exception\RuntimeException;
 use Mcp\Server\Authorization\AccessToken;
 use PHPUnit\Framework\TestCase;
 
@@ -60,11 +59,12 @@ final class AccessTokenTest extends TestCase
         );
     }
 
-    public function testPrincipalOfAClaimThatCannotBeEncodedFails(): void
+    public function testPrincipalKeepsClaimsThatAreNotUtf8Apart(): void
     {
-        $this->expectException(RuntimeException::class);
-
-        (new AccessToken([], ['sub' => "\xB1"]))->getPrincipal();
+        $this->assertNotSame(
+            (new AccessToken([], ['sub' => "\xB1"]))->getPrincipal(),
+            (new AccessToken([], ['sub' => "\xB2"]))->getPrincipal(),
+        );
     }
 
     public function testIsNeverSerialized(): void

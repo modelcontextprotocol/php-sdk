@@ -198,6 +198,19 @@ final class SessionBindingTest extends TestCase
         $this->assertSame(404, $this->callWith($session, [AccessToken::class => new AccessToken([], ['client_id' => 'b'])])->getStatusCode());
     }
 
+    public function testTokenWithAClaimThatIsNotUtf8BindsTheSession(): void
+    {
+        $owner = [AccessToken::class => new AccessToken([], ['sub' => "\xB1"])];
+        $other = [AccessToken::class => new AccessToken([], ['sub' => "\xB2"])];
+        $ping = '{"jsonrpc":"2.0","id":2,"method":"ping"}';
+        $session = $this->openWith($owner);
+
+        $this->assertSame(200, $this->serveWith($this->request('POST', $ping, null, $session), $owner)->getStatusCode());
+        $this->assertSame(404, $this->serveWith($this->request('POST', $ping, null, $session), $other)->getStatusCode());
+        $this->assertSame(404, $this->serveWith($this->request('DELETE', '', null, $session), $other)->getStatusCode());
+        $this->assertSame(200, $this->serveWith($this->request('DELETE', '', null, $session), $owner)->getStatusCode());
+    }
+
     public function testTokenWithoutClaimsDoesNotShareSessionsWithRequestsWithoutToken(): void
     {
         $session = $this->openWith([AccessToken::class => new AccessToken()]);
