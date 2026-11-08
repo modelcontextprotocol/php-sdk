@@ -15,6 +15,7 @@ use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
+use Mcp\Exception\RegistryException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ResourceReadException;
 use Mcp\Exception\SessionRequiredException;
@@ -113,6 +114,12 @@ final class ReadResourceHandler implements RequestHandlerInterface
                 ? Error::forInvalidParams($e->getMessage(), $request->getId(), ['uri' => $uri])
                 : Error::forResourceNotFound($e->getMessage(), $request->getId());
         } catch (\Throwable $e) {
+            if ($e instanceof RegistryException && $e->isInvalidParams()) {
+                $this->logger->warning('Invalid arguments for resource', ['uri' => $uri, 'exception' => $e]);
+
+                return Error::forInvalidParams($e->getMessage(), $request->getId());
+            }
+
             $this->logger->error(\sprintf('Unexpected error while reading resource "%s": "%s".', $uri, $e->getMessage()), ['exception' => $e]);
 
             return Error::forInternalError('Error while reading resource', $request->getId());

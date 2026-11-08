@@ -15,6 +15,7 @@ use Mcp\Capability\Discovery\SchemaValidator;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
+use Mcp\Exception\RegistryException;
 use Mcp\Exception\SessionRequiredException;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
@@ -158,6 +159,12 @@ final class CallToolHandler implements RequestHandlerInterface
 
             return new Response($request->getId(), CallToolResult::error($errorContent));
         } catch (\Throwable $e) {
+            if ($e instanceof RegistryException && $e->isInvalidParams()) {
+                $this->logger->warning('Invalid arguments for tool', ['name' => $toolName, 'exception' => $e]);
+
+                return Error::forInvalidParams($e->getMessage(), $request->getId());
+            }
+
             $this->logger->error('Unhandled error during tool execution', [
                 'name' => $toolName,
                 'exception' => $e,

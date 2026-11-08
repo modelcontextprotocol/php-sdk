@@ -16,6 +16,7 @@ use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\PromptGetException;
 use Mcp\Exception\PromptNotFoundException;
+use Mcp\Exception\RegistryException;
 use Mcp\Schema\Content\PromptMessage;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\Role;
@@ -277,6 +278,33 @@ class GetPromptHandlerTest extends TestCase
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
         $this->assertEquals('Failed to get prompt', $response->message);
+    }
+
+    public function testHandleAnswersInvalidParamsFromReferenceHandlerWithInvalidParams(): void
+    {
+        $request = $this->createGetPromptRequest('order', ['qty' => 'abc']);
+        $this->referenceProvider->method('getPrompt')->willReturn($this->createStub(PromptReference::class));
+        $this->referenceHandler->method('handle')->willThrowException(RegistryException::invalidParams('Cannot cast value to integer.'));
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertEquals($request->getId(), $response->id);
+        $this->assertEquals(Error::INVALID_PARAMS, $response->code);
+        $this->assertEquals('Cannot cast value to integer.', $response->message);
+    }
+
+    public function testHandleAnswersInternalRegistryErrorWithInternalError(): void
+    {
+        $request = $this->createGetPromptRequest('order');
+        $this->referenceProvider->method('getPrompt')->willReturn($this->createStub(PromptReference::class));
+        $this->referenceHandler->method('handle')->willThrowException(RegistryException::internalError('Missing required argument.'));
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
+        $this->assertEquals('Error while handling prompt', $response->message);
     }
 
     public function testHandlePromptGetWithComplexArguments(): void

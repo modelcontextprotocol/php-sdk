@@ -16,11 +16,13 @@ use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
+use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\Request\PingRequest;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\ResourceHandlerInterface;
 use Mcp\Server\Handler\ToolHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -357,6 +359,105 @@ final class ReferenceHandlerTest extends TestCase
             '_session' => $this->createMock(SessionInterface::class),
             'name' => 'bad',
             'scores' => ['1', 'not-a-number', '3'],
+        ]);
+    }
+
+    /**
+     * @return iterable<string, array{mixed, int}>
+     */
+    public static function provideIntegerValues(): iterable
+    {
+        yield 'int' => [5, 5];
+        yield 'integral float' => [5.0, 5];
+        yield 'negative zero' => [-0.0, 0];
+        yield 'smallest float in range' => [(float) \PHP_INT_MIN, \PHP_INT_MIN];
+        yield 'largest int' => [\PHP_INT_MAX, \PHP_INT_MAX];
+        yield 'smallest int' => [\PHP_INT_MIN, \PHP_INT_MIN];
+        yield 'string' => ['5', 5];
+        yield 'negative string' => ['-5', -5];
+        yield 'zero string' => ['0', 0];
+        yield 'negative zero string' => ['-0', 0];
+        yield 'leading zeros' => ['007', 7];
+        yield 'negative leading zeros' => ['-007', -7];
+        yield 'only zeros' => ['000', 0];
+        yield 'largest int string' => [(string) \PHP_INT_MAX, \PHP_INT_MAX];
+        yield 'smallest int string' => [(string) \PHP_INT_MIN, \PHP_INT_MIN];
+    }
+
+    #[DataProvider('provideIntegerValues')]
+    public function testHandleCastsIntegerArgument(mixed $value, int $expected): void
+    {
+        $result = (new ReferenceHandler())->handle(new ElementReference(static fn (int $qty): int => $qty), [
+            '_session' => $this->createMock(SessionInterface::class),
+            'qty' => $value,
+        ]);
+
+        $this->assertSame($expected, $result);
+    }
+
+    /**
+     * @return iterable<string, array{mixed}>
+     */
+    public static function provideNonIntegerValues(): iterable
+    {
+        yield 'float above the range' => [9300000000000000000.0];
+        yield 'float below the range' => [-9300000000000000000.0];
+        yield 'first float above the range' => [-(float) \PHP_INT_MIN];
+        yield 'float wrapping to zero' => [18446744073709551616.0];
+        yield 'infinity' => [\INF];
+        yield 'negative infinity' => [-\INF];
+        yield 'not a number' => [\NAN];
+        yield 'fractional float' => [1.5];
+        yield 'string above the range' => ['9223372036854775808'];
+        yield 'string below the range' => ['-9223372036854775809'];
+        yield 'string far above the range' => ['99999999999999999999'];
+        yield 'string far below the range' => ['-99999999999999999999'];
+        yield 'double minus' => ['--5'];
+        yield 'only a minus' => ['-'];
+        yield 'empty string' => [''];
+        yield 'plus sign' => ['+5'];
+        yield 'trailing minus' => ['5-'];
+        yield 'trailing newline' => ["5\n"];
+        yield 'surrounding space' => [' 5 '];
+        yield 'exponent' => ['1e3'];
+        yield 'decimal string' => ['1.0'];
+        yield 'word' => ['abc'];
+        yield 'bool' => [true];
+        yield 'list' => [[1]];
+    }
+
+    #[DataProvider('provideNonIntegerValues')]
+    public function testHandleRefusesNonIntegerArgument(mixed $value): void
+    {
+        $this->expectException(RegistryException::class);
+        $this->expectExceptionCode(Error::INVALID_PARAMS);
+
+        (new ReferenceHandler())->handle(new ElementReference(static fn (int $qty): int => $qty), [
+            '_session' => $this->createMock(SessionInterface::class),
+            'qty' => $value,
+        ]);
+    }
+
+    public function testHandleRefusesOutOfRangeNullableInteger(): void
+    {
+        $this->expectException(RegistryException::class);
+        $this->expectExceptionCode(Error::INVALID_PARAMS);
+
+        (new ReferenceHandler())->handle(new ElementReference(static fn (?int $qty = null): ?int => $qty), [
+            '_session' => $this->createMock(SessionInterface::class),
+            'qty' => 9300000000000000000.0,
+        ]);
+    }
+
+    public function testHandleRefusesOutOfRangeVariadicInteger(): void
+    {
+        $this->expectException(RegistryException::class);
+        $this->expectExceptionCode(Error::INVALID_PARAMS);
+        $this->expectExceptionMessage('Parameter `qty[1]`');
+
+        (new ReferenceHandler())->handle(new ElementReference(static fn (int ...$qty): int => \count($qty)), [
+            '_session' => $this->createMock(SessionInterface::class),
+            'qty' => [1, 9300000000000000000.0],
         ]);
     }
 

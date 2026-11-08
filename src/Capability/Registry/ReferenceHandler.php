@@ -304,11 +304,16 @@ final class ReferenceHandler implements ReferenceHandlerInterface
         if (\is_int($argument)) {
             return $argument;
         }
-        if (is_numeric($argument) && floor((float) $argument) == $argument && !\is_string($argument)) {
+        // PHP_INT_MAX is not representable as float: the upper bound is the first float that would wrap.
+        if (\is_float($argument) && floor($argument) === $argument && $argument >= (float) \PHP_INT_MIN && $argument < -(float) \PHP_INT_MIN) {
             return (int) $argument;
         }
-        if (\is_string($argument) && ctype_digit(ltrim($argument, '-'))) {
-            return (int) $argument;
+        if (\is_string($argument) && is_numeric($argument) && 1 === preg_match('/^-?\d+$/D', $argument)) {
+            // Unlike FILTER_VALIDATE_INT this keeps leading zeros valid, while an overflow turns into a float.
+            $number = $argument + 0;
+            if (\is_int($number)) {
+                return $number;
+            }
         }
 
         throw new InvalidArgumentException('Cannot cast value to integer. Expected integer representation.');
