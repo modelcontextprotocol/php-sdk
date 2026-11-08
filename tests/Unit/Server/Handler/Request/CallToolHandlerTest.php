@@ -686,9 +686,58 @@ class CallToolHandlerTest extends TestCase
         yield 'list without a negotiated revision' => [null, [['id' => 1]], 1];
         yield 'list from SEP-2106 on' => ['2026-07-28', [['id' => 1]], 0];
         yield 'object before SEP-2106' => ['2025-11-25', ['items' => [['id' => 1]]], 0];
-        yield 'none at all' => ['2025-11-25', null, 0];
+        yield 'explicit null before SEP-2106' => ['2025-11-25', null, 1];
         yield 'empty list before SEP-2106' => ['2025-11-25', [], 1];
         yield 'empty object before SEP-2106' => ['2025-11-25', new \stdClass(), 0];
+    }
+
+    public function testSelfBuiltResultWithoutStructuredContentDoesNotWarn(): void
+    {
+        $request = $this->createCallToolRequest('text_only', []);
+        $reference = $this->createToolReference('text_only', static fn () => null);
+        $result = new CallToolResult([new TextContent('text only')]);
+
+        $this->session->method('get')->with('protocol_version')->willReturn('2025-11-25');
+        $this->registry->method('getTool')->willReturn($reference);
+        $this->referenceHandler->method('handle')->willReturn($result);
+        $this->logger->expects($this->never())->method('warning');
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame($result, $response->result);
+        $this->assertFalse($result->hasStructuredContent());
+    }
+
+    /**
+     * @dataProvider provideNullResultRevisions
+     */
+    public function testNullResultWithAnOutputSchemaWarnsOnlyWhenItCannotBeSent(string $negotiated, bool $sent): void
+    {
+        $request = $this->createCallToolRequest('nullable', []);
+        $reference = $this->createToolReference('nullable', static fn () => null, ['type' => ['object', 'null']]);
+
+        $this->session->method('get')->with('protocol_version')->willReturn($negotiated);
+        $this->registry->method('getTool')->willReturn($reference);
+        $this->referenceHandler->method('handle')->willReturn(null);
+        $reference->method('formatResult')->willReturn([new TextContent('(null)')]);
+        $this->logger->expects($sent ? $this->never() : $this->once())->method('warning');
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
+        $this->assertSame($sent, $response->result->hasStructuredContent());
+        $this->assertSame($sent ? 'null' : '(null)', $this->firstText($response->result));
+    }
+
+    /**
+     * @return iterable<string, array{string, bool}>
+     */
+    public static function provideNullResultRevisions(): iterable
+    {
+        yield 'before SEP-2106' => ['2025-11-25', false];
+        yield 'from SEP-2106 on' => ['2026-07-28', true];
     }
 
     public function testDeclaredOutputSchemaWithoutStructuredContentIsLogged(): void

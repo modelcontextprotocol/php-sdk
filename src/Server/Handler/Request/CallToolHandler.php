@@ -18,6 +18,7 @@ use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\StructuredContent;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -108,16 +109,17 @@ final class CallToolHandler implements RequestHandlerInterface
             if (!$result instanceof CallToolResult) {
                 $structuredContent = $reference->extractStructuredContent($result, $protocolVersion);
 
-                if (null === $structuredContent && null !== $reference->tool->outputSchema) {
+                if (StructuredContent::Absent === $structuredContent && null !== $reference->tool->outputSchema) {
                     $this->logger->warning('Tool declares an "outputSchema" but returned a value that cannot be sent as "structuredContent"; the value is only carried in "content".', [
                         'name' => $toolName,
                         'result_type' => get_debug_type($result),
                     ]);
                 }
 
-                $result = new CallToolResult($reference->formatResult($result), structuredContent: $structuredContent);
+                $content = null === $structuredContent ? [new TextContent('null')] : $reference->formatResult($result);
+                $result = new CallToolResult($content, structuredContent: $structuredContent);
             } elseif ($protocolVersion->requiresObjectStructuredContent()
-                && null !== $result->structuredContent
+                && $result->hasStructuredContent()
                 && !self::isJsonObject($result->structuredContent)
             ) {
                 // A tool building its own `CallToolResult` bypasses the extraction
@@ -134,7 +136,7 @@ final class CallToolHandler implements RequestHandlerInterface
             $this->logger->debug('Tool executed successfully', [
                 'name' => $toolName,
                 'result_type' => \gettype($result),
-                'structured_content' => $structuredContent,
+                'structured_content' => StructuredContent::Absent === $structuredContent ? null : $structuredContent,
             ]);
 
             return new Response($request->getId(), $this->validateStructuredContent($reference->tool, $result) ?? $result);
@@ -172,10 +174,8 @@ final class CallToolHandler implements RequestHandlerInterface
      */
     private function validateStructuredContent(Tool $tool, CallToolResult $result): ?CallToolResult
     {
-        // An error result carries a failure message, not the tool's declared output.
-        // A null `structuredContent` is absent from the wire, and the caller has
-        // already warned about it.
-        if (null === $tool->outputSchema || $result->isError || null === $result->structuredContent) {
+        // Error results carry a failure message rather than the declared output.
+        if (null === $tool->outputSchema || $result->isError || !$result->hasStructuredContent()) {
             return null;
         }
 

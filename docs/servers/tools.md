@@ -167,7 +167,8 @@ and lets them validate it. What qualifies depends on the protocol revision the c
 | List (`[1, 2, 3]`, `[['id' => 1], ['id' => 2]]`), or an object serializing to one | Omitted before `2026-07-28`, kept from it on |
 | Array holding `Content` instances | Omitted (already carried in `content`) |
 | Scalar (`22.5`, `'sunny'`), or a `JsonSerializable` serializing to one | Omitted before `2026-07-28`. From it on, kept if the tool declares an `outputSchema` |
-| `null`, `Content` instances | Omitted |
+| `null`, or a `JsonSerializable` serializing to it | Omitted before `2026-07-28`. From it on, kept if the tool declares an `outputSchema` |
+| `Content` instances | Omitted |
 
 Up to revision `2025-11-25`, `structuredContent` had to be a JSON object, so a PHP list — which serializes to a JSON
 array — was not emittable and strict clients rejected the whole tool call over one. [SEP-2106][sep-2106], part of
@@ -229,6 +230,19 @@ three cases:
   above. A `CallToolResult` you build yourself without `structuredContent` gets no warning.
 - The result is already marked `isError: true`, because its content is a failure message and not the declared output.
 
+#### Absent and null structured content
+
+On `2026-07-28`, a tool returning `null` with a nullable `outputSchema` sends `"structuredContent": null`. Without an
+output schema, null is carried only in `content`. A modern null result that violates the output schema becomes a tool
+error. A conforming structured null also has the JSON text `null` in `content`.
+
+When building a `CallToolResult`, omit the `structuredContent` argument to leave the field out; passing
+`structuredContent: null` includes an explicit JSON null. `success()` and `error()` leave it out. After decoding a result,
+use `hasStructuredContent()` to distinguish an absent field from an explicit null; the `structuredContent` property is
+null in both cases. For a runtime choice, pass `Mcp\Schema\Enum\StructuredContent::Absent` to omit the field rather than
+passing null. Existing calls such as `new CallToolResult($content, false, null, $meta)` must omit the third argument
+(use `meta: $meta`) or pass that sentinel if they intend to send text only.
+
 #### Sending only structured content
 
 By default, the SDK also JSON-encodes structured content into `content`. To send a large result only once, return a
@@ -245,8 +259,8 @@ public function getWeather(string $city): CallToolResult
 ```
 
 The SDK still validates `structuredContent` against the `outputSchema`, but it doesn't change the value for older
-protocol versions. Before `2026-07-28`, clients may reject a list or a scalar, so always pass an associative array or an
-object.
+protocol versions. Before `2026-07-28`, clients may reject a list, a scalar or explicit null, so always pass an associative array or
+an object. An explicit null that fails an object output schema becomes a tool error in every revision.
 
 !!! warning
     The [specification][sep-2106] recommends also sending the serialized JSON as text, and [SEP-2106][sep-2106-proposal]

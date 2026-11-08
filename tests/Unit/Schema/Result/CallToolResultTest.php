@@ -17,12 +17,73 @@ use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\ResourceLink;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\StructuredContent;
 use Mcp\Schema\Result\CallToolResult;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 final class CallToolResultTest extends TestCase
 {
+    public function testRuntimeAbsenceCanBePassedAlongsideMetadata(): void
+    {
+        $result = new CallToolResult([], false, StructuredContent::Absent, ['example' => 'metadata']);
+
+        $this->assertFalse($result->hasStructuredContent());
+        $this->assertSame(['content' => [], 'isError' => false, '_meta' => ['example' => 'metadata']], $result->jsonSerialize());
+    }
+
+    public function testAbsentAndExplicitNullRoundTripSeparately(): void
+    {
+        foreach ([false, true] as $present) {
+            $wire = ['content' => [], 'isError' => false];
+            if ($present) {
+                $wire['structuredContent'] = null;
+            }
+
+            $result = CallToolResult::fromArray($wire);
+            $this->assertSame($present, $result->hasStructuredContent());
+            $this->assertSame($wire, json_decode(json_encode($result, \JSON_THROW_ON_ERROR), true, 512, \JSON_THROW_ON_ERROR));
+        }
+    }
+
+    #[TestWith([false])]
+    #[TestWith([0])]
+    #[TestWith([''])]
+    #[TestWith([[]])]
+    public function testFalseyStructuredValuesRemainPresent(mixed $value): void
+    {
+        $result = new CallToolResult([], structuredContent: $value);
+        $this->assertTrue($result->hasStructuredContent());
+        $this->assertSame(['content' => [], 'isError' => false, 'structuredContent' => $value], $result->jsonSerialize());
+    }
+
+    public function testTextOnlyResultsStillOmitStructuredContent(): void
+    {
+        $content = [new TextContent('text only')];
+        $meta = ['example' => 'metadata'];
+
+        foreach ([
+            new CallToolResult($content),
+            new CallToolResult($content, meta: $meta),
+            CallToolResult::success($content, $meta),
+            CallToolResult::error($content, $meta),
+            CallToolResult::fromArray(['content' => [['type' => 'text', 'text' => 'text only']]]),
+        ] as $result) {
+            $this->assertFalse($result->hasStructuredContent());
+            $this->assertNull($result->structuredContent);
+            $this->assertArrayNotHasKey('structuredContent', $result->jsonSerialize());
+        }
+    }
+
+    public function testExplicitNullStructuredContentIsSerialized(): void
+    {
+        $result = new CallToolResult([new TextContent('null')], structuredContent: null);
+        $wire = json_decode(json_encode($result, \JSON_THROW_ON_ERROR), true, 512, \JSON_THROW_ON_ERROR);
+
+        $this->assertArrayHasKey('structuredContent', $wire);
+        $this->assertNull($wire['structuredContent']);
+    }
+
     /**
      * @param array{int|string, int|string} $keys
      */
