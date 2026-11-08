@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Transport\Http\OAuth;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\Authorization\AccessToken;
 
 /**
@@ -98,9 +99,17 @@ final class AuthorizationResult
         return new self(false, 400, $error ?? 'invalid_request', $errorDescription, null, null);
     }
 
-    /** @param int|null $retryAfter Suggested non-negative delay before retrying, in seconds */
+    /**
+     * @param int|null $retryAfter Suggested delay before retrying, in seconds
+     *
+     * @throws InvalidArgumentException if the delay is negative
+     */
     public static function unavailable(?int $retryAfter = null): self
     {
+        if (null !== $retryAfter && $retryAfter < 0) {
+            throw new InvalidArgumentException('The Retry-After delay must not be negative.');
+        }
+
         return new self(false, 503, null, null, null, null, $retryAfter);
     }
 
