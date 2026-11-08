@@ -197,6 +197,10 @@ final class StdioTransportTest extends TestCase
     #[TestDox('a server killed by a signal says so, instead of an exit code it never had')]
     public function testKilledServerReportsTheSignal(): void
     {
+        if ('Windows' === \PHP_OS_FAMILY) {
+            $this->markTestSkipped('Windows has no signals to report.');
+        }
+
         // Where /bin/sh forks the server instead of becoming it, the signal hits
         // the shell, so the server lets go of the output itself.
         $transport = new StdioTransport(command: \PHP_BINARY, args: ['-r', 'fclose(STDOUT); usleep(500000);']);

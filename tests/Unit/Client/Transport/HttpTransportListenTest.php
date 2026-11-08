@@ -321,7 +321,7 @@ final class FakeListeningServer implements ClientInterface
      */
     private function socketPair(): array
     {
-        $pair = stream_socket_pair(\STREAM_PF_UNIX, \STREAM_SOCK_STREAM, \STREAM_IPPROTO_IP);
+        $pair = stream_socket_pair('Windows' === \PHP_OS_FAMILY ? \STREAM_PF_INET : \STREAM_PF_UNIX, \STREAM_SOCK_STREAM, \STREAM_IPPROTO_IP);
         if (false === $pair) {
             throw new \RuntimeException('Could not create a socket pair.');
         }

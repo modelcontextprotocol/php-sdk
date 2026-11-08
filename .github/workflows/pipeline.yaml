@@ -56,6 +56,41 @@ jobs:
       - name: Tests
         run: vendor/bin/phpunit --testsuite=unit
 
+  windows:
+    runs-on: windows-latest
+    # Until the suite has proven stable on Windows.
+    continue-on-error: true
+
+    steps:
+      # Snapshots and fixtures compare bytes, so keep the line endings of the repository.
+      - name: Keep line endings
+        run: git config --global core.autocrlf false
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: fileinfo
+          coverage: "none"
+
+      - name: Install Composer
+        id: composer
+        uses: "ramsey/composer-install@v4"
+        with:
+          # phpdocumentor/shim fails to import its GPG key here, and the tests do not need it.
+          composer-options: --no-plugins
+
+      - name: Unit tests
+        run: php vendor/bin/phpunit --testsuite=unit
+
+      - name: Stdio integration tests
+        if: ${{ !cancelled() && steps.composer.outcome == 'success' }}
+        timeout-minutes: 3
+        run: php vendor/bin/phpunit --testsuite=integration --group=os
+
   integration:
     runs-on: ubuntu-latest
     # PHP 8.6 is still a pre-release.
