@@ -19,8 +19,8 @@ use Mcp\Schema\Request\CompletionCompleteRequest;
 use Mcp\Schema\ResourceReference;
 use Mcp\Schema\Result\CompletionCompleteResult;
 use Mcp\Server\Capability\Completion\ProviderInterface;
+use Mcp\Server\Capability\ElementResolverInterface;
 use Mcp\Server\Capability\Registry\ResourceTemplateReference;
-use Mcp\Server\Capability\RegistryInterface;
 use Mcp\Server\Exception\PromptNotFoundException;
 use Mcp\Server\Exception\ResourceNotFoundException;
 use Mcp\Server\Session\SessionInterface;
@@ -38,7 +38,7 @@ use Psr\Log\NullLogger;
 final class CompletionCompleteHandler implements RequestHandlerInterface
 {
     public function __construct(
-        private readonly RegistryInterface $registry,
+        private readonly ElementResolverInterface $registry,
         private readonly ?ContainerInterface $container = null,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {

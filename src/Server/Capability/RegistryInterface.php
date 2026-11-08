@@ -11,94 +11,16 @@
 
 namespace Mcp\Server\Capability;
 
-use Mcp\Schema\Page;
-use Mcp\Schema\Prompt;
-use Mcp\Schema\ResourceDefinition;
-use Mcp\Schema\ResourceTemplate;
-use Mcp\Schema\Tool;
-use Mcp\Server\Capability\Registry\ElementReference;
-use Mcp\Server\Capability\Registry\PromptReference;
-use Mcp\Server\Capability\Registry\ResourceReference;
 use Mcp\Server\Capability\Registry\ResourceTemplateReference;
-use Mcp\Server\Capability\Registry\ToolReference;
-use Mcp\Server\Exception\ConfigurationException;
-use Mcp\Server\Exception\PromptNotFoundException;
 use Mcp\Server\Exception\ResourceNotFoundException;
-use Mcp\Server\Exception\ToolNotFoundException;
 use Mcp\Server\Subscription\PublishingEventDispatcher;
 
 /**
- * @phpstan-import-type Handler from ElementReference
- *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-interface RegistryInterface
+interface RegistryInterface extends ElementCatalogInterface, ElementResolverInterface, ElementWriterInterface
 {
-    /**
-     * Registers a tool with its handler. Overwrites any prior registration of the same name.
-     * Returns the stored reference, whose identity callers may track to detect later overwrites.
-     *
-     * @param Handler $handler
-     */
-    public function registerTool(Tool $tool, callable|array|string $handler): ToolReference;
-
-    /**
-     * Registers a resource with its handler. Overwrites any prior registration of the same URI.
-     * Returns the stored reference, whose identity callers may track to detect later overwrites.
-     *
-     * @param Handler $handler
-     */
-    public function registerResource(ResourceDefinition $resource, callable|array|string $handler): ResourceReference;
-
-    /**
-     * Registers a resource template with its handler and completion providers.
-     * Overwrites any prior registration of the same URI template.
-     * Returns the stored reference, whose identity callers may track to detect later overwrites.
-     *
-     * @param Handler                            $handler
-     * @param array<string, class-string|object> $completionProviders
-     */
-    public function registerResourceTemplate(
-        ResourceTemplate $template,
-        callable|array|string $handler,
-        array $completionProviders = [],
-    ): ResourceTemplateReference;
-
-    /**
-     * Registers a prompt with its handler and completion providers.
-     * Overwrites any prior registration of the same name.
-     * Returns the stored reference, whose identity callers may track to detect later overwrites.
-     *
-     * @param Handler                            $handler
-     * @param array<string, class-string|object> $completionProviders
-     */
-    public function registerPrompt(
-        Prompt $prompt,
-        callable|array|string $handler,
-        array $completionProviders = [],
-    ): PromptReference;
-
-    /**
-     * Removes a tool by name. No-op if absent.
-     */
-    public function unregisterTool(string $name): void;
-
-    /**
-     * Removes a resource by URI. No-op if absent.
-     */
-    public function unregisterResource(string $uri): void;
-
-    /**
-     * Removes a resource template by URI template. No-op if absent.
-     */
-    public function unregisterResourceTemplate(string $uriTemplate): void;
-
-    /**
-     * Removes a prompt by name. No-op if absent.
-     */
-    public function unregisterPrompt(string $name): void;
-
     /**
      * Whether list changes reach a notification bus, e.g. through a {@see PublishingEventDispatcher}.
      * A decorator forwards the answer of the registry it wraps.
@@ -119,38 +41,9 @@ interface RegistryInterface
     public function hasTools(): bool;
 
     /**
-     * Gets all registered tools.
-     *
-     * @return Page<Tool>
-     */
-    public function getTools(?int $limit = null, ?string $cursor = null): Page;
-
-    /**
-     * Gets a tool reference by name.
-     *
-     * @throws ToolNotFoundException
-     * @throws ConfigurationException when the elements fail to load
-     */
-    public function getTool(string $name): ToolReference;
-
-    /**
      * @return bool true if any resources are registered
      */
     public function hasResources(): bool;
-
-    /**
-     * Gets all registered resources.
-     *
-     * @return Page<ResourceDefinition>
-     */
-    public function getResources(?int $limit = null, ?string $cursor = null): Page;
-
-    /**
-     * Gets a resource reference by URI (includes template matching if enabled).
-     *
-     * @throws ResourceNotFoundException
-     */
-    public function getResource(string $uri, bool $includeTemplates = true): ResourceReference|ResourceTemplateReference;
 
     /**
      * @return bool true if any resource templates are registered
@@ -158,11 +51,9 @@ interface RegistryInterface
     public function hasResourceTemplates(): bool;
 
     /**
-     * Gets all registered resource templates.
-     *
-     * @return Page<ResourceTemplate>
+     * @return bool true if any prompts are registered
      */
-    public function getResourceTemplates(?int $limit = null, ?string $cursor = null): Page;
+    public function hasPrompts(): bool;
 
     /**
      * Gets a resource template reference by URI template.
@@ -170,23 +61,4 @@ interface RegistryInterface
      * @throws ResourceNotFoundException
      */
     public function getResourceTemplate(string $uriTemplate): ResourceTemplateReference;
-
-    /**
-     * @return bool true if any prompts are registered
-     */
-    public function hasPrompts(): bool;
-
-    /**
-     * Gets all registered prompts.
-     *
-     * @return Page<Prompt>
-     */
-    public function getPrompts(?int $limit = null, ?string $cursor = null): Page;
-
-    /**
-     * Gets a prompt reference by name.
-     *
-     * @throws PromptNotFoundException
-     */
-    public function getPrompt(string $name): PromptReference;
 }

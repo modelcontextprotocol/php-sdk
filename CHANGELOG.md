@@ -2,6 +2,11 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.11.0
+------
+
+* Split `RegistryInterface` by role into `ElementCatalogInterface`, `ElementResolverInterface` and `ElementWriterInterface`, which it extends. Request handlers depend on the role they use, so a handler can run against a catalog or resolver alone.
+
 0.10.0
 ------
 

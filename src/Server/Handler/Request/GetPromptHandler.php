@@ -17,8 +17,8 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
 use Mcp\Schema\Result\InputRequiredResult;
+use Mcp\Server\Capability\ElementResolverInterface;
 use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Server\Capability\RegistryInterface;
 use Mcp\Server\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Server\Exception\PromptGetException;
 use Mcp\Server\Exception\PromptNotFoundException;
@@ -36,7 +36,7 @@ use Psr\Log\NullLogger;
 final class GetPromptHandler implements RequestHandlerInterface
 {
     public function __construct(
-        private readonly RegistryInterface $registry,
+        private readonly ElementResolverInterface $registry,
         private readonly ReferenceHandlerInterface $referenceHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
