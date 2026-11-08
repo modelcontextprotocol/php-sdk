@@ -210,8 +210,8 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     /**
      * The session ID minted by the server for this connection, if any.
      *
-     * Captured from the Mcp-Session-Id response header of a handshake-era
-     * server; always null on 2026-07-28, which removed protocol-level sessions
+     * Captured from the Mcp-Session-Id header of the `initialize` response;
+     * always null on 2026-07-28, which removed protocol-level sessions
      * (SEP-2567). Useful for logging: every connect() starts a new session
      * and close() ends it, so it cannot be reused on a later transport.
      *
@@ -281,7 +281,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             return;
         }
 
-        if ($response->hasHeader('Mcp-Session-Id')) {
+        if ($response->getStatusCode() < 300 && $response->hasHeader('Mcp-Session-Id') && self::isInitialize($data)) {
             $this->sessionId = $response->getHeaderLine('Mcp-Session-Id');
             $this->logger->debug('Received session ID', ['session_id' => $this->sessionId]);
         }
@@ -455,6 +455,13 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $payload = json_decode($data, true);
 
         return \is_array($payload) && \array_key_exists('method', $payload) && !\array_key_exists('id', $payload);
+    }
+
+    private static function isInitialize(string $data): bool
+    {
+        $payload = json_decode($data, true);
+
+        return \is_array($payload) && 'initialize' === ($payload['method'] ?? null);
     }
 
     /**

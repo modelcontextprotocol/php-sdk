@@ -151,7 +151,8 @@ $httpClient = new Psr18Client(HttpClient::create(['max_redirects' => 0]));
 
 **Session ID:**
 
-On revision `2025-11-25` and earlier, the server may return an `Mcp-Session-Id` header.
+On revision `2025-11-25` and earlier, the server may return an `Mcp-Session-Id` header with its
+answer to `initialize`. The transport ignores this header on any other response.
 `getSessionId()` returns it, for example to log it. It returns `null` on `2026-07-28` and after
 `close()`:
 

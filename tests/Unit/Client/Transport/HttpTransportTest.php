@@ -447,7 +447,7 @@ final class HttpTransportTest extends TestCase
         );
 
         $messages = [];
-        $result = $this->runRequest($transport, 7, messages: $messages);
+        $result = $this->runRequest($transport, 7, '{"jsonrpc":"2.0","id":7,"method":"initialize"}', messages: $messages);
 
         $this->assertInstanceOf(JsonRpcResponse::class, $result);
         $this->assertSame([$response], $messages);
@@ -755,6 +755,69 @@ final class HttpTransportTest extends TestCase
         $this->assertStringContainsString('https://other.test/mcp', $errors[0]->getMessage());
     }
 
+    #[TestDox('a handshake-era session ID stays the one from the initialize response')]
+    public function testLaterResponseDoesNotReplaceTheSessionId(): void
+    {
+        $httpClient = new RecordingHttpClient(static function (array $message): ResponseInterface {
+            $sessionId = 'initialize' === ($message['method'] ?? null) ? 'session' : 'replacement';
+            $result = 'initialize' === ($message['method'] ?? null)
+                ? ['protocolVersion' => ProtocolVersion::V2025_11_25->value, 'capabilities' => ['tools' => []], 'serverInfo' => ['name' => 'test-server', 'version' => '1']]
+                : ['content' => []];
+
+            return new Response(200, ['Content-Type' => 'application/json', 'Mcp-Session-Id' => $sessionId], json_encode(['jsonrpc' => '2.0', 'id' => $message['id'] ?? null, 'result' => $result], \JSON_THROW_ON_ERROR));
+        });
+        $transport = new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory);
+        $client = Client::builder()->setClientInfo('test', '1')->setProtocolVersion(ProtocolVersion::V2025_11_25)->build();
+
+        $client->connect($transport);
+        $client->callTool('first');
+        $this->assertSame('session', $transport->getSessionId());
+
+        $client->callTool('second');
+        $client->disconnect();
+
+        $this->assertSame(['session'], array_values(array_unique(array_map(
+            static fn (RequestInterface $request): string => $request->getHeaderLine('Mcp-Session-Id'),
+            \array_slice($httpClient->requests, 1),
+        ))));
+    }
+
+    #[TestDox('a session ID is ignored on 2026-07-28, so nothing carries it and close sends no DELETE')]
+    public function testModernResponseDoesNotSetASessionId(): void
+    {
+        $httpClient = new RecordingHttpClient(static function (array $message): ResponseInterface {
+            $result = 'server/discover' === ($message['method'] ?? null)
+                ? ['resultType' => 'complete', 'supportedVersions' => [ProtocolVersion::V2026_07_28->value], 'capabilities' => ['tools' => []], 'serverInfo' => ['name' => 'test-server', 'version' => '1']]
+                : ['resultType' => 'complete', 'content' => []];
+
+            return new Response(200, ['Content-Type' => 'application/json', 'Mcp-Session-Id' => 'stray'], json_encode(['jsonrpc' => '2.0', 'id' => $message['id'] ?? null, 'result' => $result], \JSON_THROW_ON_ERROR));
+        });
+        $transport = new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory);
+        $client = Client::builder()->setClientInfo('test', '1')->build();
+
+        $client->connect($transport);
+        $client->callTool('first');
+        $this->assertNull($transport->getSessionId());
+
+        $client->callTool('second');
+        $client->disconnect();
+
+        $this->assertSame(['POST'], array_values(array_unique(array_map(static fn (RequestInterface $request): string => $request->getMethod(), $httpClient->requests))));
+        foreach ($httpClient->requests as $request) {
+            $this->assertFalse($request->hasHeader('Mcp-Session-Id'));
+        }
+    }
+
+    #[TestDox('an initialize refused with an error status sets no session ID')]
+    public function testRefusedInitializeDoesNotSetASessionId(): void
+    {
+        $transport = $this->createTransport(httpClient: RecordingHttpClient::queued([new Response(500, ['Mcp-Session-Id' => 'session'])]));
+
+        $transport->send('{"jsonrpc":"2.0","id":1,"method":"initialize"}');
+
+        $this->assertNull($transport->getSessionId());
+    }
+
     #[TestDox('a redirect of the closing DELETE is reported and the session is forgotten')]
     public function testRedirectOfCloseIsReported(): void
     {
@@ -792,7 +855,7 @@ final class HttpTransportTest extends TestCase
         $state = new ClientState();
         $state->setInitialized(true);
 
-        $result = $this->runRequest($transport, 1, state: $state);
+        $result = $this->runRequest($transport, 1, '{"jsonrpc":"2.0","id":1,"method":"initialize"}', state: $state);
 
         $this->assertInstanceOf(Error::class, $result);
         $this->assertStringContainsString('HTTP session has expired', $result->message);
@@ -970,6 +1033,7 @@ final class HttpTransportTest extends TestCase
         $result = $this->runRequest(
             $transport,
             4,
+            '{"jsonrpc":"2.0","id":4,"method":"initialize"}',
             timeout: 1,
             errors: $errors,
             onMessage: static function () use ($transport): void {
