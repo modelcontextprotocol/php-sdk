@@ -271,7 +271,7 @@ class ReadResourceHandlerTest extends TestCase
     {
         $request = $this->createReadResourceRequest('item://1');
         $this->registry->method('getResource')->willReturn($this->createStub(ResourceReference::class));
-        $this->referenceHandler->method('handle')->willThrowException(RegistryException::internalError('Missing required argument.'));
+        $this->referenceHandler->method('handle')->willThrowException(RegistryException::internalError('Handler is not callable.'));
 
         $response = $this->handler->handle($request, $this->session);
 

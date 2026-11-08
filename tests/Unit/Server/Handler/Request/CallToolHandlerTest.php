@@ -475,7 +475,7 @@ class CallToolHandlerTest extends TestCase
     {
         $request = $this->createCallToolRequest('order', []);
         $this->registry->method('getTool')->willReturn($this->createToolReference('order', static fn () => null));
-        $this->referenceHandler->method('handle')->willThrowException(RegistryException::internalError('Missing required argument.'));
+        $this->referenceHandler->method('handle')->willThrowException(RegistryException::internalError('Handler is not callable.'));
 
         $response = $this->handler->handle($request, $this->session);
 

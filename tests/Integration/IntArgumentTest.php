@@ -97,6 +97,15 @@ final class IntArgumentTest extends IntegrationTestCase
         $this->assertInvalidParams(static fn () => $client->readResource('item://'.$id));
     }
 
+    #[DataProvider('provideInvalidStrings')]
+    public function testIntBackedEnumArgumentIsAnsweredWithInvalidParams(ProtocolVersion $era, string $level): void
+    {
+        $client = $this->connectOn($era);
+
+        $this->assertInvalidParams(static fn () => $client->getPrompt('level', ['level' => $level]));
+        $this->assertInvalidParams(static fn () => $client->readResource('level://'.$level));
+    }
+
     #[DataProvider('provideEras')]
     public function testPromptAndResourceInRangeReachTheHandler(ProtocolVersion $era): void
     {

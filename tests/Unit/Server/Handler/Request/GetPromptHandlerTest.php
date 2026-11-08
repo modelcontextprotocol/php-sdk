@@ -298,7 +298,7 @@ class GetPromptHandlerTest extends TestCase
     {
         $request = $this->createGetPromptRequest('order');
         $this->referenceProvider->method('getPrompt')->willReturn($this->createStub(PromptReference::class));
-        $this->referenceHandler->method('handle')->willThrowException(RegistryException::internalError('Missing required argument.'));
+        $this->referenceHandler->method('handle')->willThrowException(RegistryException::internalError('Handler is not callable.'));
 
         $response = $this->handler->handle($request, $this->session);
 

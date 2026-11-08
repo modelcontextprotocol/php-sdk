@@ -22,6 +22,9 @@ use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\ResourceHandlerInterface;
 use Mcp\Server\Handler\ToolHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
+use Mcp\Tests\Unit\Fixtures\Enum\BackedIntEnum;
+use Mcp\Tests\Unit\Fixtures\Enum\BackedStringEnum;
+use Mcp\Tests\Unit\Fixtures\Enum\UnitEnum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -436,6 +439,83 @@ final class ReferenceHandlerTest extends TestCase
             '_session' => $this->createMock(SessionInterface::class),
             'qty' => $value,
         ]);
+    }
+
+    public function testHandleNamesTheParameterItRefuses(): void
+    {
+        $this->expectException(RegistryException::class);
+        $this->expectExceptionCode(Error::INVALID_PARAMS);
+        $this->expectExceptionMessage('Parameter `limit`: Cannot cast value to integer. Expected integer representation.');
+
+        (new ReferenceHandler())->handle(new ElementReference(static fn (int $offset, int $limit): int => $offset + $limit), [
+            '_session' => $this->createMock(SessionInterface::class),
+            'offset' => 5,
+            'limit' => 'abc',
+        ]);
+    }
+
+    /**
+     * @return iterable<string, array{\Closure, mixed}>
+     */
+    public static function provideUncastableArguments(): iterable
+    {
+        $intEnum = static fn (BackedIntEnum $value): BackedIntEnum => $value;
+        $stringEnum = static fn (BackedStringEnum $value): BackedStringEnum => $value;
+        $unitEnum = static fn (UnitEnum $value): UnitEnum => $value;
+        $string = static fn (string $value): string => $value;
+        $bool = static fn (bool $value): bool => $value;
+
+        yield 'int enum, word' => [$intEnum, 'abc'];
+        yield 'int enum, double minus' => [$intEnum, '--5'];
+        yield 'int enum, beyond the range' => [$intEnum, 9300000000000000000.0];
+        yield 'int enum, fractional' => [$intEnum, 1.5];
+        yield 'int enum, list' => [$intEnum, [1]];
+        yield 'int enum, unknown value' => [$intEnum, 99];
+        yield 'string enum, list' => [$stringEnum, ['a']];
+        yield 'string enum, object' => [$stringEnum, new \stdClass()];
+        yield 'string enum, unknown value' => [$stringEnum, 'unknown'];
+        yield 'unit enum, list' => [$unitEnum, ['a']];
+        yield 'unit enum, object' => [$unitEnum, new \stdClass()];
+        yield 'unit enum, unknown name' => [$unitEnum, 'unknown'];
+        yield 'string, list' => [$string, ['a']];
+        yield 'string, object' => [$string, new \stdClass()];
+        yield 'bool, list' => [$bool, [1]];
+        yield 'bool, object' => [$bool, new \stdClass()];
+    }
+
+    #[DataProvider('provideUncastableArguments')]
+    public function testHandleRefusesArgumentThatCannotBeCast(\Closure $handler, mixed $value): void
+    {
+        $this->expectException(RegistryException::class);
+        $this->expectExceptionCode(Error::INVALID_PARAMS);
+
+        (new ReferenceHandler())->handle(new ElementReference($handler), [
+            '_session' => $this->createMock(SessionInterface::class),
+            'value' => $value,
+        ]);
+    }
+
+    public function testHandleCastsNumericStringToIntBackedEnum(): void
+    {
+        $result = (new ReferenceHandler())->handle(new ElementReference(static fn (BackedIntEnum $value): BackedIntEnum => $value), [
+            '_session' => $this->createMock(SessionInterface::class),
+            'value' => (string) BackedIntEnum::cases()[0]->value,
+        ]);
+
+        $this->assertSame(BackedIntEnum::cases()[0], $result);
+    }
+
+    public function testHandleKeepsEnumClassOutOfTheRefusal(): void
+    {
+        try {
+            (new ReferenceHandler())->handle(new ElementReference(static fn (BackedStringEnum $value): BackedStringEnum => $value), [
+                '_session' => $this->createMock(SessionInterface::class),
+                'value' => 'unknown',
+            ]);
+            $this->fail('The value must be refused.');
+        } catch (RegistryException $e) {
+            $this->assertStringNotContainsString(BackedStringEnum::class, $e->getMessage());
+        }
     }
 
     public function testHandleRefusesOutOfRangeNullableInteger(): void

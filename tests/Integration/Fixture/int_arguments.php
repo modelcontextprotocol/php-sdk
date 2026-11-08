@@ -12,6 +12,7 @@
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Server;
 use Mcp\Server\Transport\StdioTransport;
+use Mcp\Tests\Unit\Fixtures\Enum\BackedIntEnum;
 
 require_once dirname(__DIR__, 3).'/vendor/autoload.php';
 
@@ -23,6 +24,8 @@ Server::builder()
     ->addTool(static fn (int ...$qty): string => 'got '.implode(',', $qty), name: 'variadic')
     ->addTool(static fn (int $qty): string => 'got '.$qty, name: 'permissive', inputSchema: ['type' => 'object'])
     ->addPrompt(static fn (int $qty): array => [['role' => 'user', 'content' => 'got '.$qty]], name: 'order')
+    ->addPrompt(static fn (BackedIntEnum $level): array => [['role' => 'user', 'content' => 'got '.$level->value]], name: 'level')
     ->addResourceTemplate(static fn (int $id): string => 'got '.$id, 'item://{id}', 'item')
+    ->addResourceTemplate(static fn (BackedIntEnum $level): string => 'got '.$level->value, 'level://{level}', 'level')
     ->build()
     ->run(new StdioTransport());

@@ -160,7 +160,7 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 try {
                     $finalArgs[$paramPosition] = $this->castArgumentType($argument, $parameter);
                 } catch (InvalidArgumentException $e) {
-                    throw RegistryException::invalidParams($e->getMessage(), $e);
+                    throw RegistryException::invalidParams(\sprintf('Parameter `%s`: %s', $paramName, $e->getMessage()), $e);
                 } catch (\Throwable $e) {
                     throw RegistryException::internalError("Error processing parameter `{$paramName}`: {$e->getMessage()}", $e);
                 }
@@ -234,9 +234,10 @@ final class ReferenceHandler implements ReferenceHandlerInterface
             }
 
             if (is_subclass_of($typeName, \BackedEnum::class)) {
-                $value = $typeName::tryFrom($argument);
+                $backingType = (string) (new \ReflectionEnum($typeName))->getBackingType();
+                $value = $typeName::tryFrom('int' === $backingType ? $this->castToInt($argument) : $this->castToString($argument));
                 if (null === $value) {
-                    throw new InvalidArgumentException("Invalid value '{$argument}' for backed enum {$typeName}. Expected one of its backing values.");
+                    throw new InvalidArgumentException('Invalid value. Expected one of the backing values of the enum.');
                 }
 
                 return $value;
@@ -248,15 +249,15 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                     }
                 }
                 $validNames = array_map(static fn ($c) => $c->name, $typeName::cases());
-                throw new InvalidArgumentException("Invalid value '{$argument}' for unit enum {$typeName}. Expected one of: ".implode(', ', $validNames).'.');
+                throw new InvalidArgumentException('Invalid value. Expected one of: '.implode(', ', $validNames).'.');
             }
-            throw new InvalidArgumentException("Invalid value type '{$argument}' for unit enum {$typeName}. Expected a string matching a case name.");
+            throw new InvalidArgumentException('Invalid value type. Expected a string matching an enum case name.');
         }
 
         try {
             return match (strtolower($typeName)) {
                 'int', 'integer' => $this->castToInt($argument),
-                'string' => (string) $argument,
+                'string' => $this->castToString($argument),
                 'bool', 'boolean' => $this->castToBoolean($argument),
                 'float', 'double' => $this->castToFloat($argument),
                 'array' => $this->castToArray($argument),
@@ -278,6 +279,15 @@ final class ReferenceHandler implements ReferenceHandlerInterface
         return [] !== array_intersect($names, ['array', 'iterable']) && [] === array_intersect($names, ['object', 'stdclass']);
     }
 
+    private function castToString(mixed $argument): string
+    {
+        if (\is_scalar($argument) || $argument instanceof \Stringable) {
+            return (string) $argument;
+        }
+
+        throw new InvalidArgumentException('Cannot cast value to string. Expected a scalar value.');
+    }
+
     /**
      * Helper to cast strictly to boolean.
      */
@@ -286,10 +296,10 @@ final class ReferenceHandler implements ReferenceHandlerInterface
         if (\is_bool($argument)) {
             return $argument;
         }
-        if (1 === $argument || '1' === $argument || 'true' === strtolower((string) $argument)) {
+        if (1 === $argument || '1' === $argument || (\is_string($argument) && 'true' === strtolower($argument))) {
             return true;
         }
-        if (0 === $argument || '0' === $argument || 'false' === strtolower((string) $argument)) {
+        if (0 === $argument || '0' === $argument || (\is_string($argument) && 'false' === strtolower($argument))) {
             return false;
         }
 
