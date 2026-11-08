@@ -62,6 +62,18 @@ final class ReferenceHandler implements ReferenceHandlerInterface
 
                 return \call_user_func($reference->handler, ...$arguments);
             }
+
+            if (null !== $this->container && $this->container->has($reference->handler)) {
+                $service = $this->container->get($reference->handler);
+
+                if (!\is_callable($service)) {
+                    throw new InvalidArgumentException(\sprintf('Handler "%s" is not invokable.', $reference->handler));
+                }
+
+                $service = $service(...);
+
+                return $service(...$this->prepareArguments(new \ReflectionFunction($service), $arguments));
+            }
         }
 
         if (\is_callable($reference->handler)) {

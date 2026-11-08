@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Capability\Registry;
 
+use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Exception\InvalidArgumentException;
@@ -357,6 +358,55 @@ final class ReferenceHandlerTest extends TestCase
             'scores' => ['1', 'not-a-number', '3'],
         ]);
     }
+
+    public function testHandleResolvesStringHandlerFromContainerByServiceId(): void
+    {
+        $container = new Container();
+        $container->set('app.greet_handler', new InvokableHandlerFixture());
+
+        $result = (new ReferenceHandler($container))->handle(new ElementReference('app.greet_handler'), [
+            '_session' => $this->createMock(SessionInterface::class),
+            'who' => 'container',
+        ]);
+
+        $this->assertSame('hi container', $result);
+    }
+
+    public function testHandleResolvesClosureServiceFromContainer(): void
+    {
+        $container = new Container();
+        $container->set('app.closure_handler', static fn (string $who): string => 'hi '.$who);
+
+        $result = (new ReferenceHandler($container))->handle(new ElementReference('app.closure_handler'), [
+            '_session' => $this->createMock(SessionInterface::class),
+            'who' => 'closure',
+        ]);
+
+        $this->assertSame('hi closure', $result);
+    }
+
+    public function testHandleRefusesContainerServiceThatIsNotCallable(): void
+    {
+        $container = new Container();
+        $container->set('app.not_a_handler', new \stdClass());
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Handler "app.not_a_handler" is not invokable.');
+
+        (new ReferenceHandler($container))->handle(new ElementReference('app.not_a_handler'), [
+            '_session' => $this->createMock(SessionInterface::class),
+        ]);
+    }
+
+    public function testHandleRefusesStringHandlerUnknownToContainer(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid handler type');
+
+        (new ReferenceHandler(new Container()))->handle(new ElementReference('app.unknown'), [
+            '_session' => $this->createMock(SessionInterface::class),
+        ]);
+    }
 }
 
 class ArrayHandlerFixture
@@ -373,5 +423,13 @@ class ArrayHandlerFixture
     protected function hidden(): string
     {
         return 'unreachable';
+    }
+}
+
+class InvokableHandlerFixture
+{
+    public function __invoke(string $who): string
+    {
+        return 'hi '.$who;
     }
 }
