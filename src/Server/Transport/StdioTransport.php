@@ -171,6 +171,11 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
         $line = fgets($this->input, $this->maxLineBytes);
         if (false === $line) {
+            // Selecting may have failed, and then nothing else keeps an idle run loop from spinning.
+            if (!feof($this->input)) {
+                usleep(50000);
+            }
+
             return;
         }
 

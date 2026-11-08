@@ -134,6 +134,46 @@ final class StdioTransportTest extends TestCase
         $this->assertSame(['{"valid":1}'], $messages);
     }
 
+    #[TestDox('an idle input that cannot be selected does not spin the run loop')]
+    public function testIdleUnselectableInputDoesNotSpin(): void
+    {
+        $wrapper = new class {
+            /** @var resource|null */
+            public $context;
+
+            public function stream_open(): bool
+            {
+                return true;
+            }
+
+            public function stream_read(): string
+            {
+                return '';
+            }
+
+            public function stream_eof(): bool
+            {
+                return false;
+            }
+        };
+
+        stream_wrapper_register('mcp-idle', $wrapper::class);
+
+        try {
+            $input = fopen('mcp-idle://input', 'r');
+            $this->assertNotFalse($input);
+
+            $transport = new StdioTransport(input: $input, output: $this->stream(''));
+            $start = hrtime(true);
+            (new \ReflectionMethod($transport, 'processInput'))->invoke($transport);
+            $elapsed = (hrtime(true) - $start) / 1e6;
+        } finally {
+            stream_wrapper_unregister('mcp-idle');
+        }
+
+        $this->assertGreaterThanOrEqual(45, $elapsed, 'a tick without input must still wait');
+    }
+
     #[TestDox('the line byte cap must be a positive number of bytes')]
     public function testRejectsNonPositiveCap(): void
     {
