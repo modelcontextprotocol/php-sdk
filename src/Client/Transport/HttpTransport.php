@@ -12,7 +12,6 @@
 namespace Mcp\Client\Transport;
 
 use Http\Discovery\Psr17FactoryDiscovery;
-use Http\Discovery\Psr18ClientDiscovery;
 use Mcp\Client\Auth\AuthenticatingHttpClient;
 use Mcp\Client\Auth\AuthenticatorInterface;
 use Mcp\Client\MonotonicClock;
@@ -32,8 +31,6 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\HttpClient\HttpClient;
-use Symfony\Component\HttpClient\Psr18Client;
 
 /**
  * HTTP-based client transport using PSR-18 HTTP client.
@@ -159,24 +156,10 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->listenParser = new SseParser($maxSseBufferBytes);
         $this->reconnectPolicy = $reconnectPolicy ?? new ReconnectPolicy();
         $this->clock = $clock ?? new MonotonicClock();
-        $client = $httpClient ?? self::discoverClient();
+        $client = $httpClient ?? NoRedirects::discover();
         $this->httpClient = null === $auth ? $client : new AuthenticatingHttpClient($client, $auth);
         $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
-    }
-
-    private static function discoverClient(): ClientInterface
-    {
-        $client = Psr18ClientDiscovery::find();
-
-        if (!$client instanceof Psr18Client) {
-            return $client;
-        }
-
-        // Psr18Client has no withOptions() before symfony/http-client 6.2.
-        return \is_callable([$client, 'withOptions'])
-            ? $client->withOptions(['max_redirects' => 0])
-            : new Psr18Client(HttpClient::create(['max_redirects' => 0]));
     }
 
     public function connect(): void

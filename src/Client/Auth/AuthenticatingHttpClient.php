@@ -11,6 +11,7 @@
 
 namespace Mcp\Client\Auth;
 
+use Mcp\Client\Transport\NoRedirects;
 use Mcp\Exception\InvalidArgumentException;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
@@ -36,14 +37,18 @@ final class AuthenticatingHttpClient implements ClientInterface
      */
     public const DEFAULT_MAX_AUTHORIZATION_ATTEMPTS = 3;
 
+    private readonly ClientInterface $client;
+
     public function __construct(
-        private readonly ClientInterface $client,
+        ClientInterface $client,
         private readonly AuthenticatorInterface $authenticator,
         private readonly int $maxAuthorizationAttempts = self::DEFAULT_MAX_AUTHORIZATION_ATTEMPTS,
     ) {
         if ($maxAuthorizationAttempts < 1) {
             throw new InvalidArgumentException(\sprintf('The number of authorization attempts must be at least 1, got %d.', $maxAuthorizationAttempts));
         }
+
+        $this->client = NoRedirects::apply($client);
     }
 
     public function sendRequest(RequestInterface $request): ResponseInterface

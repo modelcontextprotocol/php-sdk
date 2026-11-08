@@ -11,13 +11,22 @@
 
 namespace Mcp\Tests\Unit\Client\Auth;
 
+use Http\Discovery\Psr18ClientDiscovery;
+use Http\Discovery\Strategy\DiscoveryStrategy;
 use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Auth\OAuthAuthenticator;
 use Mcp\Client\Auth\OAuthConfiguration;
 use Mcp\Client\Auth\TokenEndpointAuthMethod;
+use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\InvalidArgumentException;
+use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Client\ClientInterface;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Psr18Client;
+use Symfony\Component\HttpClient\Response\MockResponse;
 
 final class OAuthTest extends TestCase
 {
@@ -31,6 +40,45 @@ final class OAuthTest extends TestCase
         $this->assertSame('native', $configuration->clientMetadata->applicationType);
         $this->assertTrue($configuration->offlineAccess);
         $this->assertNull($configuration->clientId);
+    }
+
+    #[TestDox('a Symfony client passed in stops following redirects, so one cannot carry a client secret elsewhere')]
+    public function testPassedClientStopsFollowingRedirects(): void
+    {
+        $seen = [];
+
+        $this->challenge(OAuth::forApplication('My App')->setHttpClient(new Psr18Client($this->recordingRedirects($seen))));
+
+        $this->assertNotSame([], $seen);
+        $this->assertSame([0], array_values(array_unique($seen)));
+    }
+
+    #[TestDox('a discovered Symfony client stops following redirects, so one cannot carry a client secret elsewhere')]
+    public function testDiscoveredClientStopsFollowingRedirects(): void
+    {
+        $seen = [];
+
+        $strategy = new class implements DiscoveryStrategy {
+            public static ClientInterface $client;
+
+            public static function getCandidates($type): array
+            {
+                return ClientInterface::class === $type ? [['class' => static fn (): ClientInterface => self::$client]] : [];
+            }
+        };
+        $strategy::$client = new Psr18Client($this->recordingRedirects($seen));
+
+        $strategies = [...Psr18ClientDiscovery::getStrategies()];
+        Psr18ClientDiscovery::prependStrategy($strategy::class);
+
+        try {
+            $this->challenge(OAuth::forApplication('My App'));
+        } finally {
+            Psr18ClientDiscovery::setStrategies($strategies);
+        }
+
+        $this->assertNotSame([], $seen);
+        $this->assertSame([0], array_values(array_unique($seen)));
     }
 
     #[TestDox('a client secret needs an expected issuer')]
@@ -96,6 +144,31 @@ final class OAuthTest extends TestCase
         $this->assertSame('https://my-app.example.com', $body['client_uri']);
         $this->assertSame('my-app', $body['software_id']);
         $this->assertSame('2.1.0', $body['software_version']);
+    }
+
+    /**
+     * @param int[] $seen
+     */
+    private function recordingRedirects(array &$seen): MockHttpClient
+    {
+        if (!(new \ReflectionClass(Psr18Client::class))->hasMethod('withOptions')) {
+            $this->markTestSkipped('Psr18Client has no withOptions() before symfony/http-client 6.2.');
+        }
+
+        return new MockHttpClient(static function (string $method, string $url, array $options) use (&$seen): MockResponse {
+            $seen[] = $options['max_redirects'];
+
+            return new MockResponse('', ['http_code' => 404]);
+        });
+    }
+
+    private function challenge(OAuth $oauth): void
+    {
+        try {
+            $oauth->build()->handleChallenge((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/mcp'), new Response(401));
+        } catch (AuthorizationException) {
+            // Discovery finds nothing here, only its requests matter.
+        }
     }
 
     private function configurationOf(OAuth $oauth): OAuthConfiguration

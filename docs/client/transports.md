@@ -134,10 +134,13 @@ If the server answers a request with a `3xx` status, the request fails at once w
 `ConnectionException` at once, with no retry and no fallback to the `initialize` handshake. To
 reach a server that moved, configure its new URL as `endpoint`.
 
-The transport turns off redirects on a `symfony/http-client` client that it discovers. Any other
-client, and a client you pass as `httpClient`, keeps its own configuration. Such a client *must not*
-follow redirects to another origin. If it does, your headers and the request body reach that
-origin, and the transport accepts its answer as the server's.
+The transport turns off redirects on a `symfony/http-client` client that it discovers. With `auth`,
+it also turns them off on a `symfony/http-client` client that you pass as `httpClient`. Any other
+client keeps its own configuration.
+
+Such a client *must not* follow redirects to another origin. If it does, your headers and the
+request body reach that origin, and the transport accepts its answer as the server's. With `auth`,
+it *must not* follow any redirect, because a redirect on the same origin also receives the token.
 
 To pass a `symfony/http-client` client, create it with `max_redirects` set to `0`:
 

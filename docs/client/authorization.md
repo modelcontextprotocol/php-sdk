@@ -130,6 +130,8 @@ use Mcp\Client\Auth\AuthenticatingHttpClient;
 $httpClient = new AuthenticatingHttpClient($yourPsr18Client, $auth);
 ```
 
+The token is only added to requests for this server, but a redirect receives the same headers. This class and `OAuth` turn off redirects on a `symfony/http-client` client. Before `symfony/http-client` 6.2, create that client with `max_redirects` set to `0`. Any other client *must not* follow redirects.
+
 It authorizes at most 3 times per request. If the request body isn't seekable, it doesn't send the request again and returns the rejected response.
 
 ## What the Client Refuses

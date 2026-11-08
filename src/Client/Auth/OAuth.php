@@ -12,7 +12,7 @@
 namespace Mcp\Client\Auth;
 
 use Http\Discovery\Psr17FactoryDiscovery;
-use Http\Discovery\Psr18ClientDiscovery;
+use Mcp\Client\Transport\NoRedirects;
 use Mcp\Exception\InvalidArgumentException;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -241,7 +241,7 @@ final class OAuth
 
     public function build(): OAuthAuthenticator
     {
-        $httpClient = $this->httpClient ?? Psr18ClientDiscovery::find();
+        $httpClient = null === $this->httpClient ? NoRedirects::discover() : NoRedirects::apply($this->httpClient);
         $requestFactory = $this->requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $streamFactory = $this->streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
 
