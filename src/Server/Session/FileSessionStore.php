@@ -25,6 +25,8 @@ use Symfony\Component\Uid\Uuid;
  */
 class FileSessionStore implements SessionStoreInterface
 {
+    private const MOVE_ATTEMPTS = 10;
+
     public function __construct(
         private readonly string $directory,
         private readonly int $ttl = 3600,
@@ -121,19 +123,14 @@ class FileSessionStore implements SessionStoreInterface
             return false;
         }
 
-        // Atomic move
-        if (!@rename($tmp, $path)) {
-            // Fallback if rename fails cross-device
-            if (false === @copy($tmp, $path)) {
-                $this->logger->warning('Failed to move session file into place.', [
-                    'path' => $path,
-                    'error' => error_get_last()['message'] ?? 'unknown',
-                ]);
-                @unlink($tmp);
-
-                return false;
-            }
+        if (!$this->moveIntoPlace($tmp, $path)) {
+            $this->logger->warning('Failed to move session file into place.', [
+                'path' => $path,
+                'error' => error_get_last()['message'] ?? 'unknown',
+            ]);
             @unlink($tmp);
+
+            return false;
         }
 
         @touch($path, $this->clock->now()->getTimestamp());
@@ -258,6 +255,20 @@ class FileSessionStore implements SessionStoreInterface
             flock($handle, \LOCK_UN);
             fclose($handle);
         }
+    }
+
+    private function moveIntoPlace(string $tmp, string $path): bool
+    {
+        // Replacing a file can fail briefly on Windows while another process has it open.
+        for ($attempt = 1; $attempt < self::MOVE_ATTEMPTS; ++$attempt) {
+            if (@rename($tmp, $path)) {
+                return true;
+            }
+
+            usleep($attempt * 1000);
+        }
+
+        return @rename($tmp, $path);
     }
 
     private function isTemporaryFile(string $entry): bool

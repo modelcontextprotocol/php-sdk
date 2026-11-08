@@ -317,6 +317,27 @@ class FileSessionStoreTest extends TestCase
         $this->assertSame($path, $logger->warnings[0]['context']['path']);
     }
 
+    #[TestDox('reports a session file it cannot move into place, and leaves no temporary file behind')]
+    public function testWriteReportsAFileItCannotMoveIntoPlace(): void
+    {
+        $logger = new WarningCollectingLogger();
+        $store = new FileSessionStore($this->directory, logger: $logger);
+        $id = new UuidV4();
+
+        $path = $this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122();
+        mkdir($path);
+
+        try {
+            $this->assertFalse($store->write($id, 'payload'));
+            $this->assertCount(1, $logger->warnings);
+            $this->assertSame('Failed to move session file into place.', $logger->warnings[0]['message']);
+            $this->assertSame($path, $logger->warnings[0]['context']['path']);
+            $this->assertSame([], glob($this->directory.\DIRECTORY_SEPARATOR.'*.tmp'));
+        } finally {
+            rmdir($path);
+        }
+    }
+
     #[TestDox('never serves a partial payload while another process writes the same session')]
     public function testConcurrentWritesNeverPublishAPartialPayload(): void
     {
