@@ -63,6 +63,7 @@ $transport = new HttpTransport(
 - `listen` (bool): Open the server's listening stream after the handshake (see below)
 - `reconnectPolicy` (ReconnectPolicy|null): How an interrupted SSE stream is resumed (default: 5 attempts, 1–10 s backoff)
 - `clock` (ClockInterface|null): PSR-20 clock used to schedule reconnects (default: a monotonic clock)
+- `maxResponseBodyBytes` (int): Maximum bytes read from a response body that is not an SSE stream (default: 8 MiB)
 
 When an SSE connection closes before its JSON-RPC response arrives, the transport resumes it with a GET request carrying the latest `Last-Event-ID`. A server-provided SSE `retry` value controls the delay; otherwise the fallback delay doubles from 1 second up to 10 seconds. Completed requests and explicitly closed transports are not reconnected. A server-provided `retry` value is not capped, so a long one leaves the request waiting until its timeout. A reconnect answered with a redirect or a client error (e.g. `404` for an expired session or `405` without GET support) fails the request at once; only `408`, `429`, server errors and a successful answer that is not an event stream are retried. Protocol version `2026-07-28` removed stream resumption, so there an interrupted stream fails the request at once.
 
@@ -96,6 +97,34 @@ composer require php-http/guzzle7-adapter
 **Error status codes:**
 
 If the server answers with an HTTP error status, the request fails at once with a `RequestException`.
+
+**Response body size:**
+
+The transport reads at most `maxResponseBodyBytes` from a response body that is not an SSE stream.
+Raise the limit if your server sends larger results:
+
+```php
+$transport = new HttpTransport('http://localhost:8000', maxResponseBodyBytes: 64 * 1024 * 1024);
+```
+
+- A successful response over the limit fails the request with a `RequestException`, and the transport
+  closes the body. During `connect()`, it throws a `ConnectionException` at once, with no retry and no
+  fallback to the `initialize` handshake.
+- An error status over the limit fails the request as usual. The transport reads the body up to the
+  limit, and it may log the first 4 KiB.
+- SSE streams have their own limit: `maxSseBufferBytes` limits the size of one incomplete event.
+
+This limit applies to what the transport reads from the PSR-18 client. What the client does before
+it returns the response depends on the client:
+
+- `symfony/http-client` returns before the whole body has arrived and stores what arrives in
+  `php://temp`. When the transport closes the body, the download stops. If the server sends without
+  a pause on a very fast connection, the transport can't close the body until it ends, so the whole
+  body is stored on disk. To limit this, set the `max_duration` option of the client.
+- `php-http/guzzle7-adapter` and `php-http/curl-client` write the whole body to `php://temp` before
+  they return. The transport still uses limited memory, but the client downloads the whole body,
+  stores it on disk and blocks until the body ends. Configure a timeout on these clients to limit
+  this. See [Cancellation and deadlines](#cancellation-and-deadlines).
 
 **Session ID:**
 

@@ -17,6 +17,7 @@ use Mcp\Client\MonotonicClock;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
+use Mcp\Exception\RequestException;
 use Mcp\Exception\TimeoutException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
@@ -87,6 +88,13 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      */
     public const DEFAULT_MAX_SSE_BUFFER_BYTES = 8 * 1024 * 1024;
 
+    /**
+     * Default cap on the bytes read from a response body that is not an SSE stream.
+     */
+    public const DEFAULT_MAX_RESPONSE_BODY_BYTES = 8 * 1024 * 1024;
+
+    private const MAX_LOGGED_BODY_BYTES = 4096;
+
     private readonly SseParser $sseParser;
 
     private readonly SseParser $listenParser;
@@ -96,23 +104,24 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     private readonly ClockInterface $clock;
 
     /**
-     * @param string                       $endpoint          The MCP server endpoint URL
-     * @param array<string, string>        $headers           Additional headers to send
-     * @param ClientInterface|null         $httpClient        PSR-18 HTTP client (auto-discovered if null)
-     * @param RequestFactoryInterface|null $requestFactory    PSR-17 request factory (auto-discovered if null)
-     * @param StreamFactoryInterface|null  $streamFactory     PSR-17 stream factory (auto-discovered if null)
-     * @param int                          $maxSseBufferBytes Maximum bytes buffered while waiting for a complete
-     *                                                        SSE event. A server that never sends the "\n\n" event
-     *                                                        delimiter would otherwise grow the buffer without bound
-     *                                                        and exhaust client memory; reaching the cap aborts the
-     *                                                        stream instead. Raise it for servers that legitimately
-     *                                                        emit single events larger than the default.
-     * @param bool                         $listen            Open the standalone GET stream after the handshake (2025
-     *                                                        revisions only). Needs a PSR-18 client that streams
-     *                                                        response bodies; see docs/client/transports.md.
-     * @param ReconnectPolicy|null         $reconnectPolicy   How an SSE stream that closed before its response
-     *                                                        arrived is resumed (default: 5 attempts, 1-10 s backoff)
-     * @param ClockInterface|null          $clock             Clock for scheduling reconnects (default: a monotonic clock)
+     * @param string                       $endpoint             The MCP server endpoint URL
+     * @param array<string, string>        $headers              Additional headers to send
+     * @param ClientInterface|null         $httpClient           PSR-18 HTTP client (auto-discovered if null)
+     * @param RequestFactoryInterface|null $requestFactory       PSR-17 request factory (auto-discovered if null)
+     * @param StreamFactoryInterface|null  $streamFactory        PSR-17 stream factory (auto-discovered if null)
+     * @param int                          $maxSseBufferBytes    Maximum bytes buffered while waiting for a complete
+     *                                                           SSE event. A server that never sends the "\n\n" event
+     *                                                           delimiter would otherwise grow the buffer without bound
+     *                                                           and exhaust client memory; reaching the cap aborts the
+     *                                                           stream instead. Raise it for servers that legitimately
+     *                                                           emit single events larger than the default.
+     * @param bool                         $listen               Open the standalone GET stream after the handshake (2025
+     *                                                           revisions only). Needs a PSR-18 client that streams
+     *                                                           response bodies; see docs/client/transports.md.
+     * @param ReconnectPolicy|null         $reconnectPolicy      How an SSE stream that closed before its response
+     *                                                           arrived is resumed (default: 5 attempts, 1-10 s backoff)
+     * @param ClockInterface|null          $clock                Clock for scheduling reconnects (default: a monotonic clock)
+     * @param int                          $maxResponseBodyBytes Maximum bytes read from a response body that is not an SSE stream
      */
     public function __construct(
         private readonly string $endpoint,
@@ -125,8 +134,13 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         private readonly bool $listen = false,
         ?ReconnectPolicy $reconnectPolicy = null,
         ?ClockInterface $clock = null,
+        private readonly int $maxResponseBodyBytes = self::DEFAULT_MAX_RESPONSE_BODY_BYTES,
     ) {
         parent::__construct($logger);
+
+        if ($maxResponseBodyBytes < 1) {
+            throw new InvalidArgumentException(\sprintf('The maximum response body size must be a positive number of bytes, got %d.', $maxResponseBodyBytes));
+        }
 
         $this->sseParser = new SseParser($maxSseBufferBytes);
         $this->listenParser = new SseParser($maxSseBufferBytes);
@@ -155,6 +169,11 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->resetSseState();
 
         if ($result instanceof Error) {
+            // A retry would download the same body again.
+            if (\is_array($result->data) && true === ($result->data[self::RESPONSE_TOO_LARGE] ?? null)) {
+                throw RequestException::fromError($result);
+            }
+
             throw new ConnectionException('Initialization failed: '.$result->message);
         }
 
@@ -254,14 +273,15 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $contentType = strtolower($response->getHeaderLine('Content-Type'));
 
         if ($response->getStatusCode() >= 400) {
+            $truncated = false;
             try {
-                $body = $response->getBody()->getContents();
+                $body = $this->readResponseBody($response->getBody(), $truncated);
             } catch (\RuntimeException) {
                 // The status alone still tells what went wrong.
                 $body = '';
             }
 
-            $this->handleErrorStatus($data, $response->getStatusCode(), $response->getReasonPhrase(), $body);
+            $this->handleErrorStatus($data, $response->getStatusCode(), $response->getReasonPhrase(), $body, $truncated);
 
             return;
         }
@@ -273,9 +293,15 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         try {
-            $body = $response->getBody()->getContents();
+            $body = $this->readResponseBody($response->getBody(), $truncated);
         } catch (\RuntimeException $e) {
             $this->failUnanswered($data, $e->getMessage());
+
+            return;
+        }
+
+        if ($truncated) {
+            $this->failRequest($data, \sprintf('The response body exceeds the %d byte limit. Raise the "maxResponseBodyBytes" argument of HttpTransport to accept it.', $this->maxResponseBodyBytes), [self::RESPONSE_TOO_LARGE => true]);
 
             return;
         }
@@ -288,6 +314,36 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         if (null !== ($requestId = self::requestIdOf($data)) && !($dispatched && self::answers($body, $requestId))) {
             $this->failUnanswered($data, '' === trim($body) ? 'empty body' : 'no answer in the body');
         }
+    }
+
+    /**
+     * The body cut at its limit, closing the stream when there is more to it.
+     *
+     * @param-out bool $truncated set to whether the body exceeds the limit
+     */
+    private function readResponseBody(StreamInterface $stream, ?bool &$truncated): string
+    {
+        $truncated = false;
+        $body = '';
+
+        // One byte past the limit tells a body over it from one that fills it.
+        while (\strlen($body) <= $this->maxResponseBodyBytes && !$stream->eof()) {
+            $chunk = $stream->read(min(8192, $this->maxResponseBodyBytes + 1 - \strlen($body)));
+            if ('' === $chunk) {
+                break;
+            }
+
+            $body .= $chunk;
+        }
+
+        if (\strlen($body) > $this->maxResponseBodyBytes) {
+            $truncated = true;
+            $stream->close();
+
+            return substr($body, 0, $this->maxResponseBodyBytes);
+        }
+
+        return $body;
     }
 
     /**
@@ -319,13 +375,21 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      */
     private function failUnanswered(string $sent, string $reason): void
     {
+        $this->failRequest($sent, 'The response ended without answering the request: '.$reason);
+    }
+
+    /**
+     * @param array<string, bool>|null $data
+     */
+    private function failRequest(string $sent, string $message, ?array $data = null): void
+    {
         $requestId = self::requestIdOf($sent);
         if (null === $requestId || null === $this->state) {
             return;
         }
 
-        $this->logger->warning('Response ended without answering the request', ['request_id' => $requestId, 'reason' => $reason]);
-        $this->state->storeResponse($requestId, Error::forInternalError('The response ended without answering the request: '.$reason, $requestId)->jsonSerialize());
+        $this->logger->warning($message, ['request_id' => $requestId]);
+        $this->state->storeResponse($requestId, (new Error($requestId, Error::INTERNAL_ERROR, $message, $data))->jsonSerialize());
     }
 
     /**
@@ -342,11 +406,12 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     /**
      * Fails a request refused at the HTTP level at once, rather than at its timeout.
      */
-    private function handleErrorStatus(string $sent, int $status, string $reason, string $body): void
+    private function handleErrorStatus(string $sent, int $status, string $reason, string $body, bool $truncated): void
     {
         $request = json_decode($sent, true);
         $requestId = \is_array($request) && \array_key_exists('method', $request) ? ($request['id'] ?? null) : null;
-        $answer = '' === trim($body) ? null : json_decode($body, true);
+        // A cut body can still parse as JSON, so it is only fit for the log.
+        $answer = $truncated || '' === trim($body) ? null : json_decode($body, true);
 
         if (\is_array($answer) && null !== $requestId && ($answer['id'] ?? null) === $requestId && self::isWellFormedAnswer($answer)) {
             $this->handleMessage($body);
@@ -355,7 +420,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         if ((!\is_string($requestId) && !\is_int($requestId)) || null === $this->state) {
-            $this->logger->warning('Server refused a message', ['status' => $status, 'body' => $body]);
+            $this->logger->warning('Server refused a message', ['status' => $status, 'body' => self::bodyExcerpt($body, $truncated)]);
 
             return;
         }
@@ -365,6 +430,18 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             : Error::forInvalidRequest(\sprintf('Server answered with HTTP %d%s.', $status, '' !== $reason ? ' '.$reason : ''), $requestId);
 
         $this->state->storeResponse($requestId, $error->jsonSerialize());
+    }
+
+    private static function bodyExcerpt(string $body, bool $truncated): string
+    {
+        if (!$truncated && \strlen($body) <= self::MAX_LOGGED_BODY_BYTES) {
+            return $body;
+        }
+
+        $excerpt = substr($body, 0, self::MAX_LOGGED_BODY_BYTES);
+
+        // Drops the last character, as the cut may have split it.
+        return preg_replace('/[\xC0-\xFF][\x80-\xBF]*\z/', '', $excerpt) ?? $excerpt;
     }
 
     /**

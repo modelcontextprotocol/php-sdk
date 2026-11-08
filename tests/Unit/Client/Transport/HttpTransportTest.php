@@ -18,6 +18,7 @@ use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
 use Mcp\Client\Protocol;
 use Mcp\Client\State\ClientState;
 use Mcp\Client\Transport\HttpTransport;
+use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
@@ -39,6 +40,7 @@ use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
+use Psr\Log\LoggerInterface;
 
 final class HttpTransportTest extends TestCase
 {
@@ -948,7 +950,7 @@ final class HttpTransportTest extends TestCase
 
         $answer = $this->createMock(StreamInterface::class);
         $answer->expects($this->once())->method('close');
-        $answer->expects($this->never())->method('getContents');
+        $answer->expects($this->never())->method('read');
 
         $httpClient = new class($answer, $contentType) implements ClientInterface {
             public function __construct(
@@ -995,10 +997,12 @@ final class HttpTransportTest extends TestCase
             public string $contents = '';
         };
         $stream = $this->createMock(StreamInterface::class);
-        $stream->method('getContents')->willReturnCallback(static function () use ($body, $token): string {
+        $stream->method('read')->willReturnCallback(static function () use ($body, $token): string {
             $token->cancelled = true;
+            $contents = $body->contents;
+            $body->contents = '';
 
-            return $body->contents;
+            return $contents;
         });
 
         $httpClient = new RecordingHttpClient(static function (array $message) use ($body, $stream): ?ResponseInterface {
@@ -1112,7 +1116,7 @@ final class HttpTransportTest extends TestCase
             }
 
             $stream = $this->createStub(StreamInterface::class);
-            $stream->method('getContents')->willThrowException(new \RuntimeException('Connection reset by peer'));
+            $stream->method('read')->willThrowException(new \RuntimeException('Connection reset by peer'));
 
             return new Response(500, ['Content-Type' => 'application/json'], $stream);
         });
@@ -1131,6 +1135,248 @@ final class HttpTransportTest extends TestCase
         $client->disconnect();
     }
 
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function successContentTypeProvider(): iterable
+    {
+        yield 'a JSON body' => ['application/json'];
+        yield 'a plain text body' => ['text/plain'];
+    }
+
+    #[DataProvider('successContentTypeProvider')]
+    #[TestDox('a successful response over the body limit fails the request without reading on: $_dataName')]
+    public function testSuccessBodyOverTheLimitFailsTheRequest(string $contentType): void
+    {
+        $body = new OversizedStream(1024 * 1024);
+        $transport = $this->createTransport(
+            httpClient: RecordingHttpClient::queued([new Response(200, ['Content-Type' => $contentType], $body)]),
+            maxResponseBodyBytes: 1024,
+        );
+
+        $messages = [];
+        $result = $this->runRequest($transport, 1, messages: $messages);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertSame(Error::INTERNAL_ERROR, $result->code);
+        $this->assertStringContainsString('1024 byte limit', $result->message);
+        $this->assertStringContainsString('maxResponseBodyBytes', $result->message);
+        $this->assertStringNotContainsString('ended', $result->message);
+        $this->assertSame([TransportInterface::RESPONSE_TOO_LARGE => true], $result->data);
+        $this->assertSame([], $messages);
+        $this->assertLessThanOrEqual(1025, $body->bytesRead);
+        $this->assertTrue($body->closed);
+    }
+
+    #[TestDox('the default body limit applies without any configuration')]
+    public function testDefaultBodyLimit(): void
+    {
+        $body = new OversizedStream(2 * HttpTransport::DEFAULT_MAX_RESPONSE_BODY_BYTES);
+        $transport = $this->createTransport(
+            httpClient: RecordingHttpClient::queued([new Response(200, ['Content-Type' => 'application/json'], $body)]),
+        );
+
+        $result = $this->runRequest($transport, 1);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertLessThanOrEqual(HttpTransport::DEFAULT_MAX_RESPONSE_BODY_BYTES + 1, $body->bytesRead);
+    }
+
+    #[TestDox('a body of exactly the limit is read whole, across several reads')]
+    public function testBodyAtTheLimitIsDispatched(): void
+    {
+        $answer = json_encode(['jsonrpc' => '2.0', 'id' => 1, 'result' => ['pad' => str_repeat('a', 20000)]], \JSON_THROW_ON_ERROR);
+        $transport = $this->createTransport(
+            httpClient: RecordingHttpClient::queued([new Response(200, ['Content-Type' => 'application/json'], $answer)]),
+            maxResponseBodyBytes: \strlen($answer),
+        );
+
+        $messages = [];
+        $result = $this->runRequest($transport, 1, messages: $messages);
+
+        $this->assertInstanceOf(JsonRpcResponse::class, $result);
+        $this->assertSame([$answer], $messages);
+    }
+
+    #[TestDox('a body one byte over the limit fails the request')]
+    public function testBodyOneByteOverTheLimitFailsTheRequest(): void
+    {
+        $answer = '{"jsonrpc":"2.0","id":1,"result":{}}';
+        $transport = $this->createTransport(
+            httpClient: RecordingHttpClient::queued([new Response(200, ['Content-Type' => 'application/json'], $answer)]),
+            maxResponseBodyBytes: \strlen($answer) - 1,
+        );
+
+        $messages = [];
+        $result = $this->runRequest($transport, 1, messages: $messages);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertSame([], $messages);
+    }
+
+    #[TestDox('an error status over the body limit still reports the status, without reading on')]
+    public function testErrorBodyOverTheLimitReportsTheStatus(): void
+    {
+        $body = new OversizedStream(1024 * 1024);
+        $transport = $this->createTransport(
+            httpClient: RecordingHttpClient::queued([new Response(500, ['Content-Type' => 'text/html'], $body)]),
+            maxResponseBodyBytes: 1024,
+        );
+
+        $result = $this->runRequest($transport, 1);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertStringContainsString('HTTP 500', $result->message);
+        $this->assertLessThanOrEqual(1025, $body->bytesRead);
+        $this->assertTrue($body->closed);
+    }
+
+    #[TestDox('an error status over the body limit logs the body cut at the limit')]
+    public function testErrorBodyOverTheLimitIsLoggedTruncated(): void
+    {
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())->method('warning')->with(
+            'Server refused a message',
+            $this->callback(static fn (array $context): bool => 1024 === \strlen($context['body'])),
+        );
+
+        $transport = $this->createTransport(
+            httpClient: RecordingHttpClient::queued([new Response(500, ['Content-Type' => 'text/html'], new OversizedStream(1024 * 1024))]),
+            maxResponseBodyBytes: 1024,
+            logger: $logger,
+        );
+
+        $transport->send('{"jsonrpc":"2.0","id":1,"result":{}}');
+    }
+
+    /**
+     * @return iterable<string, array{int, int}>
+     */
+    public static function loggedBodyLimitProvider(): iterable
+    {
+        yield 'cut by the log cap' => [HttpTransport::DEFAULT_MAX_RESPONSE_BODY_BYTES, 4096];
+        yield 'cut by the body limit' => [1024, 1024];
+    }
+
+    #[DataProvider('loggedBodyLimitProvider')]
+    #[TestDox('a refused message logs a capped body without splitting a character: $_dataName')]
+    public function testLoggedErrorBodyIsCappedOnACharacterBoundary(int $maxResponseBodyBytes, int $expectedCap): void
+    {
+        $logged = null;
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())->method('warning')->with(
+            'Server refused a message',
+            $this->callback(static function (array $context) use (&$logged): bool {
+                $logged = $context['body'];
+
+                return true;
+            }),
+        );
+
+        // The odd prefix makes a cut at an even byte count fall inside a two-byte character.
+        $transport = $this->createTransport(
+            httpClient: RecordingHttpClient::queued([new Response(500, ['Content-Type' => 'text/html'], 'a'.str_repeat('é', 3000))]),
+            maxResponseBodyBytes: $maxResponseBodyBytes,
+            logger: $logger,
+        );
+
+        $transport->send('{"jsonrpc":"2.0","id":1,"result":{}}');
+
+        $this->assertIsString($logged);
+        $this->assertLessThanOrEqual($expectedCap, \strlen($logged));
+        $this->assertGreaterThan($expectedCap - 6, \strlen($logged));
+        $this->assertSame(1, preg_match('//u', $logged));
+    }
+
+    #[TestDox('an error status body cut at the limit is not read as an answer, even when the cut part is valid JSON')]
+    public function testCutErrorBodyIsNotDispatched(): void
+    {
+        $answer = '{"jsonrpc":"2.0","id":1,"result":{}}';
+        $transport = $this->createTransport(
+            httpClient: RecordingHttpClient::queued([new Response(500, ['Content-Type' => 'application/json'], $answer.'garbage')]),
+            maxResponseBodyBytes: \strlen($answer),
+        );
+
+        $messages = [];
+        $result = $this->runRequest($transport, 1, messages: $messages);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertStringContainsString('HTTP 500', $result->message);
+        $this->assertSame([], $messages);
+    }
+
+    #[TestDox('an error status body of exactly the limit is still read as an answer')]
+    public function testErrorBodyAtTheLimitIsDispatched(): void
+    {
+        $answer = '{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"Refused"}}';
+        $transport = $this->createTransport(
+            httpClient: RecordingHttpClient::queued([new Response(500, ['Content-Type' => 'application/json'], $answer)]),
+            maxResponseBodyBytes: \strlen($answer),
+        );
+
+        $messages = [];
+        $result = $this->runRequest($transport, 1, messages: $messages);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertSame('Refused', $result->message);
+        $this->assertSame([$answer], $messages);
+    }
+
+    /**
+     * @return iterable<string, array{ProtocolVersion, ?ProtocolVersion, string}>
+     */
+    public static function connectBodyLimitProvider(): iterable
+    {
+        yield 'the probe, with a fallback' => [ProtocolVersion::V2026_07_28, ProtocolVersion::V2025_11_25, 'server/discover'];
+        yield 'the probe, without a fallback' => [ProtocolVersion::V2026_07_28, null, 'server/discover'];
+        yield 'the handshake' => [ProtocolVersion::V2025_11_25, ProtocolVersion::V2025_11_25, 'initialize'];
+    }
+
+    #[DataProvider('connectBodyLimitProvider')]
+    #[TestDox('a response over the body limit fails connect() at once, without a retry or a fallback: $_dataName')]
+    public function testBodyOverTheLimitFailsConnect(ProtocolVersion $version, ?ProtocolVersion $fallback, string $oversizedMethod): void
+    {
+        $httpClient = new RecordingHttpClient(static function (array $message) use ($oversizedMethod): ResponseInterface {
+            if ($oversizedMethod === ($message['method'] ?? null)) {
+                return new Response(200, ['Content-Type' => 'application/json'], new OversizedStream(1024 * 1024));
+            }
+
+            if ('initialize' !== ($message['method'] ?? null)) {
+                return new Response(202);
+            }
+
+            return new Response(200, ['Content-Type' => 'application/json'], (string) json_encode(['jsonrpc' => '2.0', 'id' => $message['id'], 'result' => [
+                'protocolVersion' => ProtocolVersion::V2025_11_25->value,
+                'capabilities' => new \stdClass(),
+                'serverInfo' => ['name' => 'legacy-server', 'version' => '1.0.0'],
+            ]]));
+        });
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion($version)
+            ->setFallbackProtocolVersion($fallback)
+            ->setInitTimeout(5)
+            ->build();
+
+        try {
+            $client->connect($this->createTransport(httpClient: $httpClient, maxResponseBodyBytes: 1024));
+            $this->fail('connect() must not succeed on a response over the limit.');
+        } catch (ConnectionException $e) {
+            $this->assertStringStartsWith('Initialization failed: The response body exceeds the 1024 byte limit.', $e->getMessage());
+        }
+
+        $this->assertSame([$oversizedMethod], array_column($httpClient->messages, 'method'));
+    }
+
+    #[TestDox('the response body limit must be a positive number of bytes')]
+    public function testRejectsNonPositiveBodyLimit(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->createTransport(maxResponseBodyBytes: 0);
+    }
+
     #[DataProvider('unansweredResponseProvider')]
     #[TestDox('a response that ends without the answer fails the call at once: $_dataName')]
     public function testUnansweredResponseFailsTheCallAtOnce(string $contentType, ?string $body): void
@@ -1146,7 +1392,7 @@ final class HttpTransportTest extends TestCase
             }
 
             $stream = $this->createStub(StreamInterface::class);
-            $stream->method('getContents')->willThrowException(new \RuntimeException('Connection reset by peer'));
+            $stream->method('read')->willThrowException(new \RuntimeException('Connection reset by peer'));
 
             return new Response(200, $headers, $stream);
         });
@@ -1314,6 +1560,8 @@ final class HttpTransportTest extends TestCase
         ?ClientInterface $httpClient = null,
         array $headers = [],
         ?ClockInterface $clock = null,
+        int $maxResponseBodyBytes = HttpTransport::DEFAULT_MAX_RESPONSE_BODY_BYTES,
+        ?LoggerInterface $logger = null,
     ): HttpTransport {
         return new HttpTransport(
             endpoint: 'https://example.test/mcp',
@@ -1321,8 +1569,10 @@ final class HttpTransportTest extends TestCase
             httpClient: $httpClient ?? $this->createMock(ClientInterface::class),
             requestFactory: $this->factory,
             streamFactory: $this->factory,
+            logger: $logger,
             maxSseBufferBytes: $maxSseBufferBytes,
             clock: $clock,
+            maxResponseBodyBytes: $maxResponseBodyBytes,
         );
     }
 
@@ -1732,6 +1982,98 @@ final class FiberSuspendingStream implements StreamInterface
     }
 
     public function getMetadata(?string $key = null)
+    {
+        return null === $key ? [] : null;
+    }
+}
+
+/**
+ * A response body larger than any limit under test, counting what was read from it.
+ */
+final class OversizedStream implements StreamInterface
+{
+    public int $bytesRead = 0;
+
+    public bool $closed = false;
+
+    public function __construct(private readonly int $size)
+    {
+    }
+
+    public function __toString(): string
+    {
+        return $this->getContents();
+    }
+
+    public function close(): void
+    {
+        $this->closed = true;
+    }
+
+    public function detach()
+    {
+        return null;
+    }
+
+    public function getSize(): ?int
+    {
+        return null;
+    }
+
+    public function tell(): int
+    {
+        return $this->bytesRead;
+    }
+
+    public function eof(): bool
+    {
+        return $this->closed || $this->bytesRead >= $this->size;
+    }
+
+    public function isSeekable(): bool
+    {
+        return false;
+    }
+
+    public function seek(int $offset, int $whence = \SEEK_SET): void
+    {
+        throw new \LogicException('This body is not seekable.');
+    }
+
+    public function rewind(): void
+    {
+        throw new \LogicException('This body is not seekable.');
+    }
+
+    public function isWritable(): bool
+    {
+        return false;
+    }
+
+    public function write(string $string): int
+    {
+        throw new \LogicException('A response body is not writable.');
+    }
+
+    public function isReadable(): bool
+    {
+        return !$this->closed;
+    }
+
+    public function read(int $length): string
+    {
+        $length = min($length, $this->size - $this->bytesRead);
+        $this->bytesRead += $length;
+
+        return str_repeat('a', $length);
+    }
+
+    public function getContents(): string
+    {
+        return $this->read($this->size);
+    }
+
+    public function getMetadata(?string $key = null): mixed
     {
         return null === $key ? [] : null;
     }

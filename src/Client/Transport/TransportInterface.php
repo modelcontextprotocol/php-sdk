@@ -36,6 +36,11 @@ interface TransportInterface
     public const CONNECTION_LOST = 'connectionLost';
 
     /**
+     * Error data key marking an error the transport filed because a response body is over its limit.
+     */
+    public const RESPONSE_TOO_LARGE = 'responseTooLarge';
+
+    /**
      * Connect to the MCP server and perform initialization handshake.
      *
      * This method blocks until:
