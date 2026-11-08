@@ -67,7 +67,7 @@ final class CallToolHandler implements RequestHandlerInterface
         $toolName = $request->name;
         $arguments = $request->arguments;
 
-        $this->logger->debug('Executing tool', ['name' => $toolName, 'arguments' => $arguments]);
+        $this->logger->info('Calling tool', ['name' => $toolName]);
 
         try {
             $reference = $this->registry->getTool($toolName);
@@ -87,6 +87,8 @@ final class CallToolHandler implements RequestHandlerInterface
 
             return Error::forInvalidParams($summaryMessage, $request->getId(), ['validation_errors' => $validationErrors]);
         }
+
+        $this->logger->debug('Executing tool', ['name' => $toolName, 'arguments' => $arguments]);
 
         $arguments['_session'] = $session;
         $arguments['_request'] = $request;
