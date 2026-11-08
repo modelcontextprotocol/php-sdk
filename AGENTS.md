@@ -25,7 +25,7 @@ vendor/bin/phpunit tests/Unit/Server/ProtocolTest.php        # single file
 vendor/bin/phpunit --filter testMethodName                   # single test
 ```
 
-CI runs PHP 8.1–8.5 with lowest and highest dependencies; code must stay valid on PHP 8.1.
+CI runs PHP 8.1–8.6 with lowest and highest dependencies (8.6 is non-blocking while in pre-release); code must stay valid on PHP 8.1.
 PHPUnit fails on warnings, risky tests and unexpected output.
 
 Integration and interop tests snapshot their output; snapshots are written on first run — delete one to re-record it.
