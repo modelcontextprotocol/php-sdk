@@ -413,6 +413,50 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('Bearer access-token-1', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
     }
 
+    #[TestDox('an error without the state of this request does not count as an answer')]
+    public function testRejectsAForgedErrorResponse(): void
+    {
+        $server = new FakeOAuthServer(serverScopes: ['offline_access']);
+        $handler = new class implements AuthorizationHandlerInterface {
+            public int $calls = 0;
+
+            public function authorize(string $authorizationUrl, string $redirectUri): array
+            {
+                ++$this->calls;
+
+                return ['error' => 'invalid_scope'];
+            }
+        };
+
+        try {
+            $this->authenticator($server, $handler)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The authorization should have failed.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('state parameter', $e->getMessage());
+        }
+
+        $this->assertSame(1, $handler->calls);
+    }
+
+    #[TestDox('an error with the state of this request is reported')]
+    public function testReportsAnAuthorizationError(): void
+    {
+        $server = new FakeOAuthServer();
+        $handler = new class implements AuthorizationHandlerInterface {
+            public function authorize(string $authorizationUrl, string $redirectUri): array
+            {
+                parse_str((string) parse_url($authorizationUrl, \PHP_URL_QUERY), $query);
+
+                return ['error' => 'access_denied', 'state' => \is_string($query['state'] ?? null) ? $query['state'] : ''];
+            }
+        };
+
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('denied the request: access_denied');
+
+        $this->authenticator($server, $handler)->handleChallenge($this->request(), $server->challenge());
+    }
+
     #[TestDox('an authorization response with no state at all is refused')]
     public function testRejectsAMissingState(): void
     {

@@ -81,6 +81,51 @@ final class AuthorizationHandlerTest extends TestCase
         }
     }
 
+    #[TestDox('the loopback handler only takes the callback of its own request')]
+    public function testLoopbackHandlerOnlyAcceptsItsOwnCallback(): void
+    {
+        $port = self::freePort();
+        $answers = [];
+
+        $browser = static function () use ($port, &$answers): void {
+            foreach (['/other?code=forged&state=xyz', '/callback?error=access_denied', '/callback?code=forged&state=wrong', '/callback?code=abc&state=xyz'] as $target) {
+                $socket = stream_socket_client(\sprintf('tcp://127.0.0.1:%d', $port), $code, $message, 2);
+                self::assertIsResource($socket);
+                fwrite($socket, \sprintf("GET %s HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n", $target));
+                $answers[] = $socket;
+            }
+        };
+
+        $parameters = (new LoopbackAuthorizationHandler($browser, 5))
+            ->authorize('https://auth.example.com/authorize?state=xyz', \sprintf('http://127.0.0.1:%d/callback', $port));
+
+        $this->assertSame(['code' => 'abc', 'state' => 'xyz'], $parameters);
+
+        $statuses = array_map(static fn ($socket): string => trim((string) fgets($socket)), $answers);
+        $this->assertSame(['HTTP/1.1 404 Not Found', 'HTTP/1.1 404 Not Found', 'HTTP/1.1 404 Not Found', 'HTTP/1.1 200 OK'], $statuses);
+    }
+
+    #[TestDox('the loopback handler does not say the sign-in worked before it is checked')]
+    public function testLoopbackHandlerDoesNotClaimSuccess(): void
+    {
+        $port = self::freePort();
+        $socket = null;
+
+        $browser = static function () use ($port, &$socket): void {
+            $socket = stream_socket_client(\sprintf('tcp://127.0.0.1:%d', $port), $code, $message, 2);
+            self::assertIsResource($socket);
+            fwrite($socket, "GET /callback?error=access_denied&state=xyz HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n");
+        };
+
+        (new LoopbackAuthorizationHandler($browser, 5))
+            ->authorize('https://auth.example.com/authorize?state=xyz', \sprintf('http://127.0.0.1:%d/callback', $port));
+
+        $this->assertIsResource($socket);
+        $page = (string) stream_get_contents($socket);
+        $this->assertStringContainsString('close this tab', $page);
+        $this->assertStringNotContainsString('signed in', $page);
+    }
+
     #[TestDox('the loopback handler gives up rather than waiting forever')]
     public function testLoopbackHandlerTimesOut(): void
     {

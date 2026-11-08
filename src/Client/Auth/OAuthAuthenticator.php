@@ -427,16 +427,16 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      */
     private function verifyCallback(array $callback, string $state, AuthorizationServerMetadata $metadata): void
     {
-        if (isset($callback['error'])) {
-            throw new AuthorizationException(\sprintf('The authorization server denied the request: %s%s', $callback['error'], isset($callback['error_description']) ? ' ('.$callback['error_description'].')' : ''));
-        }
-
         // A response that did not carry back the state this client sent did not come from
         // the request this client made (RFC 6749 section 10.12). Required, not merely
         // checked when present: the loopback listener accepts a connection from any local
         // process, and an absent state would let one of them feed the client a code.
         if (!isset($callback['state']) || !hash_equals($state, $callback['state'])) {
             throw new AuthorizationException('The authorization response did not carry back the state parameter this client sent.');
+        }
+
+        if (isset($callback['error'])) {
+            throw new AuthorizationException(\sprintf('The authorization server denied the request: %s%s', $callback['error'], isset($callback['error_description']) ? ' ('.$callback['error_description'].')' : ''));
         }
 
         // RFC 9207: where the issuer is named it must be the one the flow was started

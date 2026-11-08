@@ -29,9 +29,9 @@ use Psr\Log\NullLogger;
  */
 final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterface
 {
-    private const SUCCESS_PAGE = '<!doctype html><meta charset="utf-8"><title>Authorized</title>'
+    private const CALLBACK_PAGE = '<!doctype html><meta charset="utf-8"><title>Authorization finished</title>'
         .'<body style="font:16px system-ui;margin:4rem auto;max-width:32rem">'
-        .'<h1>You are signed in.</h1><p>You can close this tab and return to the application.</p>';
+        .'<h1>Authorization finished.</h1><p>You can close this tab and return to the application.</p>';
 
     /**
      * @param ?callable(string $url): void $openBrowser how to put the URL in front of the user,
@@ -50,6 +50,10 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
         $parts = parse_url($redirectUri);
         $host = $parts['host'] ?? '127.0.0.1';
         $port = $parts['port'] ?? ('https' === ($parts['scheme'] ?? 'http') ? 443 : 80);
+        $callbackPath = $parts['path'] ?? '/';
+
+        parse_str((string) parse_url($authorizationUrl, \PHP_URL_QUERY), $query);
+        $state = \is_string($query['state'] ?? null) ? $query['state'] : null;
 
         $server = @stream_socket_server(\sprintf('tcp://%s:%d', $host, $port), $errorCode, $errorMessage);
 
@@ -69,7 +73,7 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
                     continue;
                 }
 
-                $parameters = $this->serve($connection);
+                $parameters = $this->serve($connection, $callbackPath, $state);
 
                 if (null !== $parameters) {
                     return $parameters;
@@ -83,16 +87,15 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
     }
 
     /**
-     * Answer one connection, returning its query parameters when it looks like the callback.
+     * Answer one connection, returning its query parameters when it is the callback.
      *
-     * Browsers ask for `/favicon.ico` alongside the page, so a request without any
-     * parameters is answered and ignored rather than mistaken for the redirect.
+     * Any local process or web page can reach this port, so everything else is answered and ignored.
      *
      * @param resource $connection
      *
      * @return array<string, string>|null
      */
-    private function serve($connection): ?array
+    private function serve($connection, string $callbackPath, ?string $state): ?array
     {
         stream_set_timeout($connection, 5);
         $requestLine = fgets($connection, 8192);
@@ -103,20 +106,8 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
             return null;
         }
 
-        $query = parse_url($matches[1], \PHP_URL_QUERY);
-        parse_str(\is_string($query) ? $query : '', $parameters);
-
-        $body = self::SUCCESS_PAGE;
-        fwrite($connection, \sprintf(
-            "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s",
-            \strlen($body),
-            $body,
-        ));
-        fclose($connection);
-
-        if ([] === $parameters) {
-            return null;
-        }
+        $target = parse_url($matches[1]);
+        parse_str(\is_string($target['query'] ?? null) ? $target['query'] : '', $parameters);
 
         $callback = [];
 
@@ -126,7 +117,21 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
             }
         }
 
-        return $callback;
+        $isCallback = [] !== $callback
+            && $callbackPath === ($target['path'] ?? null)
+            && (null === $state || hash_equals($state, $callback['state'] ?? ''));
+
+        $status = $isCallback ? '200 OK' : '404 Not Found';
+        $body = $isCallback ? self::CALLBACK_PAGE : 'Not Found';
+        fwrite($connection, \sprintf(
+            "HTTP/1.1 %s\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s",
+            $status,
+            \strlen($body),
+            $body,
+        ));
+        fclose($connection);
+
+        return $isCallback ? $callback : null;
     }
 
     private function open(string $url): void
