@@ -132,7 +132,7 @@ final class HandlerFiberState
     public function waitForTheRuntime(): void
     {
         if (null === $this->scheduler) {
-            throw new LogicException('A request handler suspended its fiber for something other than the server, an event loop awaiting I/O for instance: set the runtime\'s fiber scheduler with Builder::setFiberScheduler().');
+            throw new LogicException('A request handler suspended its fiber for something other than the server, an event loop awaiting I/O for instance: set the runtime\'s fiber scheduler with Builder::setFiberScheduler(), or the $fiberScheduler argument of Protocol or StatelessProtocol.');
         }
 
         $this->settlement = new FiberSettlement();
