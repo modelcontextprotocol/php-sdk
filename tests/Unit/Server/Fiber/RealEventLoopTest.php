@@ -24,6 +24,7 @@ use Mcp\Server\RequestContext;
 use Mcp\Server\Session\FileSessionLock;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Transport\StreamableHttpTransport;
+use Mcp\Tests\Unit\Fixtures\RecordingFiberContext;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -205,6 +206,41 @@ final class RealEventLoopTest extends TestCase
         ]);
 
         $this->assertSame(-32603, $answer['error']['code'] ?? null);
+    }
+
+    /**
+     * @param \Closure(float): void                  $sleep
+     * @param \Closure(list<\Closure(): void>): void $run
+     */
+    #[DataProvider('runtimes')]
+    #[TestDox('overlapping requests keep their own fiber context across awaits')]
+    public function testOverlappingRequestsKeepTheirFiberContext(FiberSchedulerInterface $scheduler, \Closure $sleep, \Closure $run): void
+    {
+        $context = new RecordingFiberContext();
+        $server = $this->builder($scheduler)
+            ->setFiberContext($context)
+            ->addTool(static function () use ($context, $sleep): string {
+                $before = $context->current();
+                $sleep(0.02);
+
+                return $before.':'.$context->current();
+            }, name: 'probe', description: 'Reads the context around an await')
+            ->build();
+
+        $answers = [];
+        $run([
+            function () use ($server, $context, &$answers): void {
+                $context->parent = 'first';
+                $answers[] = $this->text($this->modernCall($server, 'probe'));
+            },
+            function () use ($server, $context, &$answers): void {
+                $context->parent = 'second';
+                $answers[] = $this->text($this->modernCall($server, 'probe'));
+            },
+        ]);
+
+        $this->assertSame(['first:first', 'second:second'], $answers);
+        $this->assertSame(2, $context->released);
     }
 
     /**

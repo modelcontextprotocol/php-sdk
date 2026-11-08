@@ -45,6 +45,7 @@ use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
+use Mcp\Server\Fiber\FiberContextInterface;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\Handler\ElementHandlerInterface;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
@@ -141,6 +142,8 @@ final class Builder
     private float $subscriptionLifetime = 30.0;
 
     private ?FiberSchedulerInterface $fiberScheduler = null;
+
+    private ?FiberContextInterface $fiberContext = null;
 
     /** @var array<string, string> RPC method to the extension identifier defining it */
     private array $extensionMethods = [];
@@ -366,6 +369,16 @@ final class Builder
     public function setFiberScheduler(FiberSchedulerInterface $scheduler): self
     {
         $this->fiberScheduler = $scheduler;
+
+        return $this;
+    }
+
+    /**
+     * Carries execution context, e.g. the active OpenTelemetry context, into the fibers request handlers run in.
+     */
+    public function setFiberContext(FiberContextInterface $context): self
+    {
+        $this->fiberContext = $context;
 
         return $this;
     }
@@ -1022,6 +1035,7 @@ final class Builder
             requestStateCodec: $this->requestStateCodec(),
             sessionLock: $this->sessionLock,
             fiberScheduler: $this->fiberScheduler,
+            fiberContext: $this->fiberContext,
         );
 
         $modernVersions = $this->modernVersions ?? ProtocolVersion::modernVersions();
@@ -1067,6 +1081,7 @@ final class Builder
             eventDispatcher: $parts['eventDispatcher'],
             requestStateBinder: $this->requestStateBinder,
             fiberScheduler: $this->fiberScheduler,
+            fiberContext: $this->fiberContext,
         );
     }
 
