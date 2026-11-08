@@ -19,6 +19,7 @@ use Mcp\Exception\LogicException;
 use Mcp\Exception\MissingRequestMetaException;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\RequestStateException;
+use Mcp\Exception\UnknownMethodException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
@@ -460,16 +461,10 @@ final class StatelessProtocol
     {
         try {
             $request = $this->messageFactory->create($body);
+        } catch (UnknownMethodException) {
+            return StatelessResult::error($this->unknownMethod($method, $id), 404);
         } catch (InvalidInputMessageException $e) {
-            // An unknown method (-32601) tells the client to stop asking; a malformed request (-32600) does not.
-            $unknownMethod = \sprintf('Unknown method "%s".', $method) === $e->getMessage();
-
-            return StatelessResult::error(
-                $unknownMethod
-                    ? $this->unknownMethod($method, $id)
-                    : Error::forInvalidRequest($e->getMessage(), $id),
-                $unknownMethod ? 404 : 400,
-            );
+            return StatelessResult::error(Error::forInvalidRequest($e->getMessage(), $id), 400);
         } catch (\Throwable $e) {
             $this->logger->warning('Rejected an unparseable modern-era request.', ['method' => $method, 'exception' => $e]);
 

@@ -56,6 +56,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### JSON-RPC
 
+* Add `UnknownMethodException`, a subclass of `InvalidInputMessageException` for a method the factory has not registered.
 * [BC Break] `MessageFactory::create()` returns one `MessageInterface` and throws `InvalidInputMessageException` for invalid input, instead of returning a list holding messages and exceptions.
 * [BC Break] Remove `MessageFactory::DEFAULT_MAX_BATCH_SIZE` and the `$maxBatchSize` parameter of `MessageFactory::__construct()` and `MessageFactory::make()`, whose first parameter is now `$additional`.
 
