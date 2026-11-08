@@ -257,7 +257,7 @@ final class StatelessProtocol
         }
 
         if (self::LISTEN_METHOD === $method) {
-            return $this->listen($params, $id, paced: $headerLayer);
+            return $this->listen($params, $id, bounded: $headerLayer);
         }
 
         if (\in_array($method, self::REMOVED_METHODS, true)) {
@@ -344,11 +344,10 @@ final class StatelessProtocol
      * JSON-RPC id of this request, so there is none to mint.
      *
      * @param array<string, mixed>|null $params
-     * @param bool                      $paced  whether the stream sleeps between polls itself and ends after
-     *                                          the subscription lifetime, or its consumer paces it by how often
-     *                                          it asks for the next frame and ends it by dropping it
+     * @param bool                      $bounded whether the stream ends after the subscription lifetime, or only when its consumer
+     *                                           drops it; either way it yields null once per poll, and its consumer paces it
      */
-    private function listen(?array $params, string|int $id, bool $paced = true): StatelessResult
+    private function listen(?array $params, string|int $id, bool $bounded): StatelessResult
     {
         $notifications = \is_array($params['notifications'] ?? null) ? $params['notifications'] : null;
         $agreed = NotificationFilter::fromParams($notifications)->intersect($this->configuration->capabilities);
@@ -357,7 +356,7 @@ final class StatelessProtocol
         $bus = $this->notificationBus;
         $codec = $this->codec;
 
-        return StatelessResult::stream(static function () use ($agreed, $id, $lifetime, $bus, $codec, $paced): \Generator {
+        return StatelessResult::stream(static function () use ($agreed, $id, $lifetime, $bus, $codec, $bounded): \Generator {
             // MUST be the first message carrying this subscription's id, and
             // MUST precede any notification on it.
             yield [
@@ -380,10 +379,8 @@ final class StatelessProtocol
             // next, not a replay of the server's history.
             $cursor = $bus?->cursor() ?? 0;
 
-            // The tick is not optional: PHP spots a dropped peer by writing,
-            // and a sleeping loop would pin an FPM worker for the full lifetime.
-            // An unpaced stream is ended by its consumer, so it is not bounded.
-            $deadline = !$paced || 0.0 >= $lifetime ? \INF : microtime(true) + $lifetime;
+            // The idle tick is not optional: its consumer spots a dropped peer by writing on it.
+            $deadline = !$bounded || 0.0 >= $lifetime ? \INF : microtime(true) + $lifetime;
 
             while (microtime(true) < $deadline) {
                 if (null !== $bus) {
@@ -399,16 +396,6 @@ final class StatelessProtocol
                 }
 
                 yield null;
-
-                if (!$paced) {
-                    continue;
-                }
-
-                if (connection_aborted()) {
-                    return;
-                }
-
-                usleep(250_000);
             }
 
             yield self::listenComplete($codec, $id);

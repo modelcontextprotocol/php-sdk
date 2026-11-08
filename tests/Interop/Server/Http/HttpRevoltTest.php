@@ -11,6 +11,10 @@
 
 namespace Mcp\Tests\Interop\Server\Http;
 
+use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Server\Stateless\RequestMeta;
+use PHPUnit\Framework\Attributes\TestDox;
+
 final class HttpRevoltTest extends HttpInspectorSnapshotTestCase
 {
     public static function provideMethods(): array
@@ -44,5 +48,19 @@ final class HttpRevoltTest extends HttpInspectorSnapshotTestCase
     protected function getServerCommand(string $address): array
     {
         return ['php', $this->getServerScript(), $address];
+    }
+
+    #[TestDox('a 2026-07-28 subscriptions/listen stream is written by the server, kept alive while idle')]
+    public function testListenIsStreamed(): void
+    {
+        $version = ProtocolVersion::V2026_07_28->value;
+        $output = $this->readFor(1.0, ['jsonrpc' => '2.0', 'id' => 5, 'method' => 'subscriptions/listen', 'params' => [
+            'notifications' => ['toolsListChanged' => true],
+            '_meta' => [RequestMeta::PROTOCOL_VERSION => $version, RequestMeta::CLIENT_CAPABILITIES => new \stdClass()],
+        ]], ['MCP-Protocol-Version' => $version, 'Mcp-Method' => 'subscriptions/listen']);
+
+        $this->assertMatchesRegularExpression('/^HTTP\/1\.1 200 /', $output);
+        $this->assertMatchesRegularExpression('/data: \{[^\n]*"notifications\/subscriptions\/acknowledged"[^\n]*"toolsListChanged":true/', $output);
+        $this->assertStringContainsString(": keep-alive\n\n", $output);
     }
 }

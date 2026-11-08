@@ -72,16 +72,11 @@ final class StatelessResponder
     {
         $logger = $this->logger;
 
-        $callback = static function () use ($frames, $logger): void {
+        $chunks = static function () use ($frames, $logger): \Generator {
             try {
                 foreach ($frames() as $frame) {
-                    // A null frame is a keep-alive tick: an SSE comment the
-                    // client ignores, and the write PHP needs to spot a drop.
-                    echo null === $frame
-                        ? ": keep-alive\n\n"
-                        : 'data: '.StatelessResult::encodeFrame($frame)."\n\n";
-                    @ob_flush();
-                    flush();
+                    // A null frame is an idle tick, which the stream's consumer paces and keeps alive.
+                    yield null === $frame ? '' : 'data: '.StatelessResult::encodeFrame($frame)."\n\n";
                 }
             } catch (\Throwable $e) {
                 // Headers are long sent, so this cannot become an error
@@ -95,6 +90,21 @@ final class StatelessResponder
             ->withHeader('Cache-Control', 'no-cache')
             ->withHeader('Connection', 'keep-alive')
             ->withHeader('X-Accel-Buffering', 'no')
-            ->withBody(new CallbackStream($callback, $this->logger));
+            ->withBody(new CallbackStream(static function () use ($chunks): void {
+                foreach ($chunks() as $chunk) {
+                    // PHP spots a dropped peer only by writing, so an idle tick writes an SSE comment.
+                    echo '' === $chunk ? ": keep-alive\n\n" : $chunk;
+                    @ob_flush();
+                    flush();
+
+                    if ('' === $chunk) {
+                        if (connection_aborted()) {
+                            return;
+                        }
+
+                        usleep(250_000);
+                    }
+                }
+            }, $this->logger, $chunks));
     }
 }

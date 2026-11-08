@@ -24,6 +24,7 @@ use Mcp\Server\RequestContext;
 use Mcp\Server\Session\FileSessionLock;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Server\Transport\CallbackStream;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Mcp\Tests\Unit\Fixtures\RecordingFiberContext;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -335,6 +336,85 @@ final class RealEventLoopTest extends TestCase
 
         $this->assertSame(['holder done', 'true'], $answers);
         $this->assertMatchesRegularExpression('/"id":2,"result".*writer done/', $output);
+    }
+
+    /**
+     * @param \Closure(float): void                  $sleep
+     * @param \Closure(list<\Closure(): void>): void $run
+     */
+    #[DataProvider('runtimes')]
+    #[TestDox('a runtime writing the body itself streams a notification ahead of the result')]
+    public function testChunksStreamANotificationAheadOfTheResult(FiberSchedulerInterface $scheduler, \Closure $sleep, \Closure $run): void
+    {
+        $server = $this->builder($scheduler)
+            ->addTool(static function (RequestContext $context) use ($sleep): string {
+                $sleep(0.01);
+                $context->getClientGateway()->notify(new ToolListChangedNotification());
+                $sleep(0.01);
+
+                return 'notified';
+            }, name: 'notifier', description: 'Sends a notification')
+            ->build();
+
+        $written = '';
+        $run([
+            function () use ($server, &$written): void {
+                $body = $this->modernCall($server, 'notifier')->getBody();
+                $this->assertInstanceOf(CallbackStream::class, $body);
+
+                foreach ($body->chunks() ?? [] as $chunk) {
+                    $written .= $chunk;
+                }
+            },
+        ]);
+
+        $this->assertMatchesRegularExpression('/^data: .*list_changed.*\n\ndata: .*"id":1,"result".*notified.*\n\n$/s', $written);
+    }
+
+    /**
+     * @param \Closure(float): void                  $sleep
+     * @param \Closure(list<\Closure(): void>): void $run
+     */
+    #[DataProvider('runtimes')]
+    #[TestDox('dropping the chunks when the client goes away stops the handler before it sends anything more')]
+    public function testDroppingTheChunksStopsTheHandler(FiberSchedulerInterface $scheduler, \Closure $sleep, \Closure $run): void
+    {
+        $unwound = false;
+        $finished = false;
+        $server = $this->builder($scheduler)
+            ->addTool(static function (RequestContext $context) use ($sleep, &$unwound, &$finished): string {
+                try {
+                    $sleep(0.01);
+                    $context->getClientGateway()->notify(new ToolListChangedNotification());
+                    $finished = true;
+
+                    return 'notified';
+                } finally {
+                    $unwound = true;
+                }
+            }, name: 'notifier', description: 'Sends a notification')
+            ->build();
+
+        $written = [];
+        $unwoundWhileTheBodyIsHeld = false;
+        $run([
+            function () use ($server, &$written, &$unwound, &$unwoundWhileTheBodyIsHeld): void {
+                $body = $this->modernCall($server, 'notifier')->getBody();
+                $this->assertInstanceOf(CallbackStream::class, $body);
+                $chunks = $body->chunks();
+                $this->assertNotNull($chunks);
+
+                $written[] = $chunks->current();
+                unset($chunks);
+                $unwoundWhileTheBodyIsHeld = $unwound;
+                unset($body);
+            },
+        ]);
+
+        $this->assertCount(1, $written);
+        $this->assertStringContainsString('list_changed', $written[0]);
+        $this->assertTrue($unwoundWhileTheBodyIsHeld, 'Dropping the chunks unwinds the handler while the body is still held.');
+        $this->assertFalse($finished);
     }
 
     private function lockedBuilder(FiberSchedulerInterface $scheduler): Builder

@@ -50,6 +50,35 @@ abstract class HttpInspectorSnapshotTestCase extends InspectorSnapshotTestCase
         return 'http';
     }
 
+    /**
+     * What the server writes for $message within $seconds, headers and body.
+     *
+     * @param array<string, mixed>  $message
+     * @param array<string, string> $headers
+     */
+    protected function readFor(float $seconds, array $message, array $headers): string
+    {
+        $body = json_encode($message, \JSON_THROW_ON_ERROR);
+        $socket = fsockopen('127.0.0.1', $this->serverPort, $errorCode, $errorMessage, 1.0);
+        $this->assertIsResource($socket, $errorMessage);
+
+        $request = "POST / HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nAccept: application/json, text/event-stream\r\nContent-Length: ".\strlen($body)."\r\nConnection: close\r\n";
+        foreach ($headers as $name => $value) {
+            $request .= $name.': '.$value."\r\n";
+        }
+        fwrite($socket, $request."\r\n".$body);
+
+        $read = '';
+        $deadline = microtime(true) + $seconds;
+        stream_set_timeout($socket, 0, 100_000);
+        while (!feof($socket) && microtime(true) < $deadline) {
+            $read .= (string) fread($socket, 8192);
+        }
+        fclose($socket);
+
+        return $read;
+    }
+
     private function startServer(): void
     {
         $this->serverPort = 8000 + (getmypid() % 1000);

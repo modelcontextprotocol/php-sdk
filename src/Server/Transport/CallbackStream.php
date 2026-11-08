@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Transport;
 
+use Mcp\Exception\LogicException;
 use Mcp\Exception\RuntimeException;
 use Psr\Http\Message\StreamInterface;
 use Psr\Log\LoggerInterface;
@@ -41,10 +42,41 @@ final class CallbackStream implements \Stringable, StreamInterface
     private ?\Throwable $exception = null;
 
     /**
-     * @param callable(): void $callback The callback to execute when stream is read
+     * @param callable(): void                           $callback The callback to execute when stream is read
+     * @param (\Closure(): \Generator<int, string>)|null $chunks   The same body as SSE text, see {@see self::chunks()}
      */
-    public function __construct(private $callback, private LoggerInterface $logger = new NullLogger())
+    public function __construct(private $callback, private LoggerInterface $logger = new NullLogger(), private ?\Closure $chunks = null)
     {
+    }
+
+    /**
+     * The body's SSE text, for a runtime that writes it itself; null when only reading this stream writes it.
+     * On '', wait on the loop before asking for the next chunk; dropping the generator ends the body. Single use.
+     *
+     * @return \Generator<int, string>|null
+     *
+     * @throws LogicException when the body was already produced
+     */
+    public function chunks(): ?\Generator
+    {
+        if (null === $this->chunks) {
+            return null;
+        }
+
+        if ($this->called) {
+            throw new LogicException('The body of this stream was already produced.');
+        }
+
+        $this->called = true;
+        $chunks = $this->chunks;
+
+        // The generator takes the body over: once the runtime drops it, nothing here keeps the handler alive.
+        $this->callback = static function (): void {};
+        $this->chunks = static function (): \Generator {
+            yield from [];
+        };
+
+        return $chunks();
     }
 
     public function __toString(): string

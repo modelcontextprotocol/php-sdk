@@ -12,6 +12,7 @@
 require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
+use Amp\ByteStream\ReadableIterableStream;
 use Amp\Http\HttpStatus;
 use Amp\Http\Server\DefaultErrorHandler;
 use Amp\Http\Server\Request;
@@ -22,9 +23,12 @@ use Http\Discovery\Psr17Factory;
 use Mcp\Example\Server\Revolt\RevoltFiberScheduler;
 use Mcp\Example\Server\Revolt\SlowTools;
 use Mcp\Server;
+use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Transport\CallbackStream;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Revolt\EventLoop;
+
+use function Amp\delay;
 
 /*
  * An MCP server on the Revolt event loop, served by amphp/http-server.
@@ -35,10 +39,10 @@ use Revolt\EventLoop;
  *
  *     php examples/server/revolt/server.php [127.0.0.1:8000]
  *
- * The transport writes streamed responses to the PHP output, which this server
- * doesn't send to the client. So it answers with 501 when a tool sends a
- * notification (e.g. progress) or waits on the client (elicitation, sampling)
- * on a session, and for subscriptions/listen.
+ * The SSE text of a 2026-07-28 streamed response comes from
+ * CallbackStream::chunks(), which this server writes itself. A handshake-era
+ * response that needs streaming, when a tool sends a notification (e.g.
+ * progress) or waits on the client on a session, is answered with 501.
  */
 
 $address = $argv[1] ?? '127.0.0.1:8000';
@@ -47,6 +51,7 @@ $server = Server::builder()
     ->setServerInfo('Revolt Server', '1.0.0')
     ->setLogger(logger())
     ->setContainer(container())
+    ->setNotificationBus(new InMemoryNotificationBus())
     ->setFiberScheduler(new RevoltFiberScheduler())
     ->addTool([SlowTools::class, 'wait'], 'wait')
     ->addTool([SlowTools::class, 'checkServices'], 'check_services')
@@ -66,6 +71,11 @@ $http->start(new ClosureRequestHandler(static function (Request $request) use ($
     $response = $server->run(new StreamableHttpTransport($psrRequest, $factory, $factory, logger()));
 
     $body = $response->getBody();
+    $chunks = $body instanceof CallbackStream ? $body->chunks() : null;
+
+    if (null !== $chunks) {
+        return new Response($response->getStatusCode(), $response->getHeaders(), new ReadableIterableStream(paced($chunks)));
+    }
 
     if ($body instanceof CallbackStream) {
         return new Response(HttpStatus::NOT_IMPLEMENTED, ['Content-Type' => 'text/plain'], 'This server does not support streamed responses.');
@@ -73,6 +83,27 @@ $http->start(new ClosureRequestHandler(static function (Request $request) use ($
 
     return new Response($response->getStatusCode(), $response->getHeaders(), (string) $body);
 }), new DefaultErrorHandler());
+
+/**
+ * On an idle turn of the stream, a keep-alive comment and a wait on the loop.
+ *
+ * @param Generator<int, string> $chunks
+ *
+ * @return Generator<int, string>
+ */
+function paced(Generator $chunks): Generator
+{
+    foreach ($chunks as $chunk) {
+        if ('' === $chunk) {
+            yield ": keep-alive\n\n";
+            delay(0.25);
+
+            continue;
+        }
+
+        yield $chunk;
+    }
+}
 
 logger()->info(sprintf('Revolt MCP server listening on http://%s', $address));
 
