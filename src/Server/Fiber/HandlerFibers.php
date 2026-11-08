@@ -123,18 +123,26 @@ final class HandlerFibers
      */
     public static function suspend(object $suspension): mixed
     {
-        $fiber = \Fiber::getCurrent();
-        if (null !== $fiber) {
-            $state = self::states()[$fiber] ?? null;
-
-            if (true === $state?->isAbandoned()) {
-                throw new LogicException('The client gateway cannot be used after the request was answered.');
-            }
-
-            $state?->parked($suspension);
-        }
+        // In its own frame: a local holding the fiber while it suspends would keep it alive until the next GC run.
+        self::parkCurrentFiber($suspension);
 
         return \Fiber::suspend($suspension);
+    }
+
+    private static function parkCurrentFiber(object $suspension): void
+    {
+        $fiber = \Fiber::getCurrent();
+        if (null === $fiber) {
+            return;
+        }
+
+        $state = self::states()[$fiber] ?? null;
+
+        if (true === $state?->isAbandoned()) {
+            throw new LogicException('The client gateway cannot be used after the request was answered.');
+        }
+
+        $state?->parked($suspension);
     }
 
     /**

@@ -155,4 +155,21 @@ final class HandlerFibersTest extends TestCase
         $this->assertNull(HandlerFibers::resume($fiber));
         $this->assertTrue($fiber->isTerminated());
     }
+
+    public function testADiscardedFiberUnwindsRightAway(): void
+    {
+        $unwound = false;
+        $fiber = HandlerFibers::create(static function () use (&$unwound): void {
+            try {
+                HandlerFibers::suspend(new \stdClass());
+            } finally {
+                $unwound = true;
+            }
+        });
+        HandlerFibers::start($fiber);
+
+        unset($fiber);
+
+        $this->assertTrue($unwound);
+    }
 }
