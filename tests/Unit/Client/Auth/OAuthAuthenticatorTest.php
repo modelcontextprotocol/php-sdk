@@ -27,6 +27,7 @@ use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
@@ -827,6 +828,25 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('0', $server->token['code'] ?? null);
     }
 
+    /**
+     * @param ?string[] $grantTypes
+     */
+    #[TestWith([null, 'refresh_token'])]
+    #[TestWith([['authorization_code', 'refresh_token'], 'refresh_token'])]
+    #[TestWith([['authorization_code'], 'authorization_code'])]
+    #[TestDox('a refresh token is only left unused if the server lists its grants without refresh_token')]
+    public function testUsesARefreshTokenUnlessTheGrantIsNotListed(?array $grantTypes, string $expectedGrant): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $server->grantTypes = $grantTypes;
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token'));
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame($expectedGrant, $server->token['grant_type'] ?? null);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {
@@ -989,6 +1009,9 @@ final class FakeOAuthServer implements ClientInterface
 
     public ?string $unknownClient = null;
 
+    /** @var ?string[] */
+    public ?array $grantTypes = ['authorization_code', 'refresh_token'];
+
     private int $issued = 0;
 
     /**
@@ -1055,7 +1078,7 @@ final class FakeOAuthServer implements ClientInterface
                 'token_endpoint' => ($this->insecureEndpoints ? 'http' : 'https').'://auth.example.com/token',
                 'registration_endpoint' => ($this->insecureEndpoints ? 'http' : 'https').'://auth.example.com/register',
                 'scopes_supported' => $this->serverScopes,
-                'grant_types_supported' => $this->hasAuthorizationEndpoint ? ['authorization_code', 'refresh_token'] : ['client_credentials'],
+                'grant_types_supported' => $this->hasAuthorizationEndpoint ? $this->grantTypes : ['client_credentials'],
                 'code_challenge_methods_supported' => $this->codeChallengeMethods,
                 'authorization_response_iss_parameter_supported' => true,
             ]),

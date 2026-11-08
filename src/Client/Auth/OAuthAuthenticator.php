@@ -298,7 +298,12 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      */
     private function refresh(?AccessToken $stored, AuthorizationServerMetadata $metadata, ClientRegistration $client, array $scopes): ?AccessToken
     {
-        if (null === $stored || null === $stored->refreshToken || !$stored->covers($scopes) || !$metadata->supportsGrant(Grant::RefreshToken->value)) {
+        if (null === $stored || null === $stored->refreshToken || !$stored->covers($scopes)) {
+            return null;
+        }
+
+        // Without a list, the refresh token this server issued is the best evidence, and a refusal only costs one request.
+        if (null !== $metadata->grantTypesSupported && !$metadata->supportsGrant(Grant::RefreshToken->value)) {
             return null;
         }
 
