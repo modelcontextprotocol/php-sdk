@@ -17,7 +17,7 @@ use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\ResourceLink;
 use Mcp\Schema\Content\TextContent;
-use Mcp\Schema\Enum\UndefinedValue;
+use Mcp\Schema\Enum\StructuredContent;
 use Mcp\Schema\Result\CallToolResult;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
@@ -26,7 +26,7 @@ final class CallToolResultTest extends TestCase
 {
     public function testRuntimeAbsenceCanBePassedAlongsideMetadata(): void
     {
-        $result = new CallToolResult([], false, UndefinedValue::Value, ['example' => 'metadata']);
+        $result = new CallToolResult([], false, StructuredContent::Absent, ['example' => 'metadata']);
 
         $this->assertFalse($result->hasStructuredContent());
         $this->assertSame(['content' => [], 'isError' => false, '_meta' => ['example' => 'metadata']], $result->jsonSerialize());

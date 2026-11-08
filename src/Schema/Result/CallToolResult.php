@@ -18,7 +18,7 @@ use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\ResourceLink;
 use Mcp\Schema\Content\TextContent;
-use Mcp\Schema\Enum\UndefinedValue;
+use Mcp\Schema\Enum\StructuredContent;
 use Mcp\Schema\JsonRpc\ResultInterface;
 
 /**
@@ -49,16 +49,16 @@ class CallToolResult implements ResultInterface
      * @param mixed                     $structuredContent Structured result of the call. Any JSON value — object, array,
      *                                                     string, number, boolean or null — conforming to the tool's
      *                                                     outputSchema when one is declared. Omit it or pass
-     *                                                     {@see UndefinedValue::Value} to leave the field out.
+     *                                                     {@see StructuredContent::Absent} to leave the field out.
      * @param array<string, mixed>|null $meta              Optional metadata
      */
     public function __construct(
         public readonly array $content,
         public readonly bool $isError = false,
-        mixed $structuredContent = UndefinedValue::Value,
+        mixed $structuredContent = StructuredContent::Absent,
         public readonly ?array $meta = null,
     ) {
-        $this->structuredContentPresent = UndefinedValue::Value !== $structuredContent;
+        $this->structuredContentPresent = StructuredContent::Absent !== $structuredContent;
         $this->structuredContent = $this->structuredContentPresent ? $structuredContent : null;
 
         foreach ($this->content as $item) {
@@ -137,7 +137,7 @@ class CallToolResult implements ResultInterface
         return new self(
             $contents,
             $data['isError'] ?? false,
-            \array_key_exists('structuredContent', $data) ? $data['structuredContent'] : UndefinedValue::Value,
+            \array_key_exists('structuredContent', $data) ? $data['structuredContent'] : StructuredContent::Absent,
             $data['_meta'] ?? null
         );
     }

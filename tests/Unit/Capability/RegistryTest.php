@@ -26,7 +26,7 @@ use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\ResourceLink;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Schema\Enum\UndefinedValue;
+use Mcp\Schema\Enum\StructuredContent;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
@@ -497,7 +497,7 @@ class RegistryTest extends TestCase
         $this->registry->registerTool($tool, static fn () => 'result');
 
         $toolRef = $this->registry->getTool('test_tool');
-        $this->assertSame(UndefinedValue::Value, $toolRef->extractStructuredContent('result'));
+        $this->assertSame(StructuredContent::Absent, $toolRef->extractStructuredContent('result'));
     }
 
     public function testExtractStructuredContentReturnsArrayMatchingSchema(): void
@@ -569,7 +569,7 @@ class RegistryTest extends TestCase
         $this->registry->registerTool($tool, static fn () => $toolReturnValue);
 
         $toolRef = $this->registry->getTool('list_static_data');
-        $this->assertSame(UndefinedValue::Value, $toolRef->extractStructuredContent($toolReturnValue, $version));
+        $this->assertSame(StructuredContent::Absent, $toolRef->extractStructuredContent($toolReturnValue, $version));
     }
 
     /**
@@ -620,7 +620,7 @@ class RegistryTest extends TestCase
         $this->registry->registerTool($tool, static fn () => $toolReturnValue);
 
         $toolRef = $this->registry->getTool('list_ids');
-        $this->assertSame(UndefinedValue::Value, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
+        $this->assertSame(StructuredContent::Absent, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
         $this->assertSame($toolReturnValue, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
     }
 
@@ -652,7 +652,7 @@ class RegistryTest extends TestCase
         $this->registry->registerTool($tool, static fn () => $toolReturnValue);
 
         $toolRef = $this->registry->getTool('list_things');
-        $this->assertSame(UndefinedValue::Value, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
+        $this->assertSame(StructuredContent::Absent, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
         $this->assertSame([['id' => 1], ['id' => 2]], $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
     }
 
@@ -672,8 +672,8 @@ class RegistryTest extends TestCase
         $this->registry->registerTool($tool, static fn () => $toolReturnValue);
 
         $toolRef = $this->registry->getTool('count_things');
-        $this->assertSame(UndefinedValue::Value, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
-        $this->assertSame(UndefinedValue::Value, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
+        $this->assertSame(StructuredContent::Absent, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
+        $this->assertSame(StructuredContent::Absent, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
     }
 
     /**
@@ -688,8 +688,8 @@ class RegistryTest extends TestCase
         $withoutSchema = $this->registry->getTool('without_schema');
 
         $this->assertNull($withSchema->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
-        $this->assertSame(UndefinedValue::Value, $withSchema->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
-        $this->assertSame(UndefinedValue::Value, $withoutSchema->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
+        $this->assertSame(StructuredContent::Absent, $withSchema->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
+        $this->assertSame(StructuredContent::Absent, $withoutSchema->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
     }
 
     /**
@@ -711,7 +711,7 @@ class RegistryTest extends TestCase
         $this->registry->registerTool($this->createValidTool('with_schema', ['type' => 'object']), static fn () => null);
 
         // Invalid UTF-8 would make `json_encode()` throw if the value were encoded.
-        $this->assertSame(UndefinedValue::Value, $this->registry->getTool('with_schema')->extractStructuredContent(new TextContent("\xB1"), ProtocolVersion::V2026_07_28));
+        $this->assertSame(StructuredContent::Absent, $this->registry->getTool('with_schema')->extractStructuredContent(new TextContent("\xB1"), ProtocolVersion::V2026_07_28));
     }
 
     public function testExtractStructuredContentOmitsArrayOfContentItems(): void
@@ -727,8 +727,8 @@ class RegistryTest extends TestCase
         $this->registry->registerTool($tool, static fn () => $toolReturnValue);
 
         $toolRef = $this->registry->getTool('lookup_thing');
-        $this->assertSame(UndefinedValue::Value, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
-        $this->assertSame(UndefinedValue::Value, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
+        $this->assertSame(StructuredContent::Absent, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
+        $this->assertSame(StructuredContent::Absent, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
     }
 
     public function testConfiguredLoaderIsNotRunUntilFirstRead(): void
@@ -958,7 +958,7 @@ class RegistryTest extends TestCase
         $toolRef = $this->registry->getTool('test_tool');
 
         $this->assertSame('sunny', $toolRef->extractStructuredContent('sunny', ProtocolVersion::V2026_07_28));
-        $this->assertSame(UndefinedValue::Value, $toolRef->extractStructuredContent('sunny', ProtocolVersion::V2025_11_25));
+        $this->assertSame(StructuredContent::Absent, $toolRef->extractStructuredContent('sunny', ProtocolVersion::V2025_11_25));
     }
 
     public function testExtractStructuredContentDropsAScalarWithoutAnOutputSchema(): void
@@ -970,7 +970,7 @@ class RegistryTest extends TestCase
 
         // Without a declared schema the value is already carried in `content`;
         // advertising it as structured too would duplicate it.
-        $this->assertSame(UndefinedValue::Value, $toolRef->extractStructuredContent('sunny', ProtocolVersion::V2026_07_28));
+        $this->assertSame(StructuredContent::Absent, $toolRef->extractStructuredContent('sunny', ProtocolVersion::V2026_07_28));
     }
 
     public function testExtractStructuredContentKeepsAJsonSerializableScalarFromSep2106On(): void
@@ -987,7 +987,7 @@ class RegistryTest extends TestCase
         $toolRef = $this->registry->getTool('test_tool');
 
         $this->assertSame(22.5, $toolRef->extractStructuredContent($result, ProtocolVersion::V2026_07_28));
-        $this->assertSame(UndefinedValue::Value, $toolRef->extractStructuredContent($result, ProtocolVersion::V2025_11_25));
+        $this->assertSame(StructuredContent::Absent, $toolRef->extractStructuredContent($result, ProtocolVersion::V2025_11_25));
     }
 
     private function createValidTool(string $name, ?array $outputSchema = null): Tool

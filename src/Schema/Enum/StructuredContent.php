@@ -16,7 +16,7 @@ namespace Mcp\Schema\Enum;
  *
  * @author Ian Morland
  */
-enum UndefinedValue
+enum StructuredContent
 {
-    case Value;
+    case Absent;
 }

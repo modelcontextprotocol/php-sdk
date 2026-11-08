@@ -239,7 +239,7 @@ error. A conforming structured null also has the JSON text `null` in `content`.
 When building a `CallToolResult`, omit the `structuredContent` argument to leave the field out; passing
 `structuredContent: null` includes an explicit JSON null. `success()` and `error()` leave it out. After decoding a result,
 use `hasStructuredContent()` to distinguish an absent field from an explicit null; the `structuredContent` property is
-null in both cases. For a runtime choice, pass `Mcp\Schema\Enum\UndefinedValue::Value` to omit the field rather than
+null in both cases. For a runtime choice, pass `Mcp\Schema\Enum\StructuredContent::Absent` to omit the field rather than
 passing null. Existing calls such as `new CallToolResult($content, false, null, $meta)` must omit the third argument
 (use `meta: $meta`) or pass that sentinel if they intend to send text only.
 

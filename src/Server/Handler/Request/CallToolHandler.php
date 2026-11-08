@@ -18,7 +18,7 @@ use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
-use Mcp\Schema\Enum\UndefinedValue;
+use Mcp\Schema\Enum\StructuredContent;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -109,7 +109,7 @@ final class CallToolHandler implements RequestHandlerInterface
             if (!$result instanceof CallToolResult) {
                 $structuredContent = $reference->extractStructuredContent($result, $protocolVersion);
 
-                if (UndefinedValue::Value === $structuredContent && null !== $reference->tool->outputSchema) {
+                if (StructuredContent::Absent === $structuredContent && null !== $reference->tool->outputSchema) {
                     $this->logger->warning('Tool declares an "outputSchema" but returned a value that cannot be sent as "structuredContent"; the value is only carried in "content".', [
                         'name' => $toolName,
                         'result_type' => get_debug_type($result),
@@ -136,7 +136,7 @@ final class CallToolHandler implements RequestHandlerInterface
             $this->logger->debug('Tool executed successfully', [
                 'name' => $toolName,
                 'result_type' => \gettype($result),
-                'structured_content' => UndefinedValue::Value === $structuredContent ? null : $structuredContent,
+                'structured_content' => StructuredContent::Absent === $structuredContent ? null : $structuredContent,
             ]);
 
             return new Response($request->getId(), $this->validateStructuredContent($reference->tool, $result) ?? $result);
