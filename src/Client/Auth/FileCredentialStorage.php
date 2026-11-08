@@ -106,7 +106,7 @@ final class FileCredentialStorage implements CredentialStorageInterface
 
         return [
             'registrations' => \is_array($decoded['registrations'] ?? null) ? $decoded['registrations'] : [],
-            'tokens' => \is_array($decoded['tokens'] ?? null) ? $decoded['tokens'] : [],
+            'tokens' => \is_array($decoded['tokens'] ?? null) ? array_filter($decoded['tokens'], 'is_array') : [],
         ];
     }
 

@@ -177,6 +177,18 @@ final class FileCredentialStorageTest extends TestCase
         $this->assertSame('0600', substr(\sprintf('%o', fileperms(\dirname($this->path).'/.'.basename($this->path).'.lock')), -4));
     }
 
+    #[TestDox('an entry of the wrong type does not stop a new token from being saved')]
+    public function testSavesOverAnEntryOfTheWrongType(): void
+    {
+        @mkdir(\dirname($this->path), 0700, true);
+        file_put_contents($this->path, (string) json_encode(['tokens' => ['https://auth.example.com' => 'not an array']]));
+
+        $storage = new FileCredentialStorage($this->path);
+        $storage->saveToken('https://auth.example.com', 'https://mcp.example.com/mcp', new AccessToken('token'));
+
+        $this->assertSame('token', $storage->getToken('https://auth.example.com', 'https://mcp.example.com/mcp')?->accessToken);
+    }
+
     #[TestDox('nothing is stored until there is something to store')]
     public function testDoesNotTouchTheFileSystemWhenIdle(): void
     {
