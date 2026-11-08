@@ -11,6 +11,8 @@
 
 namespace Mcp\Server\Authorization;
 
+use Mcp\Exception\RuntimeException;
+
 /**
  * The validated access token a request was authorized with.
  *
@@ -79,6 +81,22 @@ final class AccessToken implements \JsonSerializable
         $clientId = $this->claims['client_id'] ?? $this->claims['azp'] ?? null;
 
         return \is_string($clientId) ? $clientId : null;
+    }
+
+    /**
+     * Who the token identifies: its issuer, client and subject, which outlive a token refresh.
+     *
+     * @throws RuntimeException when a claim cannot be encoded
+     */
+    public function getPrincipal(): string
+    {
+        $issuer = $this->getClaim('iss');
+
+        try {
+            return json_encode([\is_string($issuer) ? $issuer : null, $this->getClientId(), $this->getSubject()], \JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw new RuntimeException(\sprintf('Failed to encode the principal of an access token as JSON: %s', $e->getMessage()), previous: $e);
+        }
     }
 
     /**

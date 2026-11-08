@@ -23,6 +23,7 @@ use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Nyholm\Psr7\Factory\Psr17Factory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -96,6 +97,7 @@ final class SessionBindingTest extends TestCase
         $unknown = $this->serve($this->request('DELETE', '', 'carol.ide.1', Uuid::v4()->toRfc4122()));
 
         $response = $this->serve($this->request('DELETE', '', 'carol.ide.1', $session));
+        $this->assertSame(404, $response->getStatusCode());
         $this->assertSame($unknown->getStatusCode(), $response->getStatusCode());
         $this->assertSame((string) $unknown->getBody(), (string) $response->getBody());
         $this->assertSame('alice', $this->text($this->call($session, 'alice.ide.1')));
@@ -133,6 +135,66 @@ final class SessionBindingTest extends TestCase
         $this->assertSame(404, $this->serve($this->request('POST', $this->toolCall(), null, $session)->withHeader('X-User', 'carol'), [$middleware])->getStatusCode());
     }
 
+    public function testAccessTokenSetByTheApplicationBindsTheSession(): void
+    {
+        $session = $this->openWith([AccessToken::class => new AccessToken([], ['sub' => 'alice'])]);
+
+        $this->assertSame('alice', $this->text($this->callWith($session, [AccessToken::class => new AccessToken([], ['sub' => 'alice'])])));
+        $this->assertSame(404, $this->callWith($session, [AccessToken::class => new AccessToken([], ['sub' => 'carol'])])->getStatusCode());
+    }
+
+    public function testPrincipalAttributeWinsOverTheAccessToken(): void
+    {
+        $alice = [StreamableHttpTransport::PRINCIPAL_ATTRIBUTE => 'alice'];
+        $session = $this->openWith($alice + [AccessToken::class => new AccessToken([], ['sub' => 'device-1'])]);
+
+        $this->assertSame('device-2', $this->text($this->callWith($session, $alice + [AccessToken::class => new AccessToken([], ['sub' => 'device-2'])])));
+    }
+
+    public function testTokensWithoutSubjectOfAnotherClientAreRefused(): void
+    {
+        $session = $this->openWith([AccessToken::class => new AccessToken([], ['client_id' => 'a'])]);
+
+        $this->assertSame(200, $this->callWith($session, [AccessToken::class => new AccessToken([], ['client_id' => 'a'])])->getStatusCode());
+        $this->assertSame(404, $this->callWith($session, [AccessToken::class => new AccessToken([], ['client_id' => 'b'])])->getStatusCode());
+    }
+
+    public function testTokenWithoutClaimsDoesNotShareSessionsWithRequestsWithoutToken(): void
+    {
+        $session = $this->openWith([AccessToken::class => new AccessToken()]);
+
+        $this->assertSame(404, $this->callWith($session, [])->getStatusCode());
+    }
+
+    /**
+     * @return iterable<string, array{mixed}>
+     */
+    public static function provideInvalidPrincipals(): iterable
+    {
+        yield 'an integer' => [42];
+        yield 'an empty string' => [''];
+        yield 'a stringable object' => [new class implements \Stringable {
+            public function __toString(): string
+            {
+                return 'alice';
+            }
+        }];
+    }
+
+    #[DataProvider('provideInvalidPrincipals')]
+    public function testInvalidPrincipalAttributeIsRefused(mixed $principal): void
+    {
+        $attributes = [StreamableHttpTransport::PRINCIPAL_ATTRIBUTE => $principal];
+
+        $response = $this->serveWith($this->request('POST', $this->initializeRequest(), null), $attributes);
+        $this->assertSame(500, $response->getStatusCode());
+        $this->assertFalse($response->hasHeader('Mcp-Session-Id'));
+
+        $session = $this->openWith([]);
+        $this->assertSame(500, $this->serveWith($this->request('DELETE', '', null, $session), $attributes)->getStatusCode());
+        $this->assertSame(200, $this->callWith($session, [])->getStatusCode());
+    }
+
     public function testSessionOpenedWithoutPrincipalOnlyServesRequestsWithoutOne(): void
     {
         $passthrough = [new PassthroughMiddleware()];
@@ -145,6 +207,37 @@ final class SessionBindingTest extends TestCase
     public static function whoami(RequestContext $context): string
     {
         return $context->getAccessToken()?->getSubject() ?? 'anonymous';
+    }
+
+    /**
+     * @param array<string, mixed> $attributes
+     */
+    private function openWith(array $attributes): string
+    {
+        $session = $this->serveWith($this->request('POST', $this->initializeRequest(), null), $attributes)->getHeaderLine('Mcp-Session-Id');
+        $this->assertNotSame('', $session);
+
+        return $session;
+    }
+
+    /**
+     * @param array<string, mixed> $attributes
+     */
+    private function callWith(string $session, array $attributes): ResponseInterface
+    {
+        return $this->serveWith($this->request('POST', $this->toolCall(), null, $session), $attributes);
+    }
+
+    /**
+     * @param array<string, mixed> $attributes
+     */
+    private function serveWith(ServerRequestInterface $request, array $attributes): ResponseInterface
+    {
+        foreach ($attributes as $name => $value) {
+            $request = $request->withAttribute($name, $value);
+        }
+
+        return $this->serve($request, [new PassthroughMiddleware()]);
     }
 
     private function initialize(string $token): string

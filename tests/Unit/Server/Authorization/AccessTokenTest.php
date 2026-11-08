@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Authorization;
 
+use Mcp\Exception\RuntimeException;
 use Mcp\Server\Authorization\AccessToken;
 use PHPUnit\Framework\TestCase;
 
@@ -32,6 +33,38 @@ final class AccessTokenTest extends TestCase
     {
         $this->assertSame('other', (new AccessToken([], ['azp' => 'other']))->getClientId());
         $this->assertNull((new AccessToken([], ['sub' => 42]))->getSubject());
+    }
+
+    public function testPrincipalOutlivesARefresh(): void
+    {
+        $principal = (new AccessToken(['read'], ['iss' => 'https://as', 'sub' => 'alice', 'azp' => 'ide', 'jti' => '1']))->getPrincipal();
+
+        $this->assertSame($principal, (new AccessToken(['read', 'write'], ['iss' => 'https://as', 'sub' => 'alice', 'azp' => 'ide', 'jti' => '2']))->getPrincipal());
+        $this->assertSame($principal, (new AccessToken([], ['iss' => 'https://as', 'sub' => 'alice', 'client_id' => 'ide']))->getPrincipal());
+    }
+
+    public function testPrincipalDiffersByIssuerClientAndSubject(): void
+    {
+        $principal = (new AccessToken([], ['iss' => 'https://as', 'sub' => 'alice', 'azp' => 'ide']))->getPrincipal();
+
+        $this->assertNotSame($principal, (new AccessToken([], ['iss' => 'https://other', 'sub' => 'alice', 'azp' => 'ide']))->getPrincipal());
+        $this->assertNotSame($principal, (new AccessToken([], ['iss' => 'https://as', 'sub' => 'alice', 'azp' => 'cli']))->getPrincipal());
+        $this->assertNotSame($principal, (new AccessToken([], ['iss' => 'https://as', 'sub' => 'carol', 'azp' => 'ide']))->getPrincipal());
+    }
+
+    public function testPrincipalKeepsClaimsApart(): void
+    {
+        $this->assertNotSame(
+            (new AccessToken([], ['client_id' => 'a', 'sub' => 'b']))->getPrincipal(),
+            (new AccessToken([], ['client_id' => 'b', 'sub' => 'a']))->getPrincipal(),
+        );
+    }
+
+    public function testPrincipalOfAClaimThatCannotBeEncodedFails(): void
+    {
+        $this->expectException(RuntimeException::class);
+
+        (new AccessToken([], ['sub' => "\xB1"]))->getPrincipal();
     }
 
     public function testIsNeverSerialized(): void

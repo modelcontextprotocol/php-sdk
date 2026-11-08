@@ -60,10 +60,10 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     public const PROTOCOL_VERSION_HEADER = 'Mcp-Protocol-Version';
 
     /**
-     * PSR-7 request attribute holding a string that identifies the authenticated principal.
+     * PSR-7 request attribute holding a non-empty string that identifies the authenticated principal.
      *
-     * A session only serves the principal that opened it. {@see Http\Middleware\AuthorizationMiddleware}
-     * sets it; an application authenticating requests itself sets it instead.
+     * A session only serves the principal that opened it. Without this attribute, the principal is
+     * the one of the request's {@see AccessToken}; set it to identify users another way.
      */
     public const PRINCIPAL_ATTRIBUTE = 'mcp.principal';
 
@@ -529,8 +529,13 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             return $this->createErrorResponse(Error::forInvalidRequest(self::SESSION_HEADER.' header must be a valid UUID.'), 400);
         }
 
-        $principal = $request->getAttribute(self::PRINCIPAL_ATTRIBUTE);
-        $principal = \is_string($principal) && '' !== $principal ? $principal : null;
+        $principal = $request->getAttribute(self::PRINCIPAL_ATTRIBUTE) ?? self::accessToken($request)?->getPrincipal();
+
+        if (null !== $principal && (!\is_string($principal) || '' === $principal)) {
+            $this->logger->error(\sprintf('The "%s" request attribute must be a non-empty string, got "%s".', self::PRINCIPAL_ATTRIBUTE, get_debug_type($principal)));
+
+            return $this->createErrorResponse(Error::forInternalError('Internal error'), 500);
+        }
 
         return match ($request->getMethod()) {
             'POST' => $this->handlePostRequest($body ?? '', self::accessToken($request), $principal),
