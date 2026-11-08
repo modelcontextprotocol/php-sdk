@@ -449,7 +449,7 @@ final class OAuthAuthenticatorTest extends TestCase
             {
                 parse_str((string) parse_url($authorizationUrl, \PHP_URL_QUERY), $query);
 
-                return ['error' => 'access_denied', 'state' => \is_string($query['state'] ?? null) ? $query['state'] : ''];
+                return ['error' => 'access_denied', 'iss' => 'https://auth.example.com', 'state' => \is_string($query['state'] ?? null) ? $query['state'] : ''];
             }
         };
 
@@ -761,7 +761,7 @@ final class OAuthAuthenticatorTest extends TestCase
                 ++$this->calls;
                 parse_str((string) parse_url($authorizationUrl, \PHP_URL_QUERY), $query);
 
-                return ['error' => 'access_denied', 'error_description' => 'not_allowed', 'state' => \is_string($query['state'] ?? null) ? $query['state'] : ''];
+                return ['error' => 'access_denied', 'error_description' => 'not_allowed', 'iss' => 'https://auth.example.com', 'state' => \is_string($query['state'] ?? null) ? $query['state'] : ''];
             }
         };
 
@@ -791,7 +791,7 @@ final class OAuthAuthenticatorTest extends TestCase
                 if (1 === ++$this->calls) {
                     parse_str((string) parse_url($authorizationUrl, \PHP_URL_QUERY), $query);
 
-                    return ['error' => 'invalid_scope', 'state' => \is_string($query['state'] ?? null) ? $query['state'] : ''];
+                    return ['error' => 'invalid_scope', 'iss' => 'https://auth.example.com', 'state' => \is_string($query['state'] ?? null) ? $query['state'] : ''];
                 }
 
                 return $this->handler->authorize($authorizationUrl, $redirectUri);
@@ -910,6 +910,32 @@ final class OAuthAuthenticatorTest extends TestCase
         $authenticator->handleChallenge((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/other'), $server->challenge(['other:read']));
 
         $this->assertSame('other:read', $server->authorization['scope'] ?? null);
+    }
+
+    #[TestDox('an error naming another issuer does not count as an answer')]
+    public function testRejectsAnErrorFromAnotherIssuer(): void
+    {
+        $server = new FakeOAuthServer(serverScopes: ['offline_access']);
+        $handler = new class implements AuthorizationHandlerInterface {
+            public int $calls = 0;
+
+            public function authorize(string $authorizationUrl, string $redirectUri): array
+            {
+                ++$this->calls;
+                parse_str((string) parse_url($authorizationUrl, \PHP_URL_QUERY), $query);
+
+                return ['error' => 'invalid_scope', 'iss' => 'https://other.example.com', 'state' => \is_string($query['state'] ?? null) ? $query['state'] : ''];
+            }
+        };
+
+        try {
+            $this->authenticator($server, $handler)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The authorization should have failed.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('names the issuer', $e->getMessage());
+        }
+
+        $this->assertSame(1, $handler->calls);
     }
 
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]

@@ -419,10 +419,6 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             throw new AuthorizationException('The authorization response did not carry back the state parameter this client sent.');
         }
 
-        if (isset($callback['error'])) {
-            throw new OAuthErrorException(\sprintf('The authorization server denied the request: %s%s', $callback['error'], isset($callback['error_description']) ? ' ('.$callback['error_description'].')' : ''), $callback['error']);
-        }
-
         // RFC 9207: compared as a string, and required if the server announced it, to catch a mix-up.
         if (isset($callback['iss'])) {
             if ($callback['iss'] !== $metadata->issuer) {
@@ -430,6 +426,10 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             }
         } elseif ($metadata->issuerParameterSupported) {
             throw new AuthorizationException(\sprintf('The authorization server "%s" advertises the iss parameter, but its response did not carry one.', $metadata->issuer));
+        }
+
+        if (isset($callback['error'])) {
+            throw new OAuthErrorException(\sprintf('The authorization server denied the request: %s%s', $callback['error'], isset($callback['error_description']) ? ' ('.$callback['error_description'].')' : ''), $callback['error']);
         }
 
         if (!isset($callback['code']) || '' === $callback['code']) {
