@@ -361,6 +361,7 @@ final class AuthorizationServerMetadataTest extends TestCase
         $this->assertSame('https://mcp.example.com/token', $metadata->tokenEndpoint);
         $this->assertSame('https://mcp.example.com/register', $metadata->registrationEndpoint);
         $this->assertFalse($metadata->issuerParameterSupported);
+        $this->assertTrue($metadata->supportsPkce());
         $this->assertTrue($metadata->supportsGrant('authorization_code'));
         $this->assertFalse($metadata->supportsGrant('refresh_token'));
     }

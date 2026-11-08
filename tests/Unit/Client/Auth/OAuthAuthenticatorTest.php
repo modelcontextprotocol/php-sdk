@@ -24,6 +24,7 @@ use Mcp\Client\Auth\TokenEndpoint;
 use Mcp\Exception\AuthorizationException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
@@ -521,6 +522,35 @@ final class OAuthAuthenticatorTest extends TestCase
         $authenticator->handleChallenge($this->request(), $server->challenge());
     }
 
+    /**
+     * @return iterable<string, array{?string[]}>
+     */
+    public static function serverWithoutPkceProvider(): iterable
+    {
+        yield 'no list' => [null];
+        yield 'an empty list' => [[]];
+        yield 'only plain' => [['plain']];
+    }
+
+    /**
+     * @param ?string[] $methods
+     */
+    #[DataProvider('serverWithoutPkceProvider')]
+    #[TestDox('a server without S256 PKCE is refused before the browser opens: $_dataName')]
+    public function testRefusesAServerWithoutPkce(?array $methods): void
+    {
+        $server = new FakeOAuthServer(codeChallengeMethods: $methods);
+
+        try {
+            $this->authenticator($server)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The server without PKCE was not refused.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('code_challenge_methods_supported', $e->getMessage());
+        }
+
+        $this->assertSame([], $server->authorization);
+    }
+
     private function request(): RequestInterface
     {
         return (new Psr17Factory())->createRequest('POST', self::ENDPOINT);
@@ -607,6 +637,7 @@ final class FakeOAuthServer implements ClientInterface
     /**
      * @param ?string[] $resourceScopes
      * @param string[]  $serverScopes
+     * @param ?string[] $codeChallengeMethods
      */
     public function __construct(
         private readonly string $resource = 'https://mcp.example.com/mcp',
@@ -618,6 +649,7 @@ final class FakeOAuthServer implements ClientInterface
         private readonly bool $refuseOfflineAccess = false,
         private readonly ?string $codeError = null,
         private readonly bool $hasAuthorizationEndpoint = true,
+        private readonly ?array $codeChallengeMethods = ['S256'],
     ) {
     }
 
@@ -667,7 +699,7 @@ final class FakeOAuthServer implements ClientInterface
                 'registration_endpoint' => ($this->insecureEndpoints ? 'http' : 'https').'://auth.example.com/register',
                 'scopes_supported' => $this->serverScopes,
                 'grant_types_supported' => $this->hasAuthorizationEndpoint ? ['authorization_code', 'refresh_token'] : ['client_credentials'],
-                'code_challenge_methods_supported' => ['S256'],
+                'code_challenge_methods_supported' => $this->codeChallengeMethods,
                 'authorization_response_iss_parameter_supported' => true,
             ]),
 

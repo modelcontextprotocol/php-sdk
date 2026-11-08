@@ -369,6 +369,10 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      */
     private function grant(AuthorizationServerMetadata $metadata, ClientRegistration $client, array $scopes, string $resource): AccessToken
     {
+        if (!$metadata->supportsPkce()) {
+            throw new AuthorizationException(\sprintf('The authorization server "%s" does not list "%s" in "code_challenge_methods_supported", so the client cannot use PKCE with it.', $metadata->issuer, Pkce::METHOD));
+        }
+
         $pkce = Pkce::generate();
         $state = rtrim(strtr(base64_encode(random_bytes(24)), '+/', '-_'), '=');
 

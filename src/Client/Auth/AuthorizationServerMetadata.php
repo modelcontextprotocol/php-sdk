@@ -119,7 +119,13 @@ final class AuthorizationServerMetadata
 
         $base = rtrim($issuer, '/');
 
-        return new self($issuer, $base.'/authorize', $base.'/token', $base.'/register');
+        // The 2025-03-26 revision requires PKCE of every server, and these have no list to read.
+        return new self($issuer, $base.'/authorize', $base.'/token', $base.'/register', codeChallengeMethodsSupported: [Pkce::METHOD]);
+    }
+
+    public function supportsPkce(): bool
+    {
+        return \in_array(Pkce::METHOD, $this->codeChallengeMethodsSupported, true);
     }
 
     public function supportsGrant(string $grantType): bool
