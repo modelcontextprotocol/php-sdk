@@ -276,11 +276,10 @@ $server = Server::builder()
 
 ### Fiber Scheduler
 
-The server runs every request handler in a fiber, so that the handler can wait on the client — for an
-elicitation, a sampling request, or to send a notification — through the
-[`ClientGateway`](../handlers/client-communication.md). Under an event loop (Revolt, which AMPHP builds on, or
-ReactPHP's async), the handler's own I/O suspends that same fiber, for the loop. Tell the server how to wait on
-your runtime, and it leaves the fiber to the loop until the handler suspends for the server again or returns:
+The server runs every request handler in a fiber, so that the handler can wait for the client through the
+[`ClientGateway`](../handlers/client-communication.md). Under an event loop (e.g. Revolt, which AMPHP builds on,
+or ReactPHP's async), the I/O of a handler suspends that same fiber. Set a fiber scheduler to tell the server how
+to wait on your event loop:
 
 ```php
 use Mcp\Server\Fiber\FiberSchedulerInterface;
@@ -301,10 +300,49 @@ $server = Server::builder()
     ->setFiberScheduler(new RevoltFiberScheduler());
 ```
 
-Without a scheduler, a handler whose fiber is suspended by anything but the server fails the request with a
-`LogicException`, rather than being resumed with nothing. Under an event loop, wait on the client through the
-gateway: a suspension payload a handler hands to `\Fiber::suspend()` itself, after the loop resumed it, reaches
-the loop, not the server.
+The server calls the callback you pass to `then()` while the handler fiber is still running, so the callback must
+wake the waiting fiber on a later turn of the event loop. `Suspension::resume()` in Revolt already does this. With
+ReactPHP, use `Loop::futureTick()`:
+
+```php
+use Mcp\Server\Fiber\FiberSchedulerInterface;
+use Mcp\Server\Fiber\FiberSettlement;
+use React\EventLoop\Loop;
+use React\Promise\Deferred;
+
+use function React\Async\await;
+
+final class ReactFiberScheduler implements FiberSchedulerInterface
+{
+    public function wait(FiberSettlement $settlement): void
+    {
+        $deferred = new Deferred();
+        $settlement->then(static fn () => Loop::futureTick(static fn () => $deferred->resolve(null)));
+        await($deferred->promise());
+    }
+}
+```
+
+If the callback wakes the fiber right away, the request fails with a `LogicException` that explains the fix.
+
+Without a scheduler, a handler that awaits I/O fails the request with a `LogicException`. The event loop still
+resumes the handler after that, so the handler runs to its end and its side effects still happen.
+
+#### Limits Under an Event Loop
+
+A fiber scheduler lets handlers await I/O while the event loop serves other requests. These limits apply:
+
+- `StreamableHttpTransport` writes streamed responses to the PHP output, not to the PSR-7 response body. A server
+  that sends the response body (e.g. `amphp/http-server`) doesn't deliver them. This includes every response that
+  carries a notification, for example from `ClientGateway::notify()`.
+- On protocol versions up to `2025-11-25`, the same transport blocks the event loop while a handler waits for an
+  answer from the client (e.g. `ClientGateway::elicit()`). One process can't receive the answer during that time,
+  so the request fails when the wait times out.
+- Call the `ClientGateway` from the fiber of the handler. A call from another fiber (e.g. in `EventLoop::queue()`)
+  never returns, and the request gets no answer. The same happens if a handler passes a `NotificationSuspension`
+  or `RequestSuspension` to `\Fiber::suspend()` itself after the event loop resumed it.
+- A [session lock](sessions.md#concurrent-requests) stays held while a handler awaits I/O. Another request of the
+  same session in the same process then fails with status `503` and the message `Session lock is unavailable.`
 
 ## Complete Example
 
