@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Fiber;
 
+use Mcp\Exception\LogicException;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
 
@@ -123,6 +124,10 @@ final class HandlerFibers
             $state->rethrow();
 
             return null;
+        }
+
+        if (!$fiber->isSuspended()) {
+            throw new LogicException('The fiber scheduler returned while the request handler fiber was still running: wake the waiting fiber on a later turn of the event loop, see FiberSchedulerInterface::wait().');
         }
 
         return $state->suspension() ?? $suspended;

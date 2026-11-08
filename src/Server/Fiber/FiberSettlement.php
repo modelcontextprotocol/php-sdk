@@ -31,6 +31,8 @@ final class FiberSettlement
     /**
      * Calls $callback once settled, right away when it already is.
      *
+     * The handler fiber is still running when $callback is called: see {@see FiberSchedulerInterface::wait()}.
+     *
      * @param \Closure(): void $callback
      */
     public function then(\Closure $callback): void

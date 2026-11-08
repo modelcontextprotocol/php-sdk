@@ -28,8 +28,10 @@ interface FiberSchedulerInterface
      * Lets the runtime run until $settlement settles, then returns.
      *
      * Called on the fiber — or `{main}` — that drives the handler, never while $settlement is already
-     * settled. It settles from inside the handler fiber, once the handler suspended for the server or
-     * returned; implement it with the runtime's own way of waiting for a callback.
+     * settled. It settles from inside the handler fiber, right before that fiber suspends or returns, so
+     * the callback given to {@see FiberSettlement::then()} must wake the driving fiber on a later turn of
+     * the loop, never inline. Revolt's `Suspension::resume()` does; with ReactPHP, wrap it in
+     * `Loop::futureTick()`. Returning while the handler fiber still runs fails the request.
      */
     public function wait(FiberSettlement $settlement): void;
 }

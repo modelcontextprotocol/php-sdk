@@ -15,6 +15,8 @@ use Mcp\Exception\LogicException;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Schema\Request\PingRequest;
+use Mcp\Server\Fiber\FiberSchedulerInterface;
+use Mcp\Server\Fiber\FiberSettlement;
 use Mcp\Server\Fiber\HandlerFibers;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
@@ -110,6 +112,38 @@ final class HandlerFibersTest extends TestCase
         }
 
         $this->assertTrue($fiber->isTerminated());
+    }
+
+    #[TestDox('a scheduler waking the server while the handler still runs fails with what to do about it')]
+    public function testASchedulerWakingTheServerInlineFails(): void
+    {
+        $inline = new class implements FiberSchedulerInterface {
+            public function wait(FiberSettlement $settlement): void
+            {
+                $driver = \Fiber::getCurrent() ?? throw new LogicException('Waiting needs a fiber.');
+                $settlement->then(static function () use ($driver): void {
+                    $driver->resume();
+                });
+                \Fiber::suspend();
+            }
+        };
+        $handler = HandlerFibers::create(static fn (): mixed => \Fiber::suspend(), $inline);
+
+        $failure = null;
+        $driver = new \Fiber(static function () use ($handler, &$failure): void {
+            try {
+                HandlerFibers::start($handler);
+            } catch (LogicException $e) {
+                $failure = $e;
+            }
+        });
+        $driver->start();
+        $handler->resume();
+
+        $this->assertInstanceOf(LogicException::class, $failure);
+        $this->assertStringContainsString('FiberSchedulerInterface::wait()', $failure->getMessage());
+        $this->assertTrue($driver->isTerminated());
+        $this->assertTrue($handler->isTerminated());
     }
 
     #[TestDox('a fiber the server did not create is started and resumed as is')]
