@@ -60,7 +60,7 @@ final class DualEraEndpointTest extends DualEraExampleTestCase
         sort($names);
 
         // One registry behind both legs, so the catalogue cannot drift.
-        $this->assertSame(['get_weather', 'greet', 'reindex'], $names);
+        $this->assertSame(['find_user', 'get_weather', 'greet', 'reindex'], $names);
 
         $client->disconnect();
     }

@@ -2,11 +2,17 @@ Connected to Stateless Lifecycle Demo (revision 2026-07-28)
 
 Tools:
   get_weather  Reports the weather for a city
+  find_user    Finds a user by id, or returns null if there is none
   reindex      Reindexes shards, reporting progress as it goes
   greet        Greets you by name, asking for it first if it has to
 
 A plain call:
   It is 17°C and cloudy in Munich.
+
+Structured content can be a value, an explicit null or absent:
+  known user:   {"name":"Ada Lovelace"}
+  unknown user: null
+  plain tool:   (absent)
 
 A call the server cannot finish in one round:
   server asked: What name should the greeting use?

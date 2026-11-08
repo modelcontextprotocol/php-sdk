@@ -243,6 +243,9 @@ null in both cases. For a runtime choice, pass `Mcp\Schema\Enum\StructuredConten
 passing null. Existing calls such as `new CallToolResult($content, false, null, $meta)` must omit the third argument
 (use `meta: $meta`) or pass that sentinel if they intend to send text only.
 
+The [`stateless-lifecycle` example](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/stateless-lifecycle)
+has a tool with a nullable `outputSchema`, and its client prints all three cases.
+
 #### Sending only structured content
 
 By default, the SDK also JSON-encodes structured content into `content`. To send a large result only once, return a
