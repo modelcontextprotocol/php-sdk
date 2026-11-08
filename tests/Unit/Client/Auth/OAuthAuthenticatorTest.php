@@ -803,6 +803,30 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertArrayNotHasKey('scope', $server->authorization);
     }
 
+    #[TestDox('a scope and a code of "0" reach the authorization server')]
+    public function testKeepsAScopeAndACodeOfZero(): void
+    {
+        $server = new FakeOAuthServer();
+        $handler = new class($server) implements AuthorizationHandlerInterface {
+            public function __construct(private readonly FakeOAuthServer $server)
+            {
+            }
+
+            public function authorize(string $authorizationUrl, string $redirectUri): array
+            {
+                $this->server->recordAuthorization($authorizationUrl);
+                parse_str((string) parse_url($authorizationUrl, \PHP_URL_QUERY), $query);
+
+                return ['code' => '0', 'state' => \is_string($query['state'] ?? null) ? $query['state'] : '', 'iss' => 'https://auth.example.com'];
+            }
+        };
+
+        $this->authenticator($server, $handler)->handleChallenge($this->request(), $server->challenge(['0']));
+
+        $this->assertSame('0', $server->authorization['scope'] ?? null);
+        $this->assertSame('0', $server->token['code'] ?? null);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {

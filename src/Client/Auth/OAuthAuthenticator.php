@@ -303,7 +303,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         }
 
         try {
-            $token = $this->tokenEndpoint->request($metadata, $client, array_filter([
+            $token = $this->tokenEndpoint->request($metadata, $client, self::withoutEmptyValues([
                 'grant_type' => Grant::RefreshToken->value,
                 'refresh_token' => $stored->refreshToken,
                 'resource' => $this->resource,
@@ -363,7 +363,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $pkce = Pkce::generate();
         $state = rtrim(strtr(base64_encode(random_bytes(24)), '+/', '-_'), '=');
 
-        $parameters = array_filter([
+        $parameters = self::withoutEmptyValues([
             'response_type' => 'code',
             'client_id' => $client->clientId,
             'redirect_uri' => $this->configuration->redirectUri,
@@ -388,7 +388,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         $this->verifyCallback($callback, $state, $metadata);
 
-        return $this->tokenEndpoint->request($metadata, $client, array_filter([
+        return $this->tokenEndpoint->request($metadata, $client, self::withoutEmptyValues([
             'grant_type' => Grant::AuthorizationCode->value,
             'code' => $callback['code'],
             'redirect_uri' => $this->configuration->redirectUri,
@@ -467,6 +467,24 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->storage->saveClientRegistration($metadata->issuer, $registration);
 
         return $registration;
+    }
+
+    /**
+     * @param array<string, ?string> $parameters
+     *
+     * @return array<string, string>
+     */
+    private static function withoutEmptyValues(array $parameters): array
+    {
+        $values = [];
+
+        foreach ($parameters as $name => $value) {
+            if (null !== $value && '' !== $value) {
+                $values[$name] = $value;
+            }
+        }
+
+        return $values;
     }
 
     private static function assertSupportsPkce(AuthorizationServerMetadata $metadata): void
