@@ -21,6 +21,7 @@ use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
+use Mcp\Server\Transport\Http\OAuth\RateLimitedJwksClient;
 use Mcp\Server\Transport\Http\OAuth\ScopePolicy;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
@@ -31,13 +32,13 @@ $resource = 'http://localhost:8000/mcp';
 
 // Inside the Docker network Keycloak is only reachable over plain http, which
 // JwtTokenValidator::fromIssuer() refuses; the key set is built explicitly instead.
+$cache = new FilesystemAdapter('mcp-keycloak', 3600, __DIR__.'/cache');
 $keys = new CachedKeySet(
     'http://keycloak:8180/realms/mcp/protocol/openid-connect/certs',
-    Psr18ClientDiscovery::find(),
+    new RateLimitedJwksClient(Psr18ClientDiscovery::find(), $cache),
     new Psr17Factory(),
-    new FilesystemAdapter('mcp-keycloak', 3600, __DIR__.'/cache'),
+    $cache,
     3600,
-    true,
 );
 
 $validator = new JwtTokenValidator(

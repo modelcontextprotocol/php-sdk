@@ -37,6 +37,7 @@ use Psr\Log\NullLogger;
  * - Returns 401 with WWW-Authenticate header on missing/invalid tokens
  * - Returns 403 insufficient_scope when the token lacks a scope the {@see ScopePolicy} requires
  * - Returns 413 when a body the {@see ScopePolicy} inspects exceeds the byte cap
+ * - Returns 503 without a challenge when the validator cannot check the token
  * - Hands the validated {@see AccessToken} to the transport as request attribute,
  *   from where handlers read it via {@see \Mcp\Server\RequestContext::getAccessToken()}
  *
@@ -128,6 +129,13 @@ final class AuthorizationMiddleware implements MiddlewareInterface
 
     private function buildErrorResponse(AuthorizationResult $result): ResponseInterface
     {
+        if (503 === $result->getStatusCode()) {
+            $response = $this->responseFactory->createResponse(503);
+            $retryAfter = $result->getRetryAfter();
+
+            return null === $retryAfter ? $response : $response->withHeader('Retry-After', (string) $retryAfter);
+        }
+
         $parts = ['resource_metadata="'.$this->escapeHeaderValue($this->resourceMetadata->getMetadataUrl()).'"'];
 
         $scopes = $result->getScopes() ?? $this->resourceMetadata->getScopesSupported();

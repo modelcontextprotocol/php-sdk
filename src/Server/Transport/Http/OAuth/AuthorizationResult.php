@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Transport\Http\OAuth;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\Authorization\AccessToken;
 
 /**
@@ -21,6 +22,7 @@ use Mcp\Server\Authorization\AccessToken;
  * - unauthorized() - No valid credentials provided (401)
  * - forbidden() - Valid credentials but insufficient permissions (403)
  * - badRequest() - Malformed request (400)
+ * - unavailable() - Token validation temporarily unavailable (503)
  *
  * @author Volodymyr Panivko <sveneld300@gmail.com>
  */
@@ -36,6 +38,7 @@ final class AuthorizationResult
         private readonly ?string $errorDescription,
         private readonly ?array $scopes,
         private readonly ?AccessToken $accessToken,
+        private readonly ?int $retryAfter = null,
     ) {
     }
 
@@ -96,6 +99,20 @@ final class AuthorizationResult
         return new self(false, 400, $error ?? 'invalid_request', $errorDescription, null, null);
     }
 
+    /**
+     * @param int|null $retryAfter Suggested delay before retrying, in seconds
+     *
+     * @throws InvalidArgumentException if the delay is negative
+     */
+    public static function unavailable(?int $retryAfter = null): self
+    {
+        if (null !== $retryAfter && $retryAfter < 0) {
+            throw new InvalidArgumentException('The Retry-After delay must not be negative.');
+        }
+
+        return new self(false, 503, null, null, null, null, $retryAfter);
+    }
+
     public function isAllowed(): bool
     {
         return $this->allowed;
@@ -104,6 +121,11 @@ final class AuthorizationResult
     public function getStatusCode(): int
     {
         return $this->statusCode;
+    }
+
+    public function getRetryAfter(): ?int
+    {
+        return $this->retryAfter;
     }
 
     public function getError(): ?string

@@ -7,6 +7,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Server
 
+* [BC Break] Return HTTP `503` with `Retry-After` and without a Bearer challenge when `JwtTokenValidator` cannot fetch the signing keys or reaches the limit of the new `RateLimitedJwksClient`, which replaces the `rateLimit` of `CachedKeySet`.
+* `CorsMiddleware` exposes `Retry-After` by default.
 * [BC Break] Remove JSON-RPC batch support: a JSON array is refused with `-32600`, and HTTP status `400` over HTTP, for every protocol revision. This includes `2025-03-26`, which requires batches and which the server still negotiates. Batching was removed from MCP in `2025-06-18`.
 * [BC Break] `ScopePolicy::requiredFor()` takes one decoded message, renames its parameter from `$payload` to `$message` and returns only the default scopes for a list.
 * [BC Break] `AuthorizationMiddleware` answers a body over its `maxBodyBytes` with `413` and a JSON-RPC error, like the transports, instead of `400` with a `WWW-Authenticate` challenge.

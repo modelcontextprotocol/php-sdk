@@ -20,6 +20,7 @@ use Firebase\JWT\SignatureInvalidException;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\JwksRefreshRateLimitException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Server\Authorization\AccessToken;
 use Psr\Cache\CacheItemPoolInterface;
@@ -80,7 +81,7 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
      *
      * Discovery happens on the first token, so an unreachable authorization server
      * does not break building the validator; a failed discovery is cached for a few
-     * seconds, rejecting tokens without retrying. Keys are refetched, rate limited, when a
+     * seconds, reporting validation as unavailable without retrying. Keys are refetched, rate limited, when a
      * token names an unknown key id, so key rotation does not lock clients out until
      * the cache expires. Issuer and JWKS URI must use https, unless they point to a
      * loopback host (`localhost`, `*.localhost`, `127.0.0.0/8` or `::1`).
@@ -107,12 +108,13 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
 
         $jwksUri = null;
         $keySets = [];
-        $validator->keysForAlgorithm = static function (string $algorithm) use ($issuer, $cache, $httpClient, $requestFactory, &$jwksUri, &$keySets): CachedKeySet {
+        $jwksClient = new RateLimitedJwksClient($httpClient, $cache);
+        $validator->keysForAlgorithm = static function (string $algorithm) use ($issuer, $cache, $httpClient, $jwksClient, $requestFactory, &$jwksUri, &$keySets): CachedKeySet {
             $jwksUri ??= (new OidcDiscovery($cache, $httpClient, $requestFactory))->getJwksUri($issuer);
 
             // One set per algorithm, so a key without `alg` (as Entra publishes them) is
             // tagged with the token's - which already passed the allowlist.
-            return $keySets[$algorithm] ??= new CachedKeySet($jwksUri, $httpClient, $requestFactory, $cache, 3600, true, $algorithm);
+            return $keySets[$algorithm] ??= new CachedKeySet($jwksUri, $jwksClient, $requestFactory, $cache, 3600, false, $algorithm);
         };
 
         return $validator;
@@ -141,9 +143,23 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
         // Resolved up front, as discovery and JWKS refetches do I/O that must not run inside the leeway swap below.
         try {
             $keys = null === $this->keysForAlgorithm ? $this->keys : ($this->keysForAlgorithm)($header['alg']);
+        } catch (RuntimeException) {
+            return AuthorizationResult::unavailable(OidcDiscovery::FAILURE_TTL);
+        }
+
+        try {
             $key = $keys[$keyId] ?? null;
-        } catch (\OutOfBoundsException|\UnexpectedValueException|\InvalidArgumentException|\DomainException|ClientExceptionInterface|RuntimeException) {
-            // JWKS endpoint unreachable or malformed, or discovery failed.
+        } catch (JwksRefreshRateLimitException $e) {
+            return AuthorizationResult::unavailable($e->retryAfter);
+        } catch (ClientExceptionInterface) {
+            return AuthorizationResult::unavailable(OidcDiscovery::FAILURE_TTL);
+        } catch (\OutOfBoundsException) {
+            $key = null;
+        } catch (\UnexpectedValueException|\InvalidArgumentException|\DomainException|RuntimeException) {
+            if ($keys instanceof CachedKeySet) {
+                return AuthorizationResult::unavailable(OidcDiscovery::FAILURE_TTL);
+            }
+
             $key = null;
         }
 

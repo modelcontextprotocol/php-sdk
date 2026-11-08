@@ -112,8 +112,8 @@ new CorsMiddleware(
     // default: Accept, Authorization, Content-Type, Last-Event-ID, Mcp-Protocol-Version, Mcp-Session-Id,
     // Mcp-Method, Mcp-Name, Mcp-Param-*
     allowedHeaders: ['Accept', 'Authorization', 'Content-Type'],
-    // sent in Access-Control-Expose-Headers; default: Mcp-Session-Id, WWW-Authenticate
-    exposedHeaders: ['Mcp-Session-Id', 'WWW-Authenticate'],
+    // sent in Access-Control-Expose-Headers; default: Mcp-Session-Id, WWW-Authenticate, Retry-After
+    exposedHeaders: ['Mcp-Session-Id', 'WWW-Authenticate', 'Retry-After'],
     // sends Access-Control-Allow-Credentials: true (default: false)
     allowCredentials: true,
 );

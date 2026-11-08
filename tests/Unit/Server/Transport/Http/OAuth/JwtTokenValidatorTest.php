@@ -15,7 +15,9 @@ use Firebase\JWT\CachedKeySet;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
+use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -23,6 +25,7 @@ use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Server\RequestHandlerInterface;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 final class JwtTokenValidatorTest extends TestCase
@@ -271,7 +274,7 @@ final class JwtTokenValidatorTest extends TestCase
         $this->assertSame('Token signing key could not be resolved.', $result->getErrorDescription());
     }
 
-    public function testUnreachableJwksIsUnauthorized(): void
+    public function testUnreachableJwksIsUnavailable(): void
     {
         $factory = new Psr17Factory();
         $client = new class implements ClientInterface {
@@ -285,8 +288,114 @@ final class JwtTokenValidatorTest extends TestCase
 
         $result = $validator->validate($this->token([]));
 
+        $this->assertSame(503, $result->getStatusCode());
+        $this->assertNull($result->getError());
+        $this->assertSame(10, $result->getRetryAfter());
+    }
+
+    public function testCachedKeyStaysUsableWhileJwksIsDown(): void
+    {
+        $factory = new Psr17Factory();
+        $cache = new ArrayAdapter();
+        $warm = new JwtTokenValidator(self::ISSUER, self::AUDIENCE, new CachedKeySet('https://auth.example.com/jwks', $this->jwksClient($factory), $factory, $cache, 3600, true, 'RS256'));
+        $this->assertTrue($warm->validate($this->token([]))->isAllowed());
+
+        $client = $this->createStub(ClientInterface::class);
+        $client->method('sendRequest')->willReturn($factory->createResponse(503));
+        $validator = new JwtTokenValidator(self::ISSUER, self::AUDIENCE, new CachedKeySet('https://auth.example.com/jwks', $client, $factory, $cache, 3600, true, 'RS256'));
+
+        $this->assertTrue($validator->validate($this->token([]))->isAllowed());
+        $this->assertSame(503, $validator->validate(JWT::encode($this->claims([]), self::$privateKey, 'RS256', 'rotated'))->getStatusCode());
+    }
+
+    public function testCustomKeySetTransportFailureIsUnavailable(): void
+    {
+        $failure = new class('Connection refused') extends \RuntimeException implements ClientExceptionInterface {};
+        $validator = new JwtTokenValidator(self::ISSUER, self::AUDIENCE, $this->throwingKeySet($failure));
+
+        $result = $validator->validate($this->token([]));
+
+        $this->assertSame(503, $result->getStatusCode());
+        $this->assertSame(10, $result->getRetryAfter());
+    }
+
+    public function testCustomKeySetOtherFailureIsUnauthorized(): void
+    {
+        $validator = new JwtTokenValidator(self::ISSUER, self::AUDIENCE, $this->throwingKeySet(new \UnexpectedValueException('Bad key')));
+
+        $result = $validator->validate($this->token([]));
+
         $this->assertSame(401, $result->getStatusCode());
         $this->assertSame('Token signing key could not be resolved.', $result->getErrorDescription());
+    }
+
+    /**
+     * @return iterable<string, array{int, string}>
+     */
+    public static function provideUnusableJwksResponses(): iterable
+    {
+        yield 'rate limited' => [429, ''];
+        yield 'unavailable' => [503, ''];
+        yield 'malformed' => [200, '{'];
+    }
+
+    #[DataProvider('provideUnusableJwksResponses')]
+    public function testUnusableJwksRejectsWithoutChallenging(int $status, string $body): void
+    {
+        $factory = new Psr17Factory();
+        $metadata = $factory->createStream(json_encode(['issuer' => self::ISSUER, 'jwks_uri' => self::ISSUER.'/jwks'], \JSON_THROW_ON_ERROR));
+        $client = $this->createMock(ClientInterface::class);
+        $client->expects($this->exactly(2))->method('sendRequest')->willReturn(
+            $factory->createResponse()->withBody($metadata),
+            $factory->createResponse($status)->withBody($factory->createStream($body)),
+        );
+        $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, new ArrayAdapter(), $client, $factory);
+        $middleware = new AuthorizationMiddleware($validator, new ProtectedResourceMetadata(self::AUDIENCE, [self::ISSUER]), responseFactory: $factory, streamFactory: $factory);
+        $request = $factory->createServerRequest('POST', self::AUDIENCE)->withHeader('Authorization', 'Bearer '.$this->token([]));
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->expects($this->never())->method('handle');
+
+        $response = $middleware->process($request, $handler);
+
+        $this->assertSame(503, $response->getStatusCode());
+        $this->assertFalse($response->hasHeader('WWW-Authenticate'));
+        $this->assertSame('10', $response->getHeaderLine('Retry-After'));
+    }
+
+    public function testRateLimitedJwksRefreshIsUnavailable(): void
+    {
+        $factory = new Psr17Factory();
+        $metadata = $factory->createStream(json_encode(['issuer' => self::ISSUER, 'jwks_uri' => self::ISSUER.'/jwks'], \JSON_THROW_ON_ERROR));
+        $client = $this->createMock(ClientInterface::class);
+        $client->expects($this->exactly(11))->method('sendRequest')->willReturn(
+            $factory->createResponse()->withBody($metadata),
+            ...array_fill(0, 10, $factory->createResponse(503)),
+        );
+        $cache = new ArrayAdapter();
+        $token = $this->token([]);
+
+        for ($attempt = 0; $attempt < 11; ++$attempt) {
+            $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, $cache, $client, $factory);
+            $result = $validator->validate($token);
+
+            $this->assertSame(503, $result->getStatusCode());
+        }
+
+        $this->assertGreaterThanOrEqual(1, $result->getRetryAfter());
+        $this->assertLessThanOrEqual(60, $result->getRetryAfter());
+    }
+
+    public function testUnknownKeyIdAtRateLimitIsUnavailable(): void
+    {
+        $factory = new Psr17Factory();
+        $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, new ArrayAdapter(), $this->jwksClient($factory), $factory);
+        $token = JWT::encode($this->claims([]), self::$privateKey, 'RS256', 'rotated');
+
+        for ($attempt = 0; $attempt < 10; ++$attempt) {
+            $this->assertSame(401, $validator->validate($token)->getStatusCode());
+        }
+
+        $this->assertSame(503, $validator->validate($token)->getStatusCode());
     }
 
     public function testFromIssuerTagsKeysWithoutAlgorithmPerToken(): void
@@ -328,8 +437,8 @@ final class JwtTokenValidatorTest extends TestCase
         $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, new ArrayAdapter(), $client, $factory);
         $result = $validator->validate($this->token([]));
 
-        $this->assertSame(401, $result->getStatusCode());
-        $this->assertSame('Token signing key could not be resolved.', $result->getErrorDescription());
+        $this->assertSame(503, $result->getStatusCode());
+        $this->assertSame(10, $result->getRetryAfter());
     }
 
     public function testFromIssuerBacksOffAfterFailedDiscovery(): void
@@ -358,8 +467,8 @@ final class JwtTokenValidatorTest extends TestCase
         $result = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, $cache, $client, $factory)->validate($this->token([]));
 
         $this->assertCount(2, $requested);
-        $this->assertSame(401, $result->getStatusCode());
-        $this->assertSame('Token signing key could not be resolved.', $result->getErrorDescription());
+        $this->assertSame(503, $result->getStatusCode());
+        $this->assertSame(10, $result->getRetryAfter());
     }
 
     public function testFromIssuerRejectsInsecureIssuer(): void
@@ -411,6 +520,36 @@ final class JwtTokenValidatorTest extends TestCase
                 return null === $body
                     ? $this->factory->createResponse(404)
                     : $this->factory->createResponse(200)->withBody($this->factory->createStream(json_encode($body, \JSON_THROW_ON_ERROR)));
+            }
+        };
+    }
+
+    /**
+     * @return \ArrayAccess<string, Key>
+     */
+    private function throwingKeySet(\Throwable $failure): \ArrayAccess
+    {
+        return new class($failure) implements \ArrayAccess {
+            public function __construct(private \Throwable $failure)
+            {
+            }
+
+            public function offsetExists(mixed $offset): bool
+            {
+                throw $this->failure;
+            }
+
+            public function offsetGet(mixed $offset): Key
+            {
+                throw $this->failure;
+            }
+
+            public function offsetSet(mixed $offset, mixed $value): void
+            {
+            }
+
+            public function offsetUnset(mixed $offset): void
+            {
             }
         };
     }
