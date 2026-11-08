@@ -12,6 +12,7 @@
 require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
+use Amp\Http\HttpStatus;
 use Amp\Http\Server\DefaultErrorHandler;
 use Amp\Http\Server\Request;
 use Amp\Http\Server\RequestHandler\ClosureRequestHandler;
@@ -21,6 +22,7 @@ use Http\Discovery\Psr17Factory;
 use Mcp\Example\Server\Revolt\RevoltFiberScheduler;
 use Mcp\Example\Server\Revolt\SlowTools;
 use Mcp\Server;
+use Mcp\Server\Transport\CallbackStream;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Revolt\EventLoop;
 
@@ -33,8 +35,10 @@ use Revolt\EventLoop;
  *
  *     php examples/server/revolt/server.php [127.0.0.1:8000]
  *
- * Responses are buffered, so a tool that waits on the client (elicitation,
- * sampling) is not supported here.
+ * The transport writes streamed responses to the PHP output, which this server
+ * doesn't send to the client. So it answers with 501 when a tool sends a
+ * notification (e.g. progress) or waits on the client (elicitation, sampling)
+ * on a session, and for subscriptions/listen.
  */
 
 $address = $argv[1] ?? '127.0.0.1:8000';
@@ -61,7 +65,13 @@ $http->start(new ClosureRequestHandler(static function (Request $request) use ($
 
     $response = $server->run(new StreamableHttpTransport($psrRequest, $factory, $factory, logger()));
 
-    return new Response($response->getStatusCode(), $response->getHeaders(), (string) $response->getBody());
+    $body = $response->getBody();
+
+    if ($body instanceof CallbackStream) {
+        return new Response(HttpStatus::NOT_IMPLEMENTED, ['Content-Type' => 'text/plain'], 'This server does not support streamed responses.');
+    }
+
+    return new Response($response->getStatusCode(), $response->getHeaders(), (string) $body);
 }), new DefaultErrorHandler());
 
 logger()->info(sprintf('Revolt MCP server listening on http://%s', $address));
