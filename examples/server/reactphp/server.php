@@ -90,11 +90,8 @@ $http->listen(new SocketServer($address));
  */
 function pump(Generator $chunks, ThroughStream $stream): void
 {
-    foreach ($chunks as $chunk) {
-        // The client went away: dropping the chunks ends the stream.
-        if (!$stream->isWritable()) {
-            return;
-        }
+    while ($stream->isWritable() && $chunks->valid()) {
+        $chunk = $chunks->current();
 
         if (!$stream->write('' === $chunk ? ": keep-alive\n\n" : $chunk)) {
             drained($stream);
@@ -102,6 +99,11 @@ function pump(Generator $chunks, ThroughStream $stream): void
 
         if ('' === $chunk) {
             delay(0.25);
+        }
+
+        // Advancing runs the handler on, so only while the client is still there.
+        if ($stream->isWritable()) {
+            $chunks->next();
         }
     }
 
