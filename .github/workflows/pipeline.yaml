@@ -12,9 +12,11 @@ env:
 jobs:
   unit:
     runs-on: ubuntu-latest
+    # PHP 8.6 is still a pre-release.
+    continue-on-error: ${{ matrix.php == '8.6' }}
     strategy:
       matrix:
-        php: ['8.1', '8.2', '8.3', '8.4', '8.5']
+        php: ['8.1', '8.2', '8.3', '8.4', '8.5', '8.6']
         dependencies: ['lowest', 'highest']
         symfony-version: ['']
         include:
@@ -49,15 +51,18 @@ jobs:
         uses: "ramsey/composer-install@v4"
         with:
           dependency-versions: "${{ matrix.dependencies }}"
+          composer-options: ${{ matrix.php == '8.6' && '--ignore-platform-req=php+' || '' }}
 
       - name: Tests
         run: vendor/bin/phpunit --testsuite=unit
 
   integration:
     runs-on: ubuntu-latest
+    # PHP 8.6 is still a pre-release.
+    continue-on-error: ${{ matrix.php == '8.6' }}
     strategy:
       matrix:
-        php: ['8.1', '8.2', '8.3', '8.4', '8.5']
+        php: ['8.1', '8.2', '8.3', '8.4', '8.5', '8.6']
 
     steps:
       - name: Checkout
@@ -71,6 +76,8 @@ jobs:
 
       - name: Install Composer
         uses: "ramsey/composer-install@v4"
+        with:
+          composer-options: ${{ matrix.php == '8.6' && '--ignore-platform-req=php+' || '' }}
 
       - name: Tests
         run: vendor/bin/phpunit --testsuite=integration
