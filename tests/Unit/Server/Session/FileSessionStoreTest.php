@@ -411,7 +411,9 @@ class FileSessionStoreTest extends TestCase
             $payload = json_encode(['queue' => array_fill(0, 200, str_repeat('x', 200))]);
 
             for ($i = 0; $i < 200; ++$i) {
-                $store->write($id, $payload);
+                if (!$store->write($id, $payload)) {
+                    exit(1);
+                }
             }
             PHP;
 
