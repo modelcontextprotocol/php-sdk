@@ -28,7 +28,7 @@ use Psr\SimpleCache\CacheInterface;
 final class CachedDiscoverer implements DiscovererInterface
 {
     private const CACHE_PREFIX = 'mcp_discovery_';
-    private const INDEX_KEY = self::CACHE_PREFIX.'keys';
+    private const GENERATION_KEY = self::CACHE_PREFIX.'generation';
 
     public function __construct(
         private readonly DiscovererInterface $discoverer,
@@ -47,7 +47,7 @@ final class CachedDiscoverer implements DiscovererInterface
      */
     public function discover(string $basePath, array $directories, array $excludeDirs = [], array $namePatterns = self::DEFAULT_NAME_PATERNS): DiscoveryState
     {
-        $cacheKey = $this->generateCacheKey($basePath, $directories, $excludeDirs, $namePatterns);
+        $cacheKey = $this->generateCacheKey($this->generation(), $basePath, $directories, $excludeDirs, $namePatterns);
 
         $cachedResult = $this->read($cacheKey);
 
@@ -70,7 +70,6 @@ final class CachedDiscoverer implements DiscovererInterface
         $discoveryState = $this->discoverer->discover($basePath, $directories, $excludeDirs, $namePatterns);
 
         $this->write($cacheKey, $discoveryState);
-        $this->write(self::INDEX_KEY, array_values(array_unique([...$this->indexedKeys(), $cacheKey])));
 
         return $discoveryState;
     }
@@ -82,9 +81,10 @@ final class CachedDiscoverer implements DiscovererInterface
      * @param array<string> $excludeDirs
      * @param array<string> $namePatterns
      */
-    private function generateCacheKey(string $basePath, array $directories, array $excludeDirs, array $namePatterns): string
+    private function generateCacheKey(string $generation, string $basePath, array $directories, array $excludeDirs, array $namePatterns): string
     {
         $keyData = [
+            'generation' => $generation,
             'base_path' => $basePath,
             'directories' => $directories,
             'exclude_dirs' => $excludeDirs,
@@ -97,28 +97,32 @@ final class CachedDiscoverer implements DiscovererInterface
     /**
      * Clear the discovery cache, leaving other entries of a shared cache in place.
      * Useful for development or when files change.
+     *
+     * Cleared entries become unreachable and stay until the cache expires or evicts them.
      */
     public function clearCache(): void
     {
-        $keys = [...$this->indexedKeys(), self::INDEX_KEY];
-
         if ($this->cache instanceof CacheItemPoolInterface) {
-            $this->cache->deleteItems($keys);
+            $this->cache->deleteItem(self::GENERATION_KEY);
         } else {
-            $this->cache->deleteMultiple($keys);
+            $this->cache->delete(self::GENERATION_KEY);
         }
 
         $this->logger->info('Discovery cache cleared');
     }
 
-    /**
-     * @return list<string>
-     */
-    private function indexedKeys(): array
+    private function generation(): string
     {
-        $keys = $this->read(self::INDEX_KEY);
+        $generation = $this->read(self::GENERATION_KEY);
 
-        return \is_array($keys) ? array_values(array_filter($keys, 'is_string')) : [];
+        if (\is_string($generation)) {
+            return $generation;
+        }
+
+        $generation = bin2hex(random_bytes(8));
+        $this->write(self::GENERATION_KEY, $generation);
+
+        return $generation;
     }
 
     private function read(string $key): mixed
