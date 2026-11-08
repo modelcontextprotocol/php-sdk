@@ -14,6 +14,7 @@ namespace Mcp\Tests\Integration;
 use Mcp\Exception\ConnectionException;
 use Mcp\Schema\Enum\ProtocolVersion;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\TestDox;
 
 /**
@@ -21,6 +22,7 @@ use PHPUnit\Framework\Attributes\TestDox;
  *
  * @see Fixture/handshake.php for the server under test
  */
+#[Group('os')]
 final class HandshakeTest extends IntegrationTestCase
 {
     #[TestDox('client and server agree on a revision')]

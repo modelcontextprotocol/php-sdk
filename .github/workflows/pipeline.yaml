@@ -88,7 +88,8 @@ jobs:
 
       - name: Stdio integration tests
         if: ${{ !cancelled() && steps.composer.outcome == 'success' }}
-        run: php vendor/bin/phpunit --testsuite=integration --filter "HandshakeTest|DeadServerTest|StdioShutdownTest"
+        timeout-minutes: 3
+        run: php vendor/bin/phpunit --testsuite=integration --group=os --debug
 
   integration:
     runs-on: ubuntu-latest

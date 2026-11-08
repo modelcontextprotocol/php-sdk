@@ -15,8 +15,10 @@ use Mcp\Exception\ConnectionException;
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Schema\Enum\ProtocolVersion;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\TestDox;
 
+#[Group('os')]
 final class DeadServerTest extends IntegrationTestCase
 {
     #[DataProvider('provideEras')]

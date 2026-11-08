@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Integration;
 
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -19,6 +20,7 @@ use PHPUnit\Framework\TestCase;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
+#[Group('os')]
 final class StdioShutdownTest extends TestCase
 {
     private const TIMEOUT = 5;
