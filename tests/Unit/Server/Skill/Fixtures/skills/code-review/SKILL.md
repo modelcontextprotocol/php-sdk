@@ -1,9 +1,9 @@
 ---
 name: code-review
 description: Review a pull request.
-version: 1.0.0
-tags:
-  - review
+metadata:
+  version: "1.0.0"
+  tags: "review quality"
 ---
 
 # Code Review

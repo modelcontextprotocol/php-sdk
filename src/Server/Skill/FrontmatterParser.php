@@ -45,15 +45,37 @@ final class FrontmatterParser
 
         // Nested mappings stay objects, so an empty `metadata: {}` is sent as `{}` and not as `[]`.
         // The spec requires the frontmatter in a skill entry to be identical in content to the file's.
-        $data = Yaml::parse($matches[1], Yaml::PARSE_OBJECT_FOR_MAP) ?? [];
+        $data = Yaml::parse($matches[1], Yaml::PARSE_OBJECT_FOR_MAP | Yaml::PARSE_DATETIME) ?? [];
         if ($data instanceof \stdClass) {
             $data = get_object_vars($data);
         } elseif (!\is_array($data) || ([] !== $data && array_is_list($data))) {
             throw new InvalidArgumentException('SKILL.md frontmatter must be a YAML mapping.');
         }
 
+        $this->rejectDates($data, '');
+
         /* @var array<string, mixed> $data */
         return [$data, $matches[2]];
+    }
+
+    /**
+     * YAML reads an unquoted `2026-01-01` as a date, which has no single JSON form: a host that
+     * compares the frontmatter with the file would see a different value than the one sent.
+     * Quoting the value keeps it a string.
+     *
+     * @throws InvalidArgumentException if a value is a YAML date
+     */
+    private function rejectDates(mixed $value, string $path): void
+    {
+        if ($value instanceof \DateTimeInterface) {
+            throw new InvalidArgumentException(\sprintf('SKILL.md frontmatter field "%s" is a YAML date. Quote the value (e.g. "2026-01-01") so it stays a string.', $path));
+        }
+
+        if (\is_array($value) || $value instanceof \stdClass) {
+            foreach ((array) $value as $key => $item) {
+                $this->rejectDates($item, '' === $path ? (string) $key : $path.'.'.$key);
+            }
+        }
     }
 
     /**

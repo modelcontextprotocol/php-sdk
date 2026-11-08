@@ -5,13 +5,12 @@
       "uri": "skill://acme/billing/refunds/SKILL.md",
       "description": "Process a customer refund following Acme's billing policy and approval thresholds.",
       "mimeType": "text/markdown",
-      "size": 702,
+      "size": 712,
       "_meta": {
-        "io.modelcontextprotocol.skills/version": "1.0.0",
-        "io.modelcontextprotocol.skills/tags": [
-          "billing",
-          "support"
-        ]
+        "io.modelcontextprotocol.skills/metadata": {
+          "version": "1.0.0",
+          "tags": "billing support"
+        }
       }
     },
     {
@@ -19,13 +18,12 @@
       "uri": "skill://code-review/SKILL.md",
       "description": "Review a pull request for correctness, security, and style following this team's conventions.",
       "mimeType": "text/markdown",
-      "size": 1158,
+      "size": 1168,
       "_meta": {
-        "io.modelcontextprotocol.skills/version": "1.0.0",
-        "io.modelcontextprotocol.skills/tags": [
-          "review",
-          "quality"
-        ]
+        "io.modelcontextprotocol.skills/metadata": {
+          "version": "1.0.0",
+          "tags": "review quality"
+        }
       }
     },
     {

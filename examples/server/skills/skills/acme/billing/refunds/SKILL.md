@@ -1,10 +1,9 @@
 ---
 name: refunds
 description: Process a customer refund following Acme's billing policy and approval thresholds.
-version: 1.0.0
-tags:
-  - billing
-  - support
+metadata:
+  version: "1.0.0"
+  tags: "billing support"
 ---
 
 # Processing Refunds

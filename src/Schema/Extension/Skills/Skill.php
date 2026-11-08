@@ -25,6 +25,7 @@ use Mcp\Exception\InvalidArgumentException;
  *     uri: string,
  *     frontmatter: SkillMetadataData,
  *     resources: SkillResourceData[]|'dynamic',
+ *     _meta?: array<string, mixed>,
  * }
  *
  * @author Johannes Wachter <johannes@sulu.io>
@@ -36,11 +37,13 @@ final class Skill implements \JsonSerializable
      * @param SkillMetadata             $frontmatter the skill's SKILL.md YAML frontmatter, rendered verbatim
      * @param SkillResource[]|'dynamic' $resources   a complete enumeration of SKILL.md and every supporting
      *                                               file, or "dynamic" when stable digests cannot be published
+     * @param array<string, mixed>|null $meta        optional `_meta` of the entry
      */
     public function __construct(
         public readonly string $uri,
         public readonly SkillMetadata $frontmatter,
         public readonly array|string $resources,
+        public readonly ?array $meta = null,
     ) {
         if ('dynamic' !== $this->resources && !array_is_list($this->resources)) {
             throw new InvalidArgumentException('A skill\'s "resources" must be a list of SkillResource or the string "dynamic".');
@@ -72,11 +75,12 @@ final class Skill implements \JsonSerializable
             uri: $data['uri'],
             frontmatter: SkillMetadata::fromArray($data['frontmatter']),
             resources: $parsedResources,
+            meta: isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null,
         );
     }
 
     /**
-     * @return array{uri: string, frontmatter: SkillMetadata, resources: array<SkillResource>|'dynamic'}
+     * @return array{uri: string, frontmatter: SkillMetadata, resources: array<SkillResource>|'dynamic', _meta?: array<string, mixed>}
      */
     public function jsonSerialize(): array
     {
@@ -84,6 +88,7 @@ final class Skill implements \JsonSerializable
             'uri' => $this->uri,
             'frontmatter' => $this->frontmatter,
             'resources' => 'dynamic' === $this->resources ? 'dynamic' : $this->resources,
+            ...(null !== $this->meta ? ['_meta' => $this->meta] : []),
         ];
     }
 }

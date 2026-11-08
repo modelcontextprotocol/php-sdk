@@ -39,7 +39,7 @@ skills/
 - A skill is any folder containing a `SKILL.md`. Its frontmatter `name` **must** equal the final
   segment of the folder path (e.g. `code-review` → `name: code-review`).
 - `name`/`description` come from the SKILL.md YAML frontmatter and are always present in the
-  `skills/list`/`skills/get` entry; any extra frontmatter passes through verbatim, and is also
+  `skills/list`/`skills/get` entry; any extra frontmatter (e.g. `metadata`) passes through verbatim, and is also
   exposed on the SKILL.md resource under the `io.modelcontextprotocol.skills/` `_meta` namespace.
 - Supporting files are served with a MIME type guessed from their extension/content.
 - Skills are plain files — no PHP handler class is required.

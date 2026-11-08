@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Server\Skill;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Extension\Skills\McpSkills;
 use Mcp\Schema\Extension\Skills\SkillResource;
 use Mcp\Server;
@@ -49,8 +50,8 @@ class SkillProviderTest extends TestCase
         $this->assertSame(McpSkills::MIME_TYPE, $resource['mimeType']);
         $this->assertSame('code-review', $resource['name']);
         $this->assertSame('Review a pull request.', $resource['description']);
-        $this->assertSame(
-            ['io.modelcontextprotocol.skills/version' => '1.0.0', 'io.modelcontextprotocol.skills/tags' => ['review']],
+        $this->assertEquals(
+            ['io.modelcontextprotocol.skills/metadata' => (object) ['version' => '1.0.0', 'tags' => 'review quality']],
             $resource['meta'],
         );
     }
@@ -452,6 +453,29 @@ class SkillProviderTest extends TestCase
         } finally {
             $this->removeDir($dir1);
             $this->removeDir($dir2);
+        }
+    }
+
+    public function testRefusesToServeAFileThatChangedSinceRegistration(): void
+    {
+        $dir = $this->makeTempDir();
+        $skillDir = $this->writeSkill($dir, 'changing', "name: changing\ndescription: Edited after the build.");
+        file_put_contents($skillDir.'/guide.md', 'before');
+
+        try {
+            $builder = Server::builder();
+            (new SkillProvider())->registerInto($builder, new SkillRegistry(), $dir);
+            $resource = $this->resourceByUri($builder, 'skill://changing/guide.md');
+
+            $this->assertInstanceOf(\SplFileInfo::class, ($resource['handler'])());
+
+            file_put_contents($skillDir.'/guide.md', 'after');
+
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('changed since the skill was registered');
+            ($resource['handler'])();
+        } finally {
+            $this->removeDir($dir);
         }
     }
 

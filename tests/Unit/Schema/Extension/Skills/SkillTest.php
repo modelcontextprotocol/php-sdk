@@ -96,4 +96,32 @@ class SkillTest extends TestCase
             'resources' => 'not-dynamic',
         ]);
     }
+
+    public function testSerializesAndParsesAnOptionalMeta(): void
+    {
+        $skill = new Skill(
+            'skill://code-review/SKILL.md',
+            new SkillMetadata('code-review', 'Review a pull request.'),
+            [],
+            ['vendor/key' => 'value'],
+        );
+
+        $serialized = $skill->jsonSerialize();
+        $this->assertSame(['vendor/key' => 'value'], $serialized['_meta'] ?? null);
+
+        $parsed = Skill::fromArray([
+            'uri' => 'skill://code-review/SKILL.md',
+            'frontmatter' => ['name' => 'code-review', 'description' => 'Review a pull request.'],
+            'resources' => [],
+            '_meta' => ['vendor/key' => 'value'],
+        ]);
+        $this->assertSame(['vendor/key' => 'value'], $parsed->meta);
+    }
+
+    public function testOmitsMetaWhenNotSet(): void
+    {
+        $skill = new Skill('skill://a/SKILL.md', new SkillMetadata('a', 'b'), []);
+
+        $this->assertArrayNotHasKey('_meta', $skill->jsonSerialize());
+    }
 }

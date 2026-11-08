@@ -13,8 +13,10 @@ namespace Mcp\Tests\Unit\Server\Skill;
 
 use Mcp\Exception\LogicException;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Extension\Skills\McpSkills;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
+use Mcp\Server\Skill\SkillRegistry;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Stateless\StatelessProtocol;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -24,7 +26,7 @@ use PHPUnit\Framework\TestCase;
  * Exercises `skills/list` and `skills/get` through the real dispatch path
  * (Builder -> MessageFactory -> StatelessProtocol -> Rev2026Codec), rather
  * than calling the handlers directly, so a wiring mistake in
- * {@see \Mcp\Schema\Extension\Skills\McpSkills::getMessages()} or in
+ * {@see McpSkills::getMessages()} or in
  * {@see Server\Wire\Rev2026Codec::CACHEABLE_METHODS} would fail a test.
  */
 class SkillsDispatchTest extends TestCase
@@ -118,6 +120,20 @@ class SkillsDispatchTest extends TestCase
             ->setServerInfo('test-server', '1.0.0')
             ->setCapabilities(new ServerCapabilities(resources: false))
             ->addSkillsFromDirectory(self::FIXTURES);
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('must declare "resources"');
+
+        $builder->buildStateless([ProtocolVersion::V2026_07_28]);
+    }
+
+    #[TestDox('enabling the extension by hand with explicit capabilities without resources is rejected too')]
+    public function testManuallyEnabledExtensionWithoutResourcesIsRejected(): void
+    {
+        $builder = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setCapabilities(new ServerCapabilities(resources: false))
+            ->enableExtension(new McpSkills(new SkillRegistry()));
 
         $this->expectException(LogicException::class);
         $this->expectExceptionMessage('must declare "resources"');

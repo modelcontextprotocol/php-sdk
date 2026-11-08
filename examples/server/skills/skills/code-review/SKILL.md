@@ -1,10 +1,9 @@
 ---
 name: code-review
 description: Review a pull request for correctness, security, and style following this team's conventions.
-version: 1.0.0
-tags:
-  - review
-  - quality
+metadata:
+  version: "1.0.0"
+  tags: "review quality"
 ---
 
 # Code Review

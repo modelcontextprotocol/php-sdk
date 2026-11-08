@@ -112,4 +112,34 @@ class FrontmatterParserTest extends TestCase
 
         $this->assertSame('{"name":"a","description":"b","metadata":{}}', json_encode($metadata, \JSON_THROW_ON_ERROR));
     }
+
+    public function testRejectsUnquotedYamlDates(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('"released" is a YAML date');
+
+        (new FrontmatterParser())->parse("---\nname: a\nreleased: 2026-01-01\n---\n");
+    }
+
+    public function testRejectsYamlDatesInNestedValues(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('"metadata.released" is a YAML date');
+
+        (new FrontmatterParser())->parse("---\nname: a\nmetadata:\n  released: 2026-01-01\n---\n");
+    }
+
+    public function testAcceptsQuotedDates(): void
+    {
+        [$frontmatter] = (new FrontmatterParser())->parse("---\nname: a\nreleased: \"2026-01-01\"\n---\n");
+
+        $this->assertSame('2026-01-01', $frontmatter['released']);
+    }
+
+    public function testKeepsIntegerKeysWhenSerializingMetadata(): void
+    {
+        $metadata = (new FrontmatterParser())->parseMetadata("---\nname: a\ndescription: b\n2024: first\n---\n");
+
+        $this->assertSame('{"name":"a","description":"b","2024":"first"}', json_encode($metadata, \JSON_THROW_ON_ERROR));
+    }
 }

@@ -62,10 +62,10 @@ final class SkillMetadata implements \JsonSerializable
      */
     public function jsonSerialize(): array
     {
+        // `+` and not a spread, which would renumber integer keys like `2024: x` to `0`.
         return [
             'name' => $this->name,
             'description' => $this->description,
-            ...$this->extra,
-        ];
+        ] + $this->extra;
     }
 }

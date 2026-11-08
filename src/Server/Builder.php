@@ -1207,7 +1207,7 @@ final class Builder
 
         // SEP-2640: a server declaring the skills extension MUST also declare `resources`, because
         // every skill file is served through resources/read.
-        if (null !== $this->serverCapabilities && null !== $this->skillRegistry && true !== $this->serverCapabilities->resources) {
+        if (null !== $this->serverCapabilities && isset($this->extensions[McpSkills::EXTENSION_ID]) && true !== $this->serverCapabilities->resources) {
             throw new LogicException('The skills extension serves skills as resources, so the capabilities passed to setCapabilities() must declare "resources".');
         }
 
@@ -1274,7 +1274,7 @@ final class Builder
         $listChanged = null !== $this->notificationBus && $registry->publishesListChanges();
 
         if ($eagerlyLoaded) {
-            $hasResources = $registry->hasResources() || $registry->hasResourceTemplates() || null !== $this->skillRegistry;
+            $hasResources = $registry->hasResources() || $registry->hasResourceTemplates() || isset($this->extensions[McpSkills::EXTENSION_ID]);
 
             return new ServerCapabilities(
                 tools: $registry->hasTools(),
@@ -1291,7 +1291,7 @@ final class Builder
         }
 
         $hasOpaqueSources = [] !== $this->loaders || null !== $this->discoveryBasePath;
-        $hasResources = [] !== $this->resources || [] !== $this->explicitResources || [] !== $this->resourceTemplates || [] !== $this->explicitResourceTemplates || $hasOpaqueSources || null !== $this->skillRegistry;
+        $hasResources = [] !== $this->resources || [] !== $this->explicitResources || [] !== $this->resourceTemplates || [] !== $this->explicitResourceTemplates || $hasOpaqueSources || isset($this->extensions[McpSkills::EXTENSION_ID]);
 
         return new ServerCapabilities(
             tools: [] !== $this->tools || [] !== $this->explicitTools || $hasOpaqueSources,

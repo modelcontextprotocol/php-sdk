@@ -12,6 +12,7 @@
 namespace Mcp\Server\Skill;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Extension\Skills\McpSkills;
 use Mcp\Schema\Extension\Skills\Skill;
 use Mcp\Schema\Extension\Skills\SkillMetadata;
@@ -116,7 +117,7 @@ final class SkillProvider
             // frontmatter — registering it again here, generically, would make which metadata
             // wins depend on filesystem walk order instead of always being the nested skill's own.
             if (McpSkills::ENTRY_POINT !== basename($filePath)) {
-                $files[] = [$filePath, $uri, $size];
+                $files[] = [$filePath, $uri, $size, $digest];
             }
 
             $resources[] = new SkillResource($uri, $digest, $size);
@@ -142,11 +143,12 @@ final class SkillProvider
             mimeType: McpSkills::MIME_TYPE,
             description: $metadata->description,
             size: $entrySize,
+            digest: $entryDigest,
             meta: $this->metaFor($metadata),
         );
         $registry->markServed($entryUri);
 
-        foreach ($files as [$filePath, $uri, $size]) {
+        foreach ($files as [$filePath, $uri, $size, $digest]) {
             $this->registerFile(
                 $builder,
                 $base,
@@ -156,6 +158,7 @@ final class SkillProvider
                 mimeType: $this->guessMimeType($filePath),
                 description: null,
                 size: $size,
+                digest: $digest,
                 meta: null,
             );
             $registry->markServed($uri);
@@ -227,7 +230,7 @@ final class SkillProvider
     /**
      * @param array<string, mixed>|null $meta
      */
-    private function registerFile(Builder $builder, string $base, string $filePath, string $uri, string $name, string $mimeType, ?string $description, int $size, ?array $meta): void
+    private function registerFile(Builder $builder, string $base, string $filePath, string $uri, string $name, string $mimeType, ?string $description, int $size, string $digest, ?array $meta): void
     {
         $absolute = realpath($filePath);
         if (false === $absolute || !str_starts_with($absolute, $base.\DIRECTORY_SEPARATOR)) {
@@ -235,7 +238,16 @@ final class SkillProvider
         }
 
         $builder->addResource(
-            static fn (): \SplFileInfo => new \SplFileInfo($absolute),
+            static function () use ($absolute, $uri, $digest): \SplFileInfo {
+                // The manifest was built once. Serving bytes that no longer match its digest would make
+                // every host fail the verification, and a refresh through skills/get cannot fix that
+                // until the server restarts, so the read says so instead.
+                if ('sha256:'.hash_file('sha256', $absolute) !== $digest) {
+                    throw new RuntimeException(\sprintf('The file behind "%s" changed since the skill was registered. Restart the server to serve the new version.', $uri));
+                }
+
+                return new \SplFileInfo($absolute);
+            },
             $uri,
             name: $name,
             description: $description,

@@ -245,8 +245,9 @@ extension/content.
 ---
 name: code-review
 description: Review a pull request for correctness, security, and style.
-version: 1.0.0
-tags: [review, quality]
+metadata:
+  version: "1.0.0"
+  tags: "review quality"
 ---
 
 # Code Review
@@ -270,8 +271,14 @@ The server declares the `resources` capability whenever the extension is enabled
 `setCapabilities()` therefore has to keep `resources` on.
 
 The frontmatter is sent as parsed, so a host that compares it with the file sees
-the same content. One limit: YAML turns an unquoted date like `2025-01-02` into a
-timestamp. Quote such values (`"2025-01-02"`) to keep them as strings.
+the same content. YAML reads an unquoted date like `2025-01-02` as a date, which has
+no single JSON form. Such a value throws an `InvalidArgumentException`, so quote it
+(`"2025-01-02"`). The Agent Skills specification keeps custom fields like `version`
+and `tags` under `metadata`, as strings, as the example above does.
+
+A file that changes after `addSkillsFromDirectory()` ran is no longer served, because
+it would not match the digest in the manifest. `resources/read` fails until the
+server restarts.
 
 The extension fixes two per-skill limits so every conforming host knows what it
 must accept: 512 resources and 16 MiB total content. `addSkillsFromDirectory()`
