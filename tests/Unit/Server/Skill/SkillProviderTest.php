@@ -391,6 +391,80 @@ class SkillProviderTest extends TestCase
         }
     }
 
+    public function testRejectsASkillPathThatIsAlreadyRegistered(): void
+    {
+        $dir1 = $this->makeTempDir();
+        $dir2 = $this->makeTempDir();
+        $this->writeSkill($dir1, 'system-information', "name: system-information\ndescription: From the first package.");
+        file_put_contents($dir1.'/system-information/only-first.md', 'first');
+        $this->writeSkill($dir2, 'system-information', "name: system-information\ndescription: From the second package.");
+
+        try {
+            $builder = Server::builder();
+            $registry = new SkillRegistry();
+            $provider = new SkillProvider();
+            $provider->registerInto($builder, $registry, $dir1);
+            $resourcesBefore = $this->registeredResources($builder);
+
+            try {
+                $provider->registerInto($builder, $registry, $dir2);
+                $this->fail('A second skill at the same path must be rejected.');
+            } catch (InvalidArgumentException $e) {
+                $this->assertStringContainsString('skill://system-information/SKILL.md', $e->getMessage());
+                $this->assertStringContainsString($dir2, $e->getMessage());
+            }
+
+            $this->assertSame($resourcesBefore, $this->registeredResources($builder), 'The rejected skill registers nothing.');
+            $skill = $registry->get('skill://system-information/SKILL.md');
+            $this->assertNotNull($skill);
+            $this->assertSame('From the first package.', $skill->frontmatter->description);
+        } finally {
+            $this->removeDir($dir1);
+            $this->removeDir($dir2);
+        }
+    }
+
+    public function testRejectsAFileThatLandsOnTheUriOfAnotherSkillsFile(): void
+    {
+        $dir1 = $this->makeTempDir();
+        $dir2 = $this->makeTempDir();
+        $first = $this->writeSkill($dir1, 'acme', "name: acme\ndescription: The outer skill.");
+        mkdir($first.'/billing/refunds', 0777, true);
+        file_put_contents($first.'/billing/refunds/x.md', 'abcd');
+        mkdir($dir2.'/acme/billing', 0777, true);
+        $second = $this->writeSkill($dir2.'/acme/billing', 'refunds', "name: refunds\ndescription: A skill at the path of the file above.");
+        file_put_contents($second.'/x.md', 'abcdefg');
+
+        try {
+            $builder = Server::builder();
+            $registry = new SkillRegistry();
+            $provider = new SkillProvider();
+            $provider->registerInto($builder, $registry, $dir1);
+
+            try {
+                $provider->registerInto($builder, $registry, $dir2);
+                $this->fail('A file served at the URI of another skill\'s file must be rejected.');
+            } catch (InvalidArgumentException $e) {
+                $this->assertStringContainsString('skill://acme/billing/refunds/x.md', $e->getMessage());
+            }
+
+            $this->assertNull($registry->get('skill://acme/billing/refunds/SKILL.md'));
+        } finally {
+            $this->removeDir($dir1);
+            $this->removeDir($dir2);
+        }
+    }
+
+    public function testBuilderRejectsTheSameDirectoryTwice(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('collides with an already registered skill');
+
+        Server::builder()
+            ->addSkillsFromDirectory(self::FIXTURES)
+            ->addSkillsFromDirectory(self::FIXTURES);
+    }
+
     private function writeSkill(string $baseDir, string $name, string $frontmatter): string
     {
         $skillDir = $baseDir.'/'.$name;

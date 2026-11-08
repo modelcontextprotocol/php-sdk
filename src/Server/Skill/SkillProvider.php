@@ -58,8 +58,9 @@ final class SkillProvider
      *
      * @return Skill[] the discovered skills
      *
-     * @throws InvalidArgumentException if the directory is missing, a skill violates the spec, or
-     *                                  a skill exceeds the extension's per-skill resource/size limits
+     * @throws InvalidArgumentException if the directory is missing, a skill violates the spec, a skill
+     *                                  path is already registered, or a skill exceeds the extension's
+     *                                  per-skill resource/size limits
      */
     public function registerInto(Builder $builder, SkillRegistry $registry, string $baseDirectory): array
     {
@@ -71,7 +72,7 @@ final class SkillProvider
         $skills = [];
 
         foreach ($this->findSkillManifests($base) as $manifestPath) {
-            $skill = $this->registerSkill($builder, $base, $manifestPath);
+            $skill = $this->registerSkill($builder, $registry, $base, $manifestPath);
             $registry->add($skill);
             $skills[] = $skill;
         }
@@ -79,7 +80,7 @@ final class SkillProvider
         return $skills;
     }
 
-    private function registerSkill(Builder $builder, string $base, string $manifestPath): Skill
+    private function registerSkill(Builder $builder, SkillRegistry $registry, string $base, string $manifestPath): Skill
     {
         $skillDir = \dirname($manifestPath);
         $skillPath = $this->relativePath($base, $skillDir);
@@ -95,22 +96,13 @@ final class SkillProvider
         $this->validateMetadata($skillPath, $metadata);
 
         $entryUri = \sprintf('%s://%s/%s', McpSkills::URI_SCHEME, $this->encodePath($skillPath), McpSkills::ENTRY_POINT);
+
         $entrySize = \strlen($content);
         $entryDigest = 'sha256:'.hash('sha256', $content);
 
-        $this->registerFile(
-            $builder,
-            $base,
-            $manifestPath,
-            $entryUri,
-            name: $metadata->name,
-            mimeType: McpSkills::MIME_TYPE,
-            description: $metadata->description,
-            size: $entrySize,
-            meta: $this->metaFor($metadata),
-        );
-
+        // Collected first, so a collision is found before anything is registered on the builder.
         $resources = [new SkillResource($entryUri, $entryDigest, $entrySize)];
+        $files = [];
 
         foreach ($this->findSupportingFiles($skillDir, $manifestPath) as $filePath) {
             $relative = $this->relativePath($skillDir, $filePath);
@@ -124,20 +116,49 @@ final class SkillProvider
             // frontmatter — registering it again here, generically, would make which metadata
             // wins depend on filesystem walk order instead of always being the nested skill's own.
             if (McpSkills::ENTRY_POINT !== basename($filePath)) {
-                $this->registerFile(
-                    $builder,
-                    $base,
-                    $filePath,
-                    $uri,
-                    name: basename($filePath),
-                    mimeType: $this->guessMimeType($filePath),
-                    description: null,
-                    size: $size,
-                    meta: null,
-                );
+                $files[] = [$filePath, $uri, $size];
             }
 
             $resources[] = new SkillResource($uri, $digest, $size);
+        }
+
+        $this->checkLimits($skillPath, $resources);
+
+        // Two packages shipping the same path would overwrite each other, and a file only one of
+        // them has would stay served without being listed. That includes a file of one skill that
+        // lands on the URI of another skill's file, e.g. `acme/billing/x.md` and `acme/billing/SKILL.md`.
+        foreach ([$entryUri, ...array_column($files, 1)] as $uri) {
+            if ($registry->isServed($uri)) {
+                throw new InvalidArgumentException(\sprintf('Skill "%s" at "%s" collides with an already registered skill: %s is served twice. Skill paths must be unique, so rename one of the skill folders.', $metadata->name, $manifestPath, $uri));
+            }
+        }
+
+        $this->registerFile(
+            $builder,
+            $base,
+            $manifestPath,
+            $entryUri,
+            name: $metadata->name,
+            mimeType: McpSkills::MIME_TYPE,
+            description: $metadata->description,
+            size: $entrySize,
+            meta: $this->metaFor($metadata),
+        );
+        $registry->markServed($entryUri);
+
+        foreach ($files as [$filePath, $uri, $size]) {
+            $this->registerFile(
+                $builder,
+                $base,
+                $filePath,
+                $uri,
+                name: basename($filePath),
+                mimeType: $this->guessMimeType($filePath),
+                description: null,
+                size: $size,
+                meta: null,
+            );
+            $registry->markServed($uri);
         }
 
         $this->checkLimits($skillPath, $resources);

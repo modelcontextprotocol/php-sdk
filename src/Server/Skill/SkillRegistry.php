@@ -30,6 +30,11 @@ final class SkillRegistry
      */
     private array $skills = [];
 
+    /**
+     * @var array<string, true>
+     */
+    private array $servedUris = [];
+
     public function add(Skill $skill): void
     {
         $this->skills[$skill->uri] = $skill;
@@ -41,6 +46,27 @@ final class SkillRegistry
     public function all(): array
     {
         return array_values($this->skills);
+    }
+
+    /**
+     * Whether a file is already served at $uri, by this or another skill.
+     *
+     * A skill's manifest can list a file another skill serves (a nested skill's SKILL.md), so
+     * this tracks what is actually registered as a resource, not what manifests list.
+     *
+     * @internal
+     */
+    public function isServed(string $uri): bool
+    {
+        return isset($this->servedUris[$uri]);
+    }
+
+    /**
+     * @internal
+     */
+    public function markServed(string $uri): void
+    {
+        $this->servedUris[$uri] = true;
     }
 
     public function get(string $uri): ?Skill

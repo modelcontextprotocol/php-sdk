@@ -259,6 +259,9 @@ tags: [review, quality]
 > digits and single hyphens, with no hyphen at the start or end. The description
 > has at most 1024 characters. A violation throws an `InvalidArgumentException`.
 
+Two skills must not share a path. A second skill at an already registered `skill://` path
+throws an `InvalidArgumentException`.
+
 Hidden files and folders (`.env`, `.git/`) are neither listed nor served. File
 and folder names are percent-encoded in the URIs, so `my docs/a b.md` becomes
 `skill://my-skill/my%20docs/a%20b.md`.
