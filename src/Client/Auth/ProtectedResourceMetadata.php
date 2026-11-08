@@ -65,6 +65,8 @@ final class ProtectedResourceMetadata
 
     /**
      * Whether a token minted for this resource may be sent to the given URL.
+     *
+     * Laxer than RFC 9728 section 3.3: on a shared origin, a resource naming a parent path also covers its siblings.
      */
     public function covers(string $url): bool
     {
