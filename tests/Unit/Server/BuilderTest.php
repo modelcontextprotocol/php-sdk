@@ -568,7 +568,7 @@ final class BuilderTest extends TestCase
                     'jsonrpc' => '2.0',
                     'method' => 'tools/call',
                     'id' => 'test-1',
-                    'params' => ['name' => $toolName, 'arguments' => []],
+                    'params' => ['name' => $toolName, 'arguments' => new \stdClass()],
                 ]);
                 $session = $this->createStub(SessionInterface::class);
 

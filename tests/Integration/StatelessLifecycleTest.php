@@ -91,7 +91,7 @@ class StatelessLifecycleTest extends TestCase
     #[TestDox('a request whose header contradicts its body is refused with -32020')]
     public function testHeaderMismatchIsRefused(): void
     {
-        $answer = $this->call('tools/call', ['name' => 'get_weather', 'arguments' => []], name: 'something_else');
+        $answer = $this->call('tools/call', ['name' => 'get_weather', 'arguments' => new \stdClass()], name: 'something_else');
 
         $this->assertSame(-32020, $answer['error']['code']);
     }
@@ -108,7 +108,7 @@ class StatelessLifecycleTest extends TestCase
     #[TestDox('a multi round-trip tool asks, then completes on the retry')]
     public function testMultiRoundTrip(): void
     {
-        $asked = $this->call('tools/call', ['name' => 'greet', 'arguments' => []], name: 'greet', capabilities: ['elicitation' => new \stdClass()])['result'];
+        $asked = $this->call('tools/call', ['name' => 'greet', 'arguments' => new \stdClass()], name: 'greet', capabilities: ['elicitation' => new \stdClass()])['result'];
 
         $this->assertSame('input_required', $asked['resultType']);
         $this->assertSame('elicitation/create', $asked['inputRequests']['who']['method']);
@@ -119,7 +119,7 @@ class StatelessLifecycleTest extends TestCase
 
         $done = $this->call('tools/call', [
             'name' => 'greet',
-            'arguments' => [],
+            'arguments' => new \stdClass(),
             'requestState' => $asked['requestState'],
             'inputResponses' => ['who' => ['action' => 'accept', 'content' => ['name' => 'Ada']]],
         ], name: 'greet', capabilities: ['elicitation' => new \stdClass()])['result'];
@@ -131,13 +131,13 @@ class StatelessLifecycleTest extends TestCase
     #[TestDox('a tampered requestState is refused')]
     public function testTamperedRequestStateIsRefused(): void
     {
-        $asked = $this->call('tools/call', ['name' => 'greet', 'arguments' => []], name: 'greet', capabilities: ['elicitation' => new \stdClass()])['result'];
+        $asked = $this->call('tools/call', ['name' => 'greet', 'arguments' => new \stdClass()], name: 'greet', capabilities: ['elicitation' => new \stdClass()])['result'];
 
         [$body] = explode('.', $asked['requestState']);
 
         $answer = $this->call('tools/call', [
             'name' => 'greet',
-            'arguments' => [],
+            'arguments' => new \stdClass(),
             'requestState' => $body.'.'.strtr(base64_encode('forged'), '+/', '-_'),
             'inputResponses' => ['who' => ['action' => 'accept', 'content' => ['name' => 'Mallory']]],
         ], name: 'greet', capabilities: ['elicitation' => new \stdClass()]);
@@ -148,7 +148,7 @@ class StatelessLifecycleTest extends TestCase
     #[TestDox('asking a client that declared no elicitation is refused with -32021')]
     public function testUndeclaredCapabilityIsRefused(): void
     {
-        $answer = $this->call('tools/call', ['name' => 'greet', 'arguments' => []], name: 'greet');
+        $answer = $this->call('tools/call', ['name' => 'greet', 'arguments' => new \stdClass()], name: 'greet');
 
         $this->assertSame(-32021, $answer['error']['code']);
         $this->assertArrayHasKey('elicitation', $answer['error']['data']['requiredCapabilities']);

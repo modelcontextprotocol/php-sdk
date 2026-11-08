@@ -270,7 +270,7 @@ class StatelessProtocolTest extends TestCase
         $answer = self::call(
             self::protocol(),
             'tools/call',
-            ['name' => 'probe_capabilities', 'arguments' => []],
+            ['name' => 'probe_capabilities', 'arguments' => new \stdClass()],
             ['Mcp-Name' => 'probe_capabilities'],
             ['roots' => new \stdClass(), 'elicitation' => ['url' => new \stdClass()], 'sampling' => ['tools' => new \stdClass()]],
         );
@@ -288,7 +288,7 @@ class StatelessProtocolTest extends TestCase
         $answer = self::call(
             self::protocol(),
             'tools/call',
-            ['name' => 'probe_capabilities', 'arguments' => []],
+            ['name' => 'probe_capabilities', 'arguments' => new \stdClass()],
             ['Mcp-Name' => 'probe_capabilities'],
         );
 
@@ -369,7 +369,7 @@ class StatelessProtocolTest extends TestCase
             'method' => 'tools/call',
             'params' => [
                 'name' => $tool,
-                'arguments' => [],
+                'arguments' => new \stdClass(),
                 '_meta' => [
                     RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
                     RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
@@ -419,7 +419,7 @@ class StatelessProtocolTest extends TestCase
             'method' => 'tools/call',
             'params' => [
                 'name' => 'progress_tool',
-                'arguments' => [],
+                'arguments' => new \stdClass(),
                 '_meta' => [
                     RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
                     RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
@@ -522,7 +522,7 @@ class StatelessProtocolTest extends TestCase
         $answer = self::call(
             self::protocol(),
             'tools/call',
-            ['name' => 'elicits_directly', 'arguments' => []],
+            ['name' => 'elicits_directly', 'arguments' => new \stdClass()],
             ['Mcp-Name' => 'elicits_directly'],
             ['elicitation' => new \stdClass()],
         );
@@ -543,7 +543,7 @@ class StatelessProtocolTest extends TestCase
             'tools/call',
             [
                 'name' => 'elicits_directly',
-                'arguments' => [],
+                'arguments' => new \stdClass(),
                 'inputResponses' => ['elicitation_1' => ['action' => 'accept', 'content' => ['n' => 'ada']]],
             ],
             ['Mcp-Name' => 'elicits_directly'],
@@ -575,7 +575,7 @@ class StatelessProtocolTest extends TestCase
         $answer = self::call(
             self::protocol(),
             'tools/call',
-            ['name' => 'elicits_directly', 'arguments' => []],
+            ['name' => 'elicits_directly', 'arguments' => new \stdClass()],
             ['Mcp-Name' => 'elicits_directly'],
         );
 
@@ -633,7 +633,7 @@ class StatelessProtocolTest extends TestCase
         return self::call(
             $protocol,
             'tools/call',
-            ['name' => 'books_flight', 'arguments' => [], ...$params],
+            ['name' => 'books_flight', 'arguments' => new \stdClass(), ...$params],
             ['Mcp-Name' => 'books_flight'],
             ['elicitation' => new \stdClass()],
         );
@@ -897,7 +897,7 @@ class StatelessProtocolTest extends TestCase
             'tools/call',
             [
                 'name' => 'elicits_directly',
-                'arguments' => [],
+                'arguments' => new \stdClass(),
                 // Accepted, but a form-mode acceptance carries content.
                 'inputResponses' => ['elicitation_1' => ['action' => 'accept']],
             ],
@@ -918,7 +918,7 @@ class StatelessProtocolTest extends TestCase
             'tools/call',
             [
                 'name' => 'probe_trace',
-                'arguments' => [],
+                'arguments' => new \stdClass(),
                 '_meta' => [
                     RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
                     RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
@@ -941,7 +941,7 @@ class StatelessProtocolTest extends TestCase
         $answer = self::call(
             self::protocol(),
             'tools/call',
-            ['name' => 'probe_trace', 'arguments' => []],
+            ['name' => 'probe_trace', 'arguments' => new \stdClass()],
             [
                 'Mcp-Name' => 'probe_trace',
                 'traceparent' => '00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01',
@@ -963,7 +963,7 @@ class StatelessProtocolTest extends TestCase
             'tools/call',
             [
                 'name' => 'probe_trace',
-                'arguments' => [],
+                'arguments' => new \stdClass(),
                 '_meta' => [
                     RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
                     RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
@@ -1026,7 +1026,7 @@ class StatelessProtocolTest extends TestCase
         $answer = self::call(
             self::protocol(),
             'tools/call',
-            ['name' => 'no_such_tool', 'arguments' => []],
+            ['name' => 'no_such_tool', 'arguments' => new \stdClass()],
             ['Mcp-Name' => 'no_such_tool'],
         );
 
@@ -1039,7 +1039,7 @@ class StatelessProtocolTest extends TestCase
         $answer = self::call(
             self::protocol(),
             'prompts/get',
-            ['name' => 'no_such_prompt', 'arguments' => []],
+            ['name' => 'no_such_prompt', 'arguments' => new \stdClass()],
             ['Mcp-Name' => 'no_such_prompt'],
         );
 
@@ -1053,8 +1053,8 @@ class StatelessProtocolTest extends TestCase
 
         $answers = [
             self::call($protocol, 'resources/read', ['uri' => 'test://absent'], ['Mcp-Name' => 'test://absent']),
-            self::call($protocol, 'tools/call', ['name' => 'nope', 'arguments' => []], ['Mcp-Name' => 'nope']),
-            self::call($protocol, 'prompts/get', ['name' => 'nope', 'arguments' => []], ['Mcp-Name' => 'nope']),
+            self::call($protocol, 'tools/call', ['name' => 'nope', 'arguments' => new \stdClass()], ['Mcp-Name' => 'nope']),
+            self::call($protocol, 'prompts/get', ['name' => 'nope', 'arguments' => new \stdClass()], ['Mcp-Name' => 'nope']),
         ];
 
         foreach ($answers as $answer) {
@@ -1107,7 +1107,7 @@ class StatelessProtocolTest extends TestCase
         $answer = self::call(
             self::protocol(),
             'tools/call',
-            ['name' => 'asks_by_url', 'arguments' => []],
+            ['name' => 'asks_by_url', 'arguments' => new \stdClass()],
             ['Mcp-Name' => 'asks_by_url'],
             ['elicitation' => new \stdClass()],
         );
@@ -1123,7 +1123,7 @@ class StatelessProtocolTest extends TestCase
         $answer = self::call(
             self::protocol(),
             'tools/call',
-            ['name' => 'asks_by_url', 'arguments' => []],
+            ['name' => 'asks_by_url', 'arguments' => new \stdClass()],
             ['Mcp-Name' => 'asks_by_url'],
             ['elicitation' => ['url' => new \stdClass()]],
         );
@@ -1309,7 +1309,7 @@ class StatelessProtocolTest extends TestCase
     public function testInlineMessageNeedsNoHeaders(): void
     {
         $protocol = self::protocol();
-        $message = self::inlineRequest('tools/call', ['name' => 'plain_tool', 'arguments' => []]);
+        $message = self::inlineRequest('tools/call', ['name' => 'plain_tool', 'arguments' => new \stdClass()]);
 
         // The same message over HTTP is missing headers it has to carry.
         $this->assertSame(Error::HEADER_MISMATCH, json_decode($protocol->handle($message)->toJson(), true)['error']['code']);
@@ -1325,7 +1325,7 @@ class StatelessProtocolTest extends TestCase
     {
         $result = self::protocol()->handleInline(self::inlineRequest('tools/call', [
             'name' => 'progress_tool',
-            'arguments' => [],
+            'arguments' => new \stdClass(),
             '_meta' => ['progressToken' => 'tok-1'],
         ]));
 
@@ -1693,7 +1693,7 @@ class StatelessProtocolTest extends TestCase
         $answer = self::call(
             self::protocol(),
             'tools/call',
-            ['name' => 'probe_capabilities', 'arguments' => []],
+            ['name' => 'probe_capabilities', 'arguments' => new \stdClass()],
             ['Mcp-Name' => 'probe_capabilities'],
             ['elicitation' => new \stdClass()],
         );
@@ -1729,7 +1729,7 @@ class StatelessProtocolTest extends TestCase
         $answer = self::call(
             self::protocol(eventDispatcher: $this->eventDispatcher($events)),
             'tools/call',
-            ['name' => 'plain_tool', 'arguments' => []],
+            ['name' => 'plain_tool', 'arguments' => new \stdClass()],
             ['Mcp-Name' => 'plain_tool'],
         );
 
@@ -1754,7 +1754,7 @@ class StatelessProtocolTest extends TestCase
         $answer = self::call(
             self::protocol(eventDispatcher: $this->eventDispatcher($events, $listener)),
             'tools/call',
-            ['name' => 'probe_trace', 'arguments' => []],
+            ['name' => 'probe_trace', 'arguments' => new \stdClass()],
             ['Mcp-Name' => 'probe_trace'],
         );
 
@@ -1774,7 +1774,7 @@ class StatelessProtocolTest extends TestCase
         $answer = self::call(
             self::protocol(eventDispatcher: $this->eventDispatcher($events, $listener)),
             'tools/call',
-            ['name' => 'capability_tool', 'arguments' => []],
+            ['name' => 'capability_tool', 'arguments' => new \stdClass()],
             ['Mcp-Name' => 'capability_tool'],
         );
 

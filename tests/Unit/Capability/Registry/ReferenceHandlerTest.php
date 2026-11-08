@@ -155,6 +155,25 @@ final class ReferenceHandlerTest extends TestCase
         $this->assertSame("'books'", (new ReferenceHandler())->handle($reference, $context));
     }
 
+    public function testParameterTypeDecidesHowJsonObjectsAreDelivered(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        $value = (object) ['a' => new \stdClass(), 'list' => [(object) ['b' => 1]]];
+        $context = ['_session' => $session, '_request' => new PingRequest(), 'value' => $value];
+        $plain = ['a' => [], 'list' => [['b' => 1]]];
+        $handler = new ReferenceHandler();
+
+        $this->assertSame($plain, $handler->handle(new ElementReference(static fn (array $value): array => $value), $context));
+        $this->assertSame($plain, $handler->handle(new ElementReference(static fn (array|string $value): array|string => $value), $context));
+        $this->assertSame($plain, $handler->handle(new ElementReference(static fn (iterable $value): iterable => $value), $context));
+        $this->assertSame($value, $handler->handle(new ElementReference(static fn (\stdClass $value): \stdClass => $value), $context));
+        $this->assertSame($value, $handler->handle(new ElementReference(static fn (object $value): object => $value), $context));
+        $this->assertSame($value, $handler->handle(new ElementReference(static fn (array|\stdClass $value): array|\stdClass => $value), $context));
+        $this->assertSame($value, $handler->handle(new ElementReference(static fn (mixed $value): mixed => $value), $context));
+        $this->assertSame($value, $handler->handle(new ElementReference(static fn ($value) => $value), $context));
+    }
+
     public function testHandleKeepsTheDefaultOfANonNullableParameterOnAnExplicitNull(): void
     {
         $session = $this->createMock(SessionInterface::class);

@@ -35,7 +35,7 @@ class StandardHeaderValidatorTest extends TestCase
     {
         $this->assertNull($this->validator->validate(
             'tools/call',
-            ['name' => 'do_thing', 'arguments' => []],
+            ['name' => 'do_thing', 'arguments' => new \stdClass()],
             ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'do_thing'],
         ));
     }
@@ -286,7 +286,7 @@ class StandardHeaderValidatorTest extends TestCase
         // Absent at that path, so no header is expected.
         $this->assertNull($validator->validate(
             'tools/call',
-            ['name' => 'mirrored', 'arguments' => []],
+            ['name' => 'mirrored', 'arguments' => new \stdClass()],
             ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored'],
         ));
     }
@@ -298,7 +298,7 @@ class StandardHeaderValidatorTest extends TestCase
 
         $this->assertStringContainsString('Mcp-Param-Retries header is present', (string) $validator->validate(
             'tools/call',
-            ['name' => 'mirrored', 'arguments' => []],
+            ['name' => 'mirrored', 'arguments' => new \stdClass()],
             ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Retries' => '3'],
         ));
 
@@ -316,7 +316,7 @@ class StandardHeaderValidatorTest extends TestCase
 
         $this->assertNull($validator->validate(
             'tools/call',
-            ['name' => 'mirrored', 'arguments' => []],
+            ['name' => 'mirrored', 'arguments' => new \stdClass()],
             ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Unknown' => 'x'],
         ));
     }

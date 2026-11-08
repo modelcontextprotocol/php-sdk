@@ -17,8 +17,10 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Schema\Notification\InitializedNotification;
+use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\GetPromptRequest;
+use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Schema\Request\PingRequest;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -35,6 +37,48 @@ final class MessageFactoryTest extends TestCase
             GetPromptRequest::class,
             PingRequest::class,
         ]);
+    }
+
+    public function testToolArgumentsKeepTheirJsonTypes(): void
+    {
+        $message = MessageFactory::make()->create('{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"t","arguments":{"object":{},"list":[],"numeric":{"0":"x"},"nested":[{"a":{}}]}}}');
+
+        $this->assertInstanceOf(CallToolRequest::class, $message);
+        $this->assertEquals(new \stdClass(), $message->arguments['object']);
+        $this->assertSame([], $message->arguments['list']);
+        $this->assertEquals((object) ['0' => 'x'], $message->arguments['numeric']);
+        $this->assertEquals([(object) ['a' => new \stdClass()]], $message->arguments['nested']);
+    }
+
+    public function testRootArgumentsWithNumericKeysStayAnObjectOnTheWire(): void
+    {
+        $message = MessageFactory::make()->create('{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"t","arguments":{"0":"x"}}}');
+
+        $this->assertInstanceOf(CallToolRequest::class, $message);
+        $this->assertStringContainsString('"arguments":{"0":"x"}', json_encode($message, \JSON_THROW_ON_ERROR));
+    }
+
+    public function testOtherParamsAreDecodedToArrays(): void
+    {
+        $message = MessageFactory::make()->create('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"x","version":"1"}}}');
+
+        $this->assertInstanceOf(InitializeRequest::class, $message);
+    }
+
+    public function testEmptyObjectIsRejected(): void
+    {
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('missing "method"');
+
+        $this->factory->create('{}');
+    }
+
+    public function testAnObjectWithNumericKeysIsNotABatch(): void
+    {
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('missing "method"');
+
+        $this->factory->create('{"0":{"jsonrpc":"2.0","id":1,"method":"ping"}}');
     }
 
     public function testCreateRequestWithIntegerId(): void
@@ -342,7 +386,6 @@ final class MessageFactoryTest extends TestCase
         yield 'integer' => ['5'];
         yield 'string' => ['"hello"'];
         yield 'null' => ['null'];
-        yield 'empty object' => ['{}'];
         yield 'empty array' => ['[]'];
         yield 'list of scalars' => ['[1, 2]'];
         yield 'batch' => ['[{"jsonrpc": "2.0", "method": "ping", "id": 1}, {"jsonrpc": "2.0", "method": "ping", "id": 2}]'];

@@ -81,7 +81,7 @@ class RequestContextTest extends TestCase
             'jsonrpc' => '2.0',
             'method' => CallToolRequest::getMethod(),
             'id' => 'test-request',
-            'params' => ['name' => 'test_tool', 'arguments' => []],
+            'params' => ['name' => 'test_tool', 'arguments' => new \stdClass()],
         ]);
 
         return null === $meta ? $request : $request->withMeta($meta);

@@ -184,6 +184,37 @@ and `validation_errors` contains all of them.
 The SDK also validates structured tool output against the tool's `outputSchema`, see
 [Output validation](tools.md#output-validation).
 
+## Object and Array Arguments
+
+The type of a parameter decides how your method receives a JSON object:
+
+```php
+#[McpTool]
+public function searchOrders(
+    array $filters,     // JSON objects arrive as arrays, at every level
+    \stdClass $options, // JSON objects arrive as \stdClass, JSON arrays as lists
+    mixed $metadata,    // same as \stdClass; also applies to an untyped parameter
+): array
+{
+    // ...
+}
+```
+
+The `array` type has no distinction between `{}` and `[]`, because both arrive as an empty array. Use `\stdClass` or
+`object` if your method needs to tell them apart. The `execute()` method of `ToolHandlerInterface` receives the arguments
+as an array, and the nested values follow the same rule as a `\stdClass` parameter.
+
+The docblock decides which JSON type the client can send to an `array` parameter:
+
+```php
+/**
+ * @param array<string, int> $stock  a JSON object
+ * @param string[]           $labels a JSON array
+ * @param array<int, string> $names  a JSON array or a JSON object
+ * @param array              $values a JSON array
+ */
+```
+
 ## Customizing the Generator and Validator
 
 The SDK validates with [opis/json-schema](https://opis.io/json-schema/). To configure it, for example to resolve

@@ -268,7 +268,7 @@ final class StatelessProtocol
         // plain result even to a client that would read a stream.
         $wantsStream = self::DISCOVER_METHOD !== $method && (!$headerLayer || self::acceptsEventStream($headers));
 
-        return $this->dispatch($method, $decoded, $meta, $id, $wantsStream, $accessToken);
+        return $this->dispatch($method, $params, $body, $meta, $id, $wantsStream, $accessToken);
     }
 
     /**
@@ -452,12 +452,12 @@ final class StatelessProtocol
     }
 
     /**
-     * @param array<string, mixed> $decoded
+     * @param array<string, mixed>|null $params
      */
-    private function dispatch(string $method, array $decoded, RequestMeta $meta, string|int|null $id, bool $wantsStream = false, ?AccessToken $accessToken = null): StatelessResult
+    private function dispatch(string $method, ?array $params, string $body, RequestMeta $meta, string|int|null $id, bool $wantsStream = false, ?AccessToken $accessToken = null): StatelessResult
     {
         try {
-            $request = $this->messageFactory->create(json_encode($decoded, \JSON_THROW_ON_ERROR));
+            $request = $this->messageFactory->create($body);
         } catch (InvalidInputMessageException $e) {
             // An unknown method (-32601) tells the client to stop asking; a malformed request (-32600) does not.
             $unknownMethod = \sprintf('Unknown method "%s".', $method) === $e->getMessage();
@@ -519,7 +519,7 @@ final class StatelessProtocol
         }
 
         try {
-            $input = $this->liftInputContext($decoded['params'] ?? null, $requestStateCodec);
+            $input = $this->liftInputContext($params, $requestStateCodec);
         } catch (RequestStateException $e) {
             // Invalid params, not an authorization failure: the client only
             // echoes what it was given, and the reason stays out of the answer.

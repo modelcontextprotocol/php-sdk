@@ -12,13 +12,14 @@
 namespace Mcp\Schema\JsonRpc;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\JsonRpc\Json;
 
 /**
  * @phpstan-type RequestData array{
  *     jsonrpc: string,
  *     id: string|int,
  *     method: string,
- *     params?: array<string, mixed>,
+ *     params?: array<string, mixed>|\stdClass,
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -49,7 +50,7 @@ abstract class Request implements HasMethodInterface, MessageInterface
         }
         $params = $data['params'] ?? null;
         if ($params instanceof \stdClass) {
-            $params = (array) $params;
+            $params = static::paramsToArray($params);
         }
         if (null !== $params && !\is_array($params)) {
             throw new InvalidArgumentException('"params" for Request must be an array/object or null.');
@@ -58,8 +59,8 @@ abstract class Request implements HasMethodInterface, MessageInterface
         $request = static::fromParams($params);
         $request->id = $data['id'];
 
-        if (isset($data['params']['_meta'])) {
-            $meta = $data['params']['_meta'];
+        if (isset($params['_meta'])) {
+            $meta = $params['_meta'];
             if ($meta instanceof \stdClass) {
                 $meta = (array) $meta;
             }
@@ -69,6 +70,15 @@ abstract class Request implements HasMethodInterface, MessageInterface
         }
 
         return $request;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected static function paramsToArray(\stdClass $params): array
+    {
+        /* @var array<string, mixed> */
+        return Json::objectsToArrays($params);
     }
 
     /**

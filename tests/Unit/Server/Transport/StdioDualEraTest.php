@@ -75,6 +75,144 @@ final class StdioDualEraTest extends TestCase
         $this->assertSame([ProtocolVersion::V2026_07_28->value], $lines[1]['result']['supportedVersions']);
     }
 
+    #[DataProvider('toolArguments')]
+    #[TestDox('tool arguments are validated with their JSON type: $json against $type')]
+    public function testToolArgumentsKeepTheirJsonType(string $type, string $json, bool $accepted): void
+    {
+        $builder = self::builder()->addTool(
+            static fn (mixed $value = null): string => json_encode($value, \JSON_THROW_ON_ERROR),
+            name: 'typed',
+            inputSchema: ['type' => 'object', 'properties' => ['value' => ['type' => $type]], 'required' => ['value']],
+        );
+        $params = ['name' => 'typed', 'arguments' => json_decode($json, flags: \JSON_THROW_ON_ERROR)];
+
+        foreach (self::eraOpenings($params) as $messages) {
+            $answer = $this->serve(clone $builder, $messages)[2];
+
+            if ($accepted) {
+                $this->assertSame(json_encode(json_decode($json)->value), $answer['result']['content'][0]['text']);
+            } else {
+                $this->assertSame(Error::INVALID_PARAMS, $answer['error']['code']);
+            }
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, string, bool}>
+     */
+    public static function toolArguments(): iterable
+    {
+        yield 'empty object as object' => ['object', '{"value":{}}', true];
+        yield 'numeric keys as object' => ['object', '{"value":{"0":"x"}}', true];
+        yield 'nested empty object as object' => ['object', '{"value":{"a":{}}}', true];
+        yield 'empty array as object' => ['object', '{"value":[]}', false];
+        yield 'list as object' => ['object', '{"value":["x"]}', false];
+        yield 'empty array as array' => ['array', '{"value":[]}', true];
+        yield 'list as array' => ['array', '{"value":["x"]}', true];
+        yield 'empty object as array' => ['array', '{"value":{}}', false];
+        yield 'numeric keys as array' => ['array', '{"value":{"0":"x"}}', false];
+    }
+
+    /**
+     * @param array<string, mixed> $valueSchema
+     * @param array<string, mixed> $defs
+     */
+    #[DataProvider('schemaKeywords')]
+    #[TestDox('schema keywords see the JSON type of the arguments: $json')]
+    public function testSchemaKeywordsSeeTheJsonType(array $valueSchema, string $json, bool $accepted, array $defs = []): void
+    {
+        $inputSchema = ['type' => 'object', 'properties' => ['value' => $valueSchema], 'required' => ['value']];
+        if ([] !== $defs) {
+            $inputSchema['$defs'] = $defs;
+        }
+
+        $builder = self::builder()->addTool(
+            static fn (mixed $value = null): string => json_encode($value, \JSON_THROW_ON_ERROR),
+            name: 'typed',
+            inputSchema: $inputSchema,
+        );
+        $params = ['name' => 'typed', 'arguments' => json_decode($json, flags: \JSON_THROW_ON_ERROR)];
+
+        foreach (self::eraOpenings($params) as $messages) {
+            $answer = $this->serve(clone $builder, $messages)[2];
+
+            if ($accepted) {
+                $this->assertSame(json_encode(json_decode($json)->value), $answer['result']['content'][0]['text']);
+            } else {
+                $this->assertSame(Error::INVALID_PARAMS, $answer['error']['code']);
+            }
+        }
+    }
+
+    /**
+     * @return iterable<string, array<int, mixed>>
+     */
+    public static function schemaKeywords(): iterable
+    {
+        $nestedArray = ['type' => 'object', 'properties' => ['list' => ['type' => 'array']]];
+        yield 'nested array is an array' => [$nestedArray, '{"value":{"list":[]}}', true];
+        yield 'nested object is no array' => [$nestedArray, '{"value":{"list":{}}}', false];
+
+        $items = ['type' => 'array', 'items' => ['type' => 'object']];
+        yield 'array item is an object' => [$items, '{"value":[{}]}', true];
+        yield 'array item is no object' => [$items, '{"value":[[]]}', false];
+
+        $additional = ['type' => 'object', 'additionalProperties' => ['type' => 'object']];
+        yield 'additional property is an object' => [$additional, '{"value":{"a":{}}}', true];
+        yield 'additional property is no object' => [$additional, '{"value":{"a":[]}}', false];
+
+        $ref = ['$ref' => '#/$defs/settings'];
+        $defs = ['settings' => ['type' => 'object']];
+        yield 'reference to an object gets an object' => [$ref, '{"value":{}}', true, $defs];
+        yield 'reference to an object gets an array' => [$ref, '{"value":[]}', false, $defs];
+
+        foreach (['oneOf', 'anyOf'] as $keyword) {
+            $union = [$keyword => [['type' => 'object'], ['type' => 'array']]];
+            yield $keyword.' keeps an object' => [$union, '{"value":{}}', true];
+            yield $keyword.' keeps an array' => [$union, '{"value":[]}', true];
+
+            $nonEmptyList = [$keyword => [['type' => 'object'], ['type' => 'array', 'minItems' => 1]]];
+            yield $keyword.' with an object branch gets an object' => [$nonEmptyList, '{"value":{}}', true];
+            yield $keyword.' with a non-empty list branch gets an empty array' => [$nonEmptyList, '{"value":[]}', false];
+        }
+    }
+
+    #[DataProvider('nonObjectArguments')]
+    #[TestDox('arguments that are not a JSON object are refused: $json')]
+    public function testArgumentsMustBeAJsonObject(string $json): void
+    {
+        $params = ['name' => 'echo', 'arguments' => json_decode($json, flags: \JSON_THROW_ON_ERROR)];
+
+        foreach (self::eraOpenings($params) as $messages) {
+            $this->assertSame(Error::INVALID_REQUEST, $this->serve(self::builder(), $messages)[2]['error']['code']);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function nonObjectArguments(): iterable
+    {
+        yield 'empty array' => ['[]'];
+        yield 'list' => ['["x"]'];
+        yield 'string' => ['"x"'];
+        yield 'null' => ['null'];
+    }
+
+    public function testMemberNameStartingWithANulByteIsRefused(): void
+    {
+        $params = ['name' => 'echo', 'arguments' => ["\0text" => 'hi']];
+
+        foreach (self::eraOpenings($params) as $messages) {
+            $lines = $this->exchange(self::builder(), $messages);
+
+            $error = $lines[\count($lines) - 1];
+
+            $this->assertSame(Error::INVALID_REQUEST, $error['error']['code']);
+            $this->assertSame(2, $error['id']);
+        }
+    }
+
     #[TestDox('a handshake after a modern opening is refused, naming the modern revisions')]
     public function testHandshakeAfterModernOpeningIsRefused(): void
     {
@@ -231,7 +369,7 @@ final class StdioDualEraTest extends TestCase
     public function testModernProgressIsStreamed(): void
     {
         $lines = $this->exchange(self::builder(), [
-            self::modern(1, 'tools/call', ['name' => 'count', 'arguments' => [], '_meta' => ['progressToken' => 'p']]),
+            self::modern(1, 'tools/call', ['name' => 'count', 'arguments' => new \stdClass(), '_meta' => ['progressToken' => 'p']]),
         ]);
 
         $this->assertSame(['notifications/progress', 'notifications/progress'], [$lines[0]['method'], $lines[1]['method']]);
@@ -243,7 +381,7 @@ final class StdioDualEraTest extends TestCase
     public function testRequestCompletesBeforeItsCancelIsRead(): void
     {
         $lines = $this->exchange(self::builder(), [
-            self::modern(1, 'tools/call', ['name' => 'count', 'arguments' => [], '_meta' => ['progressToken' => 'p']]),
+            self::modern(1, 'tools/call', ['name' => 'count', 'arguments' => new \stdClass(), '_meta' => ['progressToken' => 'p']]),
             ['jsonrpc' => '2.0', 'method' => 'notifications/cancelled', 'params' => ['requestId' => 1]],
         ]);
 
@@ -435,6 +573,23 @@ final class StdioDualEraTest extends TestCase
         ];
 
         return ['jsonrpc' => '2.0', 'id' => $id, 'method' => $method, 'params' => $params];
+    }
+
+    /**
+     * A `tools/call` with id 2, as each era's client sends it.
+     *
+     * @param array<string, mixed> $params
+     *
+     * @return iterable<string, list<array<string, mixed>>>
+     */
+    private static function eraOpenings(array $params): iterable
+    {
+        yield 'handshake' => [
+            self::initialize(1),
+            ['jsonrpc' => '2.0', 'method' => 'notifications/initialized'],
+            ['jsonrpc' => '2.0', 'id' => 2, 'method' => 'tools/call', 'params' => $params],
+        ];
+        yield 'modern' => [self::modern(2, 'tools/call', $params)];
     }
 
     /**

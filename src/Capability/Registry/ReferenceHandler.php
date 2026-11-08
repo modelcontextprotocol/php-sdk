@@ -13,6 +13,7 @@ namespace Mcp\Capability\Registry;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
+use Mcp\JsonRpc\Json;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Container\ContainerInterface;
 
@@ -205,6 +206,10 @@ final class ReferenceHandler implements ReferenceHandlerInterface
             }
         }
 
+        if ($type instanceof \ReflectionUnionType) {
+            return self::acceptsOnlyArrays($type) ? Json::objectsToArrays($argument) : $argument;
+        }
+
         if (!$type instanceof \ReflectionNamedType) {
             return $argument;
         }
@@ -242,12 +247,22 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 'string' => (string) $argument,
                 'bool', 'boolean' => $this->castToBoolean($argument),
                 'float', 'double' => $this->castToFloat($argument),
-                'array' => $this->castToArray($argument),
+                'array', 'iterable' => $this->castToArray($argument),
                 default => $argument,
             };
         } catch (\TypeError $e) {
             throw new InvalidArgumentException("Value cannot be cast to required type `{$typeName}`.", 0, $e);
         }
+    }
+
+    private static function acceptsOnlyArrays(\ReflectionUnionType $type): bool
+    {
+        $names = array_map(
+            static fn (\ReflectionType $branch): string => $branch instanceof \ReflectionNamedType ? strtolower($branch->getName()) : '',
+            $type->getTypes(),
+        );
+
+        return [] !== array_intersect($names, ['array', 'iterable']) && [] === array_intersect($names, ['object', 'stdclass']);
     }
 
     /**
@@ -307,10 +322,12 @@ final class ReferenceHandler implements ReferenceHandlerInterface
     /**
      * Helper to cast strictly to array.
      *
-     * @return array<int, mixed>
+     * @return array<int|string, mixed>
      */
     private function castToArray(mixed $argument): array
     {
+        $argument = Json::objectsToArrays($argument);
+
         if (\is_array($argument)) {
             return $argument;
         }
