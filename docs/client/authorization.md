@@ -148,6 +148,8 @@ The client treats the MCP server and its metadata as untrusted input. It stops w
 
 The client ignores a `resource_metadata` URL on another origin than the MCP server and looks at the well-known URLs instead. It only sends a token to the resource it was issued for.
 
+A `resource` can name a parent path of the MCP server. All paths below it then belong to the resource, and the client can send the token to them. If several servers share a host, give each one its own host (e.g. `tenant-a.example.com`).
+
 !!! warning
     The client can't protect a user who approves a hostile authorization server. A hostile MCP server can name one, and the user sees its address in the browser. Tell your users to check it before they sign in.
 
