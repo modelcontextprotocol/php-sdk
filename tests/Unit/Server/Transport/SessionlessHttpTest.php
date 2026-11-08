@@ -13,6 +13,7 @@ namespace Mcp\Tests\Unit\Server\Transport;
 
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\Notification\ProgressNotification;
@@ -71,13 +72,13 @@ final class SessionlessHttpTest extends TestCase
         $this->assertTrue($response->hasHeader(StreamableHttpTransport::SESSION_HEADER));
     }
 
-    #[TestDox('initialize does not offer resource subscriptions, whose updates would reach the client outside a request')]
-    public function testInitializeDoesNotOfferResourceSubscriptions(): void
+    #[TestDox('initialize offers neither resource subscriptions nor logging, which need what a session keeps between requests')]
+    public function testInitializeDoesNotOfferWhatNeedsASession(): void
     {
         $capabilities = self::decode($this->send('POST', $this->initialize()))['result']['capabilities'];
 
         $this->assertSame([], $capabilities['resources']);
-        $this->assertArrayHasKey('logging', $capabilities);
+        $this->assertArrayNotHasKey('logging', $capabilities);
     }
 
     #[TestDox('requests after initialize are served without a session id')]
@@ -265,6 +266,15 @@ final class SessionlessHttpTest extends TestCase
         yield 'absent' => [[StreamableHttpTransport::PROTOCOL_VERSION_HEADER => null], ProtocolVersion::DEFAULT_HEADER_VERSION->value];
     }
 
+    #[TestDox('log messages are dropped, as initialize does not offer logging')]
+    public function testLogMessagesAreDropped(): void
+    {
+        $response = $this->send('POST', $this->request('tools/call', ['name' => 'log', 'arguments' => new \stdClass()]));
+
+        $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
+        $this->assertSame('logged', self::decode($response)['result']['content'][0]['text']);
+    }
+
     #[TestDox('$check() answers false, so that a handler can fall back, as the client cannot be asked and what it declared is not known')]
     #[DataProvider('provideClientCapabilityChecks')]
     public function testClientCapabilityCheckAnswersFalse(string $check): void
@@ -339,6 +349,12 @@ final class SessionlessHttpTest extends TestCase
         return Server::builder()
             ->setServerInfo('sessionless', '1.0.0')
             ->addTool(static fn (string $text): string => $text, 'echo')
+            ->addTool(static function (RequestContext $context): string {
+                $context->getClientGateway()->log(LoggingLevel::Emergency, 'dropped');
+                $context->getClientLogger()->emergency('dropped');
+
+                return 'logged';
+            }, 'log')
             ->addTool(static function (RequestContext $context): string {
                 $context->getClientGateway()->notify(new ProgressNotification('p', 0.5));
                 $context->getClientGateway()->notify(new ProgressNotification('p', 1.0));

@@ -56,9 +56,9 @@ final class InitializeHandler implements RequestHandlerInterface
         // the handshake era does not have.
         $capabilities = ($this->configuration->capabilities ?? new ServerCapabilities())->withoutListChanged();
 
-        // Updates of a subscribed resource reach the client outside a request, which needs a session.
+        // Resource updates reach the client outside a request, and the log level is kept between requests.
         if ($session instanceof EphemeralSessionInterface) {
-            $capabilities = $capabilities->withoutResourcesSubscribe();
+            $capabilities = $capabilities->withoutSessionFeatures();
         }
 
         return new Response(

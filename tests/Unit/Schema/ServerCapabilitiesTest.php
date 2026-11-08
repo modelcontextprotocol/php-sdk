@@ -454,21 +454,20 @@ class ServerCapabilitiesTest extends TestCase
         ], $capabilities->jsonSerialize());
     }
 
-    public function testWithoutResourcesSubscribeKeepsResourcesAnnouncedOnlyThroughSubscribe(): void
+    public function testWithoutSessionFeaturesKeepsResourcesAnnouncedOnlyThroughSubscribe(): void
     {
         $capabilities = (new ServerCapabilities(
             resources: false,
             resourcesSubscribe: true,
             resourcesListChanged: true,
             logging: true,
-        ))->withoutResourcesSubscribe();
+        ))->withoutSessionFeatures();
 
         $this->assertTrue($capabilities->resources);
         $this->assertFalse($capabilities->resourcesSubscribe);
         $this->assertTrue($capabilities->resourcesListChanged);
-        $this->assertTrue($capabilities->logging);
+        $this->assertFalse($capabilities->logging);
         $this->assertEquals([
-            'logging' => new \stdClass(),
             'prompts' => new \stdClass(),
             'resources' => (object) ['listChanged' => true],
             'tools' => new \stdClass(),
