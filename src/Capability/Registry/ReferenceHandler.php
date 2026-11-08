@@ -247,7 +247,8 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 'string' => (string) $argument,
                 'bool', 'boolean' => $this->castToBoolean($argument),
                 'float', 'double' => $this->castToFloat($argument),
-                'array', 'iterable' => $this->castToArray($argument),
+                'array' => $this->castToArray($argument),
+                'iterable' => $argument instanceof \Traversable ? $argument : $this->castToArray($argument),
                 default => $argument,
             };
         } catch (\TypeError $e) {

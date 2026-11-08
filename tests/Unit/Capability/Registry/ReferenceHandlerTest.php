@@ -174,6 +174,16 @@ final class ReferenceHandlerTest extends TestCase
         $this->assertSame($value, $handler->handle(new ElementReference(static fn ($value) => $value), $context));
     }
 
+    public function testIterableParameterKeepsATraversable(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        $value = new \ArrayIterator(['a' => 1]);
+        $context = ['_session' => $session, '_request' => new PingRequest(), 'value' => $value];
+
+        $this->assertSame($value, (new ReferenceHandler())->handle(new ElementReference(static fn (iterable $value): iterable => $value), $context));
+    }
+
     public function testHandleKeepsTheDefaultOfANonNullableParameterOnAnExplicitNull(): void
     {
         $session = $this->createMock(SessionInterface::class);
