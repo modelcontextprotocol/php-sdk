@@ -876,6 +876,7 @@ final class OAuthAuthenticatorTest extends TestCase
         }
 
         $this->assertSame([], $server->authorization);
+        $this->assertNotContains('https://auth.example.com/register', $server->requested);
     }
 
     private function request(): RequestInterface

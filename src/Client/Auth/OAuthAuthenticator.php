@@ -358,9 +358,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      */
     private function grant(AuthorizationServerMetadata $metadata, ClientRegistration $client, array $scopes, string $resource): AccessToken
     {
-        if (!$metadata->supportsPkce()) {
-            throw new AuthorizationException(\sprintf('The authorization server "%s" does not list "%s" in "code_challenge_methods_supported", so the client cannot use PKCE with it.', $metadata->issuer, Pkce::METHOD));
-        }
+        self::assertSupportsPkce($metadata);
 
         $pkce = Pkce::generate();
         $state = rtrim(strtr(base64_encode(random_bytes(24)), '+/', '-_'), '=');
@@ -457,6 +455,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return $stored;
         }
 
+        self::assertSupportsPkce($metadata);
+
         $registration = $this->registrar->register(
             $metadata,
             $configuration->clientMetadata,
@@ -467,6 +467,13 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->storage->saveClientRegistration($metadata->issuer, $registration);
 
         return $registration;
+    }
+
+    private static function assertSupportsPkce(AuthorizationServerMetadata $metadata): void
+    {
+        if (!$metadata->supportsPkce()) {
+            throw new AuthorizationException(\sprintf('The authorization server "%s" does not list "%s" in "code_challenge_methods_supported", so the client cannot use PKCE with it.', $metadata->issuer, Pkce::METHOD));
+        }
     }
 
     private function matchesRedirectUris(ClientRegistration $registration): bool
