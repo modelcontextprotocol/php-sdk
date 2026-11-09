@@ -46,7 +46,8 @@ final class StatelessResponderTest extends TestCase
         $elapsed = microtime(true) - $start;
 
         $this->assertSame(['data: {"method":"first"}'."\n\n", ': keep-alive'."\n\n", 'data: {"id":1}'."\n\n"], $flushed, 'Each frame is flushed on its own.');
-        $this->assertGreaterThanOrEqual(0.25, $elapsed, 'The idle turn waits before the next poll.');
+        // The turn sleeps 250 ms, which Windows can end slightly early.
+        $this->assertGreaterThanOrEqual(0.2, $elapsed, 'The idle turn waits before the next poll.');
         $this->assertLessThan(1.0, $elapsed, 'The idle turn waits once.');
     }
 
