@@ -117,6 +117,11 @@ class ToolHeaderAnnotationTest extends TestCase
             'is empty',
         ];
 
+        yield 'null annotation value' => [
+            ['a' => ['type' => 'string', 'x-mcp-header' => null]],
+            'is empty',
+        ];
+
         yield 'duplicate across nesting levels' => [
             [
                 'a' => ['type' => 'string', 'x-mcp-header' => 'Region'],
@@ -161,6 +166,7 @@ class ToolHeaderAnnotationTest extends TestCase
         yield 'under additionalProperties' => [['additionalProperties' => $annotated]];
         yield 'on the root' => [['x-mcp-header' => 'Region']];
         yield 'non-string value under items' => [['properties' => ['tags' => ['type' => 'array', 'items' => ['type' => 'string', 'x-mcp-header' => ['Region']]]]]];
+        yield 'null value under items' => [['properties' => ['tags' => ['type' => 'array', 'items' => ['type' => 'string', 'x-mcp-header' => null]]]]];
         yield 'under a definition named default' => [['$defs' => ['default' => $annotated]]];
     }
 
@@ -184,7 +190,6 @@ class ToolHeaderAnnotationTest extends TestCase
             'x-mcp-header' => ['type' => 'string'],
             'target' => ['type' => 'object', 'default' => ['x-mcp-header' => 'Region']],
             'nested' => ['type' => 'object', 'items' => ['properties' => ['x-mcp-header' => true]]],
-            'cleared' => ['type' => 'array', 'items' => ['type' => 'string', 'x-mcp-header' => null]],
         ]);
 
         $this->assertSame('a_tool', $tool->name);

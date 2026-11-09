@@ -182,9 +182,9 @@ final class McpHeader
             }
 
             $path = '' === $prefix ? (string) $property : $prefix.'.'.$property;
-            $annotation = $definition['x-mcp-header'] ?? null;
+            if (\array_key_exists('x-mcp-header', $definition)) {
+                $annotation = $definition['x-mcp-header'];
 
-            if (null !== $annotation) {
                 if (!\is_string($annotation)) {
                     $found[] = ['', null, $path];
                 } else {
@@ -206,7 +206,7 @@ final class McpHeader
      */
     private static function findUnreachable(array $schema, string $path, bool $reachable): ?string
     {
-        if (!$reachable && null !== ($schema['x-mcp-header'] ?? null)) {
+        if (!$reachable && \array_key_exists('x-mcp-header', $schema)) {
             return '' === $path ? '/' : $path;
         }
 
