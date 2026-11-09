@@ -40,9 +40,13 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
 
     public function authorize(string $authorizationUrl, string $redirectUri): array
     {
+        if ('http' !== strtolower((string) parse_url($redirectUri, \PHP_URL_SCHEME)) || !AuthorizationServerMetadata::isTransportSecure($redirectUri)) {
+            throw new AuthorizationException(\sprintf('The loopback handler serves plain HTTP on a loopback host, so it cannot receive "%s". Use such a redirect URI or your own authorization handler.', $redirectUri));
+        }
+
         $parts = parse_url($redirectUri);
         $host = $parts['host'] ?? '127.0.0.1';
-        $port = $parts['port'] ?? ('https' === ($parts['scheme'] ?? 'http') ? 443 : 80);
+        $port = $parts['port'] ?? 80;
         $callbackPath = $parts['path'] ?? '/';
 
         parse_str((string) parse_url($authorizationUrl, \PHP_URL_QUERY), $query);

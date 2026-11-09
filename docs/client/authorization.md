@@ -69,7 +69,7 @@ final class AcmeAuthorizationHandler implements AuthorizationHandlerInterface
 }
 ```
 
-The default redirect URI is `http://127.0.0.1:8765/callback`. Change it with `setRedirectUri()` if the port is in use or if the authorization server expects another one. The loopback handler listens on the host and port of this URI. The URI must use `https` or a loopback host (e.g. `127.0.0.1`). Otherwise, `build()` throws an `InvalidArgumentException`.
+The default redirect URI is `http://127.0.0.1:8765/callback`. Change it with `setRedirectUri()` if the port is in use or if the authorization server expects another one. The URI must use `https` or a loopback host (e.g. `127.0.0.1`). Otherwise, `build()` throws an `InvalidArgumentException`. The loopback handler listens on the host and port of this URI, so it only works with `http` on a loopback host. For an `https` URI, implement your own handler.
 
 ## Storing Credentials
 

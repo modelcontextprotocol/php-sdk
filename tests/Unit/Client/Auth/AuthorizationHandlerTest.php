@@ -15,6 +15,7 @@ use Mcp\Client\Auth\HeadlessAuthorizationHandler;
 use Mcp\Client\Auth\LoopbackAuthorizationHandler;
 use Mcp\Exception\AuthorizationException;
 use PHPUnit\Framework\Attributes\TestDox;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -195,6 +196,27 @@ final class AuthorizationHandlerTest extends TestCase
     /**
      * Runs in its own process, as only the environment decides which opener the handler finds.
      */
+    #[TestWith(['https://127.0.0.1:8765/callback'])]
+    #[TestWith(['https://app.example.com/callback'])]
+    #[TestWith(['http://0.0.0.0:8765/callback'])]
+    #[TestDox('the loopback handler refuses a redirect URI it cannot serve, before opening the browser')]
+    public function testLoopbackHandlerRefusesARedirectUriItCannotServe(string $redirectUri): void
+    {
+        $opened = false;
+        $handler = new LoopbackAuthorizationHandler(static function () use (&$opened): void {
+            $opened = true;
+        }, 1);
+
+        try {
+            $handler->authorize('https://auth.example.com/authorize?state=abc', $redirectUri);
+            $this->fail('The redirect URI should have been refused.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('loopback handler', $e->getMessage());
+        }
+
+        $this->assertFalse($opened);
+    }
+
     #[TestDox('the headless handler stops reading a header block that never ends')]
     public function testHeadlessHandlerLimitsTheSizeOfTheHeaders(): void
     {
