@@ -22,6 +22,8 @@ use Psr\Log\NullLogger;
  */
 final class HeadlessAuthorizationHandler implements AuthorizationHandlerInterface
 {
+    private const MAX_HEADER_BYTES = 65536;
+
     public function __construct(
         private readonly float $timeout = 10.0,
         private readonly LoggerInterface $logger = new NullLogger(),
@@ -80,7 +82,8 @@ final class HeadlessAuthorizationHandler implements AuthorizationHandlerInterfac
         }
 
         try {
-            stream_set_timeout($socket, (int) $this->timeout);
+            $deadline = microtime(true) + $this->timeout;
+            stream_set_timeout($socket, (int) ceil($this->timeout));
             fwrite($socket, \sprintf(
                 "GET %s HTTP/1.1\r\nHost: %s\r\nAccept: */*\r\nConnection: close\r\n\r\n",
                 $target,
@@ -90,6 +93,13 @@ final class HeadlessAuthorizationHandler implements AuthorizationHandlerInterfac
             $headers = '';
 
             while (!feof($socket) && !str_contains($headers, "\r\n\r\n")) {
+                $remaining = $deadline - microtime(true);
+
+                if ($remaining <= 0) {
+                    throw new AuthorizationException(\sprintf('The authorization endpoint "%s" did not answer within %s seconds.', $url, $this->timeout));
+                }
+
+                stream_set_timeout($socket, (int) ceil($remaining));
                 $chunk = fread($socket, 4096);
 
                 if (false === $chunk || '' === $chunk) {
@@ -97,6 +107,10 @@ final class HeadlessAuthorizationHandler implements AuthorizationHandlerInterfac
                 }
 
                 $headers .= $chunk;
+
+                if (\strlen($headers) > self::MAX_HEADER_BYTES) {
+                    throw new AuthorizationException(\sprintf('The answer of the authorization endpoint "%s" is too large.', $url));
+                }
             }
         } finally {
             fclose($socket);

@@ -195,6 +195,36 @@ final class AuthorizationHandlerTest extends TestCase
     /**
      * Runs in its own process, as only the environment decides which opener the handler finds.
      */
+    #[TestDox('the headless handler stops reading a header block that never ends')]
+    public function testHeadlessHandlerLimitsTheSizeOfTheHeaders(): void
+    {
+        $this->assertHeadlessHandlerFailsOn('fwrite($c, str_repeat("x", 2097152)); sleep(5);', 'too large');
+    }
+
+    #[TestDox('the headless handler stops waiting for a server that answers byte by byte')]
+    public function testHeadlessHandlerLimitsTheTimeForTheHeaders(): void
+    {
+        $this->assertHeadlessHandlerFailsOn('for ($i = 0; $i < 25; ++$i) { fwrite($c, "x"); usleep(200000); }', 'within');
+    }
+
+    private function assertHeadlessHandlerFailsOn(string $answer, string $message): void
+    {
+        $code = '$s = stream_socket_server("tcp://127.0.0.1:0"); echo substr(strrchr(stream_socket_get_name($s, false), ":"), 1), "\n"; $c = stream_socket_accept($s, 5); fread($c, 4096); fwrite($c, "HTTP/1.1 200 OK\r\n"); '.$answer;
+        $server = proc_open([\PHP_BINARY, '-r', $code], [1 => ['pipe', 'w']], $pipes);
+        $this->assertIsResource($server);
+
+        try {
+            $port = (int) fgets($pipes[1]);
+            (new HeadlessAuthorizationHandler(1))->authorize(\sprintf('http://127.0.0.1:%d/authorize', $port), 'http://127.0.0.1:1/callback');
+            $this->fail('The handler should have given up.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString($message, $e->getMessage());
+        } finally {
+            proc_terminate($server);
+            proc_close($server);
+        }
+    }
+
     private function runDefaultHandler(string $url, string $path): string
     {
         if ('Windows' === \PHP_OS_FAMILY) {
