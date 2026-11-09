@@ -49,6 +49,13 @@ final class OAuthConfiguration
             throw new InvalidArgumentException(\sprintf('The redirect URI "%s" must use https, or http on a loopback host.', $redirectUri));
         }
 
+        // RFC 6749 section 3.1.2 rules out a fragment, and userinfo has no meaning in a redirect.
+        $parts = parse_url($redirectUri);
+
+        if (!\is_array($parts) || isset($parts['fragment']) || isset($parts['user']) || isset($parts['pass'])) {
+            throw new InvalidArgumentException(\sprintf('The redirect URI "%s" must not have a fragment or userinfo.', $redirectUri));
+        }
+
         if (null !== $clientId && null === $expectedIssuer) {
             throw new InvalidArgumentException('A configured client needs an expected issuer, or a hostile MCP server could receive its authorization codes and secret. Call OAuth::setExpectedIssuer().');
         }

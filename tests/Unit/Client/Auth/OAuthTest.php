@@ -105,6 +105,8 @@ final class OAuthTest extends TestCase
     #[TestWith(['http://0.0.0.0:8765/callback'])]
     #[TestWith(['http://192.168.1.5:8765/callback'])]
     #[TestWith(['com.example.app:/callback'])]
+    #[TestWith(['http://127.0.0.1:8765/callback#fragment'])]
+    #[TestWith(['http://user:secret@127.0.0.1:8765/callback'])]
     #[TestDox('a redirect URI must use https or a loopback host')]
     public function testRefusesAnInsecureRedirectUri(string $redirectUri): void
     {
