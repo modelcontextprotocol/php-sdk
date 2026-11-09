@@ -24,6 +24,7 @@ use Mcp\Client\Auth\OAuthConfiguration;
 use Mcp\Client\Auth\TokenEndpoint;
 use Mcp\Client\Auth\TokenEndpointAuthMethod;
 use Mcp\Exception\AuthorizationException;
+use Mcp\Exception\OAuthErrorException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -820,6 +821,27 @@ final class OAuthAuthenticatorTest extends TestCase
         }
 
         $this->assertNotContains('https://auth.example.com/register', $server->requested);
+    }
+
+    #[TestDox('a configured client the token endpoint refuses on a refresh fails before the user signs in')]
+    public function testConfiguredClientRefusedOnRefreshFailsFast(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $server->unknownClient = 'known-client';
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'refresh'));
+        $configuration = OAuth::forApplication('test')->setClientCredentials('known-client')->setExpectedIssuer('https://auth.example.com');
+
+        try {
+            $this->authenticator($server, storage: $storage, configuration: $configuration)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The refused client should have failed.');
+        } catch (OAuthErrorException $e) {
+            $this->assertSame('invalid_client', $e->error);
+            $this->assertStringContainsString('setClientCredentials()', $e->getMessage());
+        }
+
+        $this->assertSame([], $server->authorization);
+        $this->assertNotNull($storage->getToken('https://auth.example.com', self::ENDPOINT));
     }
 
     #[TestDox('an error that only mentions a refused scope in its text does not send the user back')]

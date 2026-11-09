@@ -129,7 +129,11 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         try {
             $token = $this->refresh($refreshable, $metadata, $client, $needed, $resource, $request);
-        } catch (OAuthErrorException) {
+        } catch (OAuthErrorException $e) {
+            if (!$client->dynamic) {
+                throw new OAuthErrorException(\sprintf('The authorization server "%s" answered invalid_client for the configured client "%s". Check the client ID and secret given to setClientCredentials().', $metadata->issuer, $client->clientId), $e->error);
+            }
+
             $this->logger->info('The authorization server no longer knows this client; registering it again.', ['issuer' => $metadata->issuer]);
             $this->storage->forget($metadata->issuer);
             $token = null;
@@ -200,7 +204,12 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
     private static function isForgottenClient(AuthorizationException $e, ClientRegistration $client): bool
     {
-        return $client->dynamic && $e instanceof OAuthErrorException && 'invalid_client' === $e->error;
+        return $client->dynamic && self::isRefusedClient($e);
+    }
+
+    private static function isRefusedClient(AuthorizationException $e): bool
+    {
+        return $e instanceof OAuthErrorException && 'invalid_client' === $e->error;
     }
 
     /**
@@ -361,7 +370,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
                 'resource' => $resource,
             ]));
         } catch (AuthorizationException $e) {
-            if ($e instanceof TokenEndpointUnavailableException || self::isForgottenClient($e, $client)) {
+            // A refused client would fail the new authorization as well, after the user signed in.
+            if ($e instanceof TokenEndpointUnavailableException || self::isRefusedClient($e)) {
                 throw $e;
             }
 
