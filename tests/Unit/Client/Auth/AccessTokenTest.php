@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Client\Auth;
 use Mcp\Client\Auth\AccessToken;
 use Mcp\Exception\InvalidArgumentException;
 use PHPUnit\Framework\Attributes\TestDox;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 final class AccessTokenTest extends TestCase
@@ -50,6 +51,28 @@ final class AccessTokenTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         AccessToken::fromResponse(['token_type' => 'Bearer']);
+    }
+
+    #[TestWith([\PHP_INT_MAX])]
+    #[TestWith(['99999999999999999999'])]
+    #[TestWith(['1e30'])]
+    #[TestWith([\INF])]
+    #[TestWith([0])]
+    #[TestWith([-1])]
+    #[TestDox('an expires_in that gives no usable expiry counts as not given')]
+    public function testIgnoresAnUnusableExpiry(mixed $expiresIn): void
+    {
+        $this->assertNull(AccessToken::fromResponse(['access_token' => 'abc', 'expires_in' => $expiresIn], 1000)->expiresAt);
+    }
+
+    #[TestWith(["abc\r\nX-Evil: 1"])]
+    #[TestWith(["abc\x7f"])]
+    #[TestDox('a token that does not fit in a header is rejected')]
+    public function testRejectsATokenThatDoesNotFitInAHeader(string $accessToken): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        new AccessToken($accessToken);
     }
 
     #[TestDox('a token expires at its expiry')]

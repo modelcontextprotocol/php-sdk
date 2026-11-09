@@ -42,6 +42,10 @@ final class AccessToken implements \JsonSerializable
         if ('' === trim($accessToken)) {
             throw new InvalidArgumentException('The access token must not be empty.');
         }
+
+        if (1 !== preg_match('/^[\x20-\x7E]+$/D', $accessToken)) {
+            throw new InvalidArgumentException('The access token contains characters that are not allowed.');
+        }
     }
 
     /**
@@ -55,15 +59,23 @@ final class AccessToken implements \JsonSerializable
             throw new InvalidArgumentException('The token response is missing a string "access_token".');
         }
 
-        $expiresIn = $response['expires_in'] ?? null;
-
         return new self(
             $response['access_token'],
             \is_string($response['token_type'] ?? null) ? $response['token_type'] : 'Bearer',
-            is_numeric($expiresIn) ? ($now ?? time()) + (int) $expiresIn : null,
+            self::expiresAt($response['expires_in'] ?? null, $now ?? time()),
             \is_string($response['refresh_token'] ?? null) ? $response['refresh_token'] : null,
             \is_string($response['scope'] ?? null) ? self::splitScopes($response['scope']) : [],
         );
+    }
+
+    // The resource server decides about a token that was just issued, so an unusable value is no reason to drop it.
+    private static function expiresAt(mixed $expiresIn, int $now): ?int
+    {
+        if (!is_numeric($expiresIn) || (float) $expiresIn <= 0.0 || (float) $expiresIn >= (float) (\PHP_INT_MAX - $now)) {
+            return null;
+        }
+
+        return $now + (int) $expiresIn;
     }
 
     public function isExpired(?int $now = null): bool
