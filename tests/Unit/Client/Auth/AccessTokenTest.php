@@ -75,6 +75,25 @@ final class AccessTokenTest extends TestCase
         new AccessToken($accessToken);
     }
 
+    #[TestWith(['mac'])]
+    #[TestWith(['DPoP'])]
+    #[TestWith([''])]
+    #[TestWith(["Bearer\r\nX-Evil: 1"])]
+    #[TestDox('a token type other than Bearer is rejected')]
+    public function testRejectsAnotherTokenType(string $tokenType): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('token type');
+
+        new AccessToken('abc', $tokenType);
+    }
+
+    #[TestDox('the token type is matched case-insensitively and always sent as Bearer')]
+    public function testAlwaysSendsBearer(): void
+    {
+        $this->assertSame('Bearer abc', (new AccessToken('abc', 'bearer'))->getAuthorizationHeader());
+    }
+
     #[TestDox('a token expires at its expiry')]
     public function testExpires(): void
     {

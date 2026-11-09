@@ -46,6 +46,10 @@ final class AccessToken implements \JsonSerializable
         if (1 !== preg_match('/^[\x20-\x7E]+$/D', $accessToken)) {
             throw new InvalidArgumentException('The access token contains characters that are not allowed.');
         }
+
+        if (0 !== strcasecmp('Bearer', $tokenType)) {
+            throw new InvalidArgumentException(\sprintf('The token type "%s" is not supported, only "Bearer" is.', $tokenType));
+        }
     }
 
     /**
@@ -123,7 +127,7 @@ final class AccessToken implements \JsonSerializable
 
     public function getAuthorizationHeader(): string
     {
-        return $this->tokenType.' '.$this->accessToken;
+        return 'Bearer '.$this->accessToken;
     }
 
     /**
