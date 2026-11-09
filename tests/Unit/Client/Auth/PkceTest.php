@@ -42,12 +42,4 @@ final class PkceTest extends TestCase
     {
         $this->assertNotSame(Pkce::generate()->verifier, Pkce::generate()->verifier);
     }
-
-    #[TestDox('a stored verifier reproduces the challenge it was sent with')]
-    public function testFromVerifier(): void
-    {
-        $pkce = Pkce::generate();
-
-        $this->assertSame($pkce->challenge, Pkce::fromVerifier($pkce->verifier)->challenge);
-    }
 }

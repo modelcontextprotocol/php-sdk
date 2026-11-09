@@ -35,11 +35,6 @@ final class Pkce
         return new self($verifier, self::base64Url(hash('sha256', $verifier, true)));
     }
 
-    public static function fromVerifier(string $verifier): self
-    {
-        return new self($verifier, self::base64Url(hash('sha256', $verifier, true)));
-    }
-
     private static function base64Url(string $bytes): string
     {
         return rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');

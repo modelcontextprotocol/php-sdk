@@ -21,7 +21,6 @@ use Mcp\Client\Auth\MetadataDiscovery;
 use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Auth\OAuthAuthenticator;
 use Mcp\Client\Auth\OAuthConfiguration;
-use Mcp\Client\Auth\Pkce;
 use Mcp\Client\Auth\TokenEndpoint;
 use Mcp\Exception\AuthorizationException;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -77,7 +76,7 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('S256', $server->authorization['code_challenge_method'] ?? null);
         $this->assertSame(
             $server->authorization['code_challenge'] ?? null,
-            Pkce::fromVerifier($server->token['code_verifier'] ?? '')->challenge,
+            rtrim(strtr(base64_encode(hash('sha256', $server->token['code_verifier'] ?? '', true)), '+/', '-_'), '='),
         );
     }
 
