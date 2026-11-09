@@ -1539,6 +1539,19 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame(9, $answer['id']);
     }
 
+    #[TestDox('a notification whose "jsonrpc" is not "2.0" is refused with an error that has no id')]
+    public function testOtherJsonRpcVersionOfANotificationIsRefused(): void
+    {
+        $result = self::protocol()->handleInline(
+            json_encode(['jsonrpc' => '1.0', 'method' => 'notifications/something'], \JSON_THROW_ON_ERROR),
+        );
+
+        $this->assertSame(400, $result->httpStatus);
+        $answer = json_decode($result->toJson(), true);
+        $this->assertSame(Error::INVALID_REQUEST, $answer['error']['code']);
+        $this->assertArrayNotHasKey('id', $answer);
+    }
+
     #[TestDox('a message off a transport without headers is answered without them')]
     public function testInlineMessageNeedsNoHeaders(): void
     {
