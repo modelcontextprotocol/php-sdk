@@ -72,14 +72,44 @@ final class MetadataDiscovery
      */
     public function discoverAuthorizationServer(string $issuer): ?AuthorizationServerMetadata
     {
+        $everyLocationMissing = true;
+
+        return $this->findAuthorizationServer($issuer, $everyLocationMissing);
+    }
+
+    /**
+     * Find the authorization server of a 2025-03-26 server, which may publish no metadata.
+     *
+     * That revision only assumes its fixed endpoints after a 404, so any other answer
+     * leaves the client without an authorization server.
+     *
+     * @param string $issuer the origin of the MCP server
+     */
+    public function discoverLegacyAuthorizationServer(string $issuer): ?AuthorizationServerMetadata
+    {
+        $everyLocationMissing = true;
+        $metadata = $this->findAuthorizationServer($issuer, $everyLocationMissing);
+
+        if (null !== $metadata || !$everyLocationMissing) {
+            return $metadata;
+        }
+
+        return AuthorizationServerMetadata::forLegacyServer($issuer);
+    }
+
+    private function findAuthorizationServer(string $issuer, bool &$everyLocationMissing): ?AuthorizationServerMetadata
+    {
         if (!AuthorizationServerMetadata::isTransportSecure($issuer)) {
+            $everyLocationMissing = false;
             $this->logger->error('Refusing authorization server discovery: the issuer is neither an HTTPS URL nor a loopback address.', ['issuer' => $issuer]);
 
             return null;
         }
 
         foreach (self::authorizationServerCandidates($issuer) as $candidate) {
-            $document = $this->fetch($candidate);
+            $missing = false;
+            $document = $this->fetch($candidate, $missing);
+            $everyLocationMissing = $everyLocationMissing && $missing;
 
             if (null === $document) {
                 continue;
@@ -158,7 +188,7 @@ final class MetadataDiscovery
     /**
      * @return array<string, mixed>|null
      */
-    private function fetch(string $url): ?array
+    private function fetch(string $url, bool &$missing = false): ?array
     {
         $request = $this->requestFactory->createRequest('GET', $url)->withHeader('Accept', 'application/json');
 
@@ -171,12 +201,13 @@ final class MetadataDiscovery
         }
 
         if (200 !== $response->getStatusCode()) {
+            $missing = 404 === $response->getStatusCode();
             $this->logger->debug('Metadata not available', ['url' => $url, 'status' => $response->getStatusCode()]);
 
             return null;
         }
 
-        $decoded = json_decode((string) $response->getBody(), true);
+        $decoded = json_decode(ResponseBody::read($response) ?? '', true);
 
         return \is_array($decoded) ? $decoded : null;
     }

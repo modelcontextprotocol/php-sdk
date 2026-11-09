@@ -12,7 +12,6 @@
 namespace Mcp\Client\Transport;
 
 use Http\Discovery\Psr17FactoryDiscovery;
-use Http\Discovery\Psr18ClientDiscovery;
 use Mcp\Client\Auth\AuthenticatingHttpClient;
 use Mcp\Client\Auth\AuthenticatorInterface;
 use Mcp\Client\MonotonicClock;
@@ -28,12 +27,11 @@ use Mcp\Schema\Wire\McpHeader;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\HttpClient\HttpClient;
-use Symfony\Component\HttpClient\Psr18Client;
 
 /**
  * HTTP-based client transport using PSR-18 HTTP client.
@@ -128,11 +126,12 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      *                                                           arrived is resumed (default: 5 attempts, 1-10 s backoff)
      * @param ClockInterface|null          $clock                Clock for scheduling reconnects (default: a monotonic clock)
      * @param int                          $maxResponseBodyBytes Maximum bytes read from a response body that is not an SSE stream
-     * @param AuthenticatorInterface|null  $auth                 Credentials for a server that requires authorization,
-     *                                                           e.g. {@see \Mcp\Client\Auth\BearerToken} for a token
-     *                                                           that is already at hand. Every request the transport
-     *                                                           makes is authenticated, and one the server challenges
-     *                                                           is retried once credentials are obtained.
+     * @param AuthenticatorInterface|null  $auth                 Credentials for a server that requires authorization.
+     *                                                           Pass {@see \Mcp\Client\Auth\OAuth} to negotiate them
+     *                                                           on demand, or {@see \Mcp\Client\Auth\BearerToken}
+     *                                                           when the token is already at hand. Every request the
+     *                                                           transport makes is authenticated, and one the server
+     *                                                           challenges is retried once credentials are obtained.
      */
     public function __construct(
         private readonly string $endpoint,
@@ -158,24 +157,19 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->listenParser = new SseParser($maxSseBufferBytes);
         $this->reconnectPolicy = $reconnectPolicy ?? new ReconnectPolicy();
         $this->clock = $clock ?? new MonotonicClock();
-        $client = $httpClient ?? self::discoverClient();
+        $client = $httpClient ?? NoRedirects::discover();
         $this->httpClient = null === $auth ? $client : new AuthenticatingHttpClient($client, $auth);
         $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
     }
 
-    private static function discoverClient(): ClientInterface
+    private function sendUnchallenged(RequestInterface $request): ResponseInterface
     {
-        $client = Psr18ClientDiscovery::find();
-
-        if (!$client instanceof Psr18Client) {
-            return $client;
+        if ($this->httpClient instanceof AuthenticatingHttpClient) {
+            return $this->httpClient->sendUnchallenged($request);
         }
 
-        // Psr18Client has no withOptions() before symfony/http-client 6.2.
-        return \is_callable([$client, 'withOptions'])
-            ? $client->withOptions(['max_redirects' => 0])
-            : new Psr18Client(HttpClient::create(['max_redirects' => 0]));
+        return $this->httpClient->sendRequest($request);
     }
 
     public function connect(): void
@@ -570,7 +564,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
                     $request = $request->withHeader($name, $value);
                 }
 
-                $response = $this->httpClient->sendRequest($request);
+                $response = $this->sendUnchallenged($request);
 
                 if (null !== $redirect = self::describeRedirect($response)) {
                     $response->getBody()->close();
@@ -672,7 +666,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         try {
-            $response = $this->httpClient->sendRequest($request);
+            $response = $this->sendUnchallenged($request);
         } catch (\Throwable $e) {
             $this->logger->warning('Could not open the listening stream', ['exception' => $e]);
 

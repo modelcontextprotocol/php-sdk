@@ -25,9 +25,32 @@ use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Psr18Client;
+use Symfony\Component\HttpClient\Response\MockResponse;
 
 final class AuthenticatingHttpClientTest extends TestCase
 {
+    #[TestDox('a Symfony client stops following redirects, so a redirect cannot carry the token elsewhere')]
+    public function testTurnsOffRedirectsOnASymfonyClient(): void
+    {
+        if (!(new \ReflectionClass(Psr18Client::class))->hasMethod('withOptions')) {
+            $this->markTestSkipped('Psr18Client has no withOptions() before symfony/http-client 6.2.');
+        }
+
+        $maxRedirects = null;
+        $mock = new MockHttpClient(static function (string $method, string $url, array $options) use (&$maxRedirects): MockResponse {
+            $maxRedirects = $options['max_redirects'];
+
+            return new MockResponse('', ['http_code' => 200]);
+        });
+
+        (new AuthenticatingHttpClient(new Psr18Client($mock), new BearerToken('token')))
+            ->sendRequest((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/mcp'));
+
+        $this->assertSame(0, $maxRedirects);
+    }
+
     #[TestDox('every request carries the credentials the authenticator provides')]
     public function testAuthenticatesEveryRequest(): void
     {
@@ -138,6 +161,27 @@ final class AuthenticatingHttpClientTest extends TestCase
         }
 
         $this->assertFalse($rejected->getBody()->isReadable());
+    }
+
+    #[TestDox('any failure of a challenge is an authorization failure, so nothing retries the sign-in')]
+    public function testAnyFailureOfAChallengeIsAnAuthorizationFailure(): void
+    {
+        $failure = new \RuntimeException('Could not write the credential file.');
+        $inner = $this->createStub(ClientInterface::class);
+        $inner->method('sendRequest')->willReturn(new Response(401));
+
+        $authenticator = $this->createStub(AuthenticatorInterface::class);
+        $authenticator->method('authenticate')->willReturnArgument(0);
+        $authenticator->method('handleChallenge')->willThrowException($failure);
+
+        try {
+            (new AuthenticatingHttpClient($inner, $authenticator))
+                ->sendRequest((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/mcp'));
+            $this->fail('The failure should have been reported.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('Could not write the credential file.', $e->getMessage());
+            $this->assertSame($failure, $e->getPrevious());
+        }
     }
 
     #[TestDox('a failed challenge reaches a caller that catches the PSR-18 exception')]

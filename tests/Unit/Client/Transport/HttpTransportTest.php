@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Client\Transport;
 use Http\Discovery\Psr18ClientDiscovery;
 use Http\Discovery\Strategy\DiscoveryStrategy;
 use Mcp\Client;
+use Mcp\Client\Auth\AuthenticatorInterface;
 use Mcp\Client\Auth\BearerToken;
 use Mcp\Client\CancellationTokenInterface;
 use Mcp\Client\Configuration;
@@ -1004,6 +1005,26 @@ final class HttpTransportTest extends TestCase
         $this->assertInstanceOf(ConnectionException::class, $errors[0]);
         $this->assertStringContainsString('HTTP 307', $errors[0]->getMessage());
         $this->assertStringContainsString('https://other.test/mcp', $errors[0]->getMessage());
+    }
+
+    #[TestDox('closing a session never starts a sign-in, and still sends the token')]
+    public function testCloseDoesNotHandleAChallenge(): void
+    {
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'application/json', 'Mcp-Session-Id' => 'session'], '{"jsonrpc":"2.0","id":1,"result":{}}'),
+            new Response(401),
+        ]);
+        $auth = $this->createMock(AuthenticatorInterface::class);
+        $auth->method('authenticate')->willReturnCallback(static fn (RequestInterface $request): RequestInterface => $request->withHeader('Authorization', 'Bearer token'));
+        $auth->expects($this->never())->method('handleChallenge');
+
+        $transport = new HttpTransport('https://example.test/mcp', [], $httpClient, $this->factory, $this->factory, auth: $auth);
+        $transport->send('{"jsonrpc":"2.0","id":1,"method":"initialize"}');
+        $transport->close();
+
+        $delete = $httpClient->requests[1];
+        $this->assertSame('DELETE', $delete->getMethod());
+        $this->assertSame('Bearer token', $delete->getHeaderLine('Authorization'));
     }
 
     #[TestDox('a reconnect answered with 404 expires the session like any session-bound request')]

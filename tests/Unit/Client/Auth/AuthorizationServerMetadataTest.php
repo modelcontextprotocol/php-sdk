@@ -15,6 +15,7 @@ use Mcp\Client\Auth\AuthorizationServerMetadata;
 use Mcp\Exception\InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 final class AuthorizationServerMetadataTest extends TestCase
@@ -104,6 +105,35 @@ final class AuthorizationServerMetadataTest extends TestCase
             'token_endpoint' => 'https://auth.example.com/token',
             'grant_types_supported' => ['client_credentials'],
         ]);
+    }
+
+    #[TestWith(['token_endpoint'])]
+    #[TestWith(['authorization_endpoint'])]
+    #[TestWith(['registration_endpoint'])]
+    #[TestDox('a remote authorization server can not name a loopback endpoint')]
+    public function testRejectsALoopbackEndpointOfARemoteServer(string $endpoint): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('loopback');
+
+        AuthorizationServerMetadata::fromArray([
+            'issuer' => 'https://auth.example.com',
+            'authorization_endpoint' => 'https://auth.example.com/authorize',
+            'token_endpoint' => 'https://auth.example.com/token',
+            $endpoint => 'http://127.0.0.1:9000/x',
+        ]);
+    }
+
+    #[TestDox('an authorization server on loopback can name loopback endpoints')]
+    public function testAcceptsLoopbackEndpointsOfALoopbackServer(): void
+    {
+        $metadata = AuthorizationServerMetadata::fromArray([
+            'issuer' => 'http://127.0.0.1:9000',
+            'authorization_endpoint' => 'http://127.0.0.1:9000/authorize',
+            'token_endpoint' => 'http://localhost:9000/token',
+        ]);
+
+        $this->assertSame('http://localhost:9000/token', $metadata->tokenEndpoint);
     }
 
     #[TestDox('an unstated grant list means the authorization code grant, and nothing else')]
@@ -361,6 +391,7 @@ final class AuthorizationServerMetadataTest extends TestCase
         $this->assertSame('https://mcp.example.com/token', $metadata->tokenEndpoint);
         $this->assertSame('https://mcp.example.com/register', $metadata->registrationEndpoint);
         $this->assertFalse($metadata->issuerParameterSupported);
+        $this->assertTrue($metadata->supportsPkce());
         $this->assertTrue($metadata->supportsGrant('authorization_code'));
         $this->assertFalse($metadata->supportsGrant('refresh_token'));
     }

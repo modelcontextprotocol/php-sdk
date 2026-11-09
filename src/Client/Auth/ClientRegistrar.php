@@ -1,0 +1,84 @@
+<?php
+
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Mcp\Client\Auth;
+
+use Mcp\Exception\AuthorizationException;
+use Mcp\Exception\InvalidArgumentException;
+use Psr\Http\Client\ClientExceptionInterface;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\StreamFactoryInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+
+/**
+ * Registers the client with an authorization server (RFC 7591).
+ *
+ * @internal
+ *
+ * @author Christopher Hertel <mail@christopher-hertel.de>
+ */
+final class ClientRegistrar
+{
+    public function __construct(
+        private readonly ClientInterface $httpClient,
+        private readonly RequestFactoryInterface $requestFactory,
+        private readonly StreamFactoryInterface $streamFactory,
+        private readonly LoggerInterface $logger = new NullLogger(),
+    ) {
+    }
+
+    public function register(
+        AuthorizationServerMetadata $metadata,
+        ClientMetadata $clientMetadata,
+        TokenEndpointAuthMethod $preferredAuthMethod,
+        ?string $scope = null,
+    ): ClientRegistration {
+        if (null === $metadata->registrationEndpoint) {
+            throw new AuthorizationException(\sprintf('The authorization server "%s" does not support dynamic client registration, and no client id was configured for it.', $metadata->issuer));
+        }
+
+        $body = $clientMetadata->toArray($preferredAuthMethod, $scope);
+
+        if (!$metadata->supportsGrant(Grant::RefreshToken->value)) {
+            $body['grant_types'] = array_values(array_diff($clientMetadata->grantTypes, [Grant::RefreshToken->value]));
+        }
+
+        $this->logger->debug('Registering with the authorization server', [
+            'endpoint' => $metadata->registrationEndpoint,
+            'client_name' => $clientMetadata->clientName,
+        ]);
+
+        $request = $this->requestFactory->createRequest('POST', $metadata->registrationEndpoint)
+            ->withHeader('Content-Type', 'application/json')
+            ->withHeader('Accept', 'application/json')
+            ->withBody($this->streamFactory->createStream((string) json_encode($body)));
+
+        try {
+            $response = $this->httpClient->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            throw new AuthorizationException(\sprintf('The client registration request to "%s" failed: %s', $metadata->registrationEndpoint, $e->getMessage()), 0, $e);
+        }
+
+        $decoded = json_decode(ResponseBody::read($response) ?? '', true);
+
+        if (!\in_array($response->getStatusCode(), [200, 201], true) || !\is_array($decoded)) {
+            throw new AuthorizationException(\sprintf('The authorization server refused the client registration with %d.', $response->getStatusCode()));
+        }
+
+        try {
+            return ClientRegistration::fromResponse($decoded, $preferredAuthMethod, $clientMetadata->redirectUris, null === $scope ? null : explode(' ', $scope));
+        } catch (InvalidArgumentException $e) {
+            throw new AuthorizationException(\sprintf('The authorization server sent an invalid client registration response: %s', $e->getMessage()), 0, $e);
+        }
+    }
+}

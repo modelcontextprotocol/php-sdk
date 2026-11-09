@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Client\Transport;
 
 use Mcp\Client;
+use Mcp\Client\Auth\AuthenticatorInterface;
 use Mcp\Client\Handler\Request\ListRootsRequestHandler;
 use Mcp\Client\Handler\Request\RootsCallbackInterface;
 use Mcp\Client\Transport\HttpTransport;
@@ -66,6 +67,24 @@ final class HttpTransportListenTest extends TestCase
         $client = $this->client($server, listen: false);
 
         $this->assertSame([], $server->requests('GET'));
+
+        $client->disconnect();
+    }
+
+    #[TestDox('the optional listening stream never starts a sign-in')]
+    public function testListenStreamDoesNotHandleAChallenge(): void
+    {
+        $server = new FakeListeningServer(getStatus: 401);
+        $factory = new Psr17Factory();
+        $auth = $this->createMock(AuthenticatorInterface::class);
+        $auth->method('authenticate')->willReturnArgument(0);
+        $auth->expects($this->never())->method('handleChallenge');
+
+        $client = Client::builder()->setClientInfo('test-client', '1.0.0')->setProtocolVersion(ProtocolVersion::V2025_11_25)->setInitTimeout(2)->setRequestTimeout(2)->build();
+        $client->connect(new HttpTransport('https://example.test/mcp', [], $server, $factory, $factory, auth: $auth, listen: true));
+
+        $this->assertTrue($client->isConnected());
+        $this->assertCount(1, $server->requests('GET'));
 
         $client->disconnect();
     }

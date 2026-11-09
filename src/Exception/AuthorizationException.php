@@ -20,4 +20,9 @@ use Psr\Http\Client\ClientExceptionInterface;
  */
 class AuthorizationException extends \RuntimeException implements ExceptionInterface, ClientExceptionInterface
 {
+    public function __construct(string $message = '', int $code = 0, ?\Throwable $previous = null)
+    {
+        // A message can quote a server, which must not write to the terminal or the log that shows it.
+        parent::__construct((string) preg_replace('/(?:[\x00-\x1F\x7F]|\xC2[\x80-\x9F])+/', ' ', $message), $code, $previous);
+    }
 }
