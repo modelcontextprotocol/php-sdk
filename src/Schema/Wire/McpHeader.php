@@ -11,6 +11,8 @@
 
 namespace Mcp\Schema\Wire;
 
+use Mcp\JsonRpc\Json;
+
 /**
  * The HTTP header vocabulary that mirrors a request's JSON-RPC body (SEP-2243).
  *
@@ -33,6 +35,12 @@ final class McpHeader
     /** Wrapper marking a header value as Base64 of its UTF-8 representation. */
     private const BASE64_PREFIX = '=?base64?';
     private const BASE64_SUFFIX = '?=';
+
+    /** Keywords whose value is a subschema or a list of subschemas. */
+    private const SCHEMA_KEYWORDS = ['items', 'prefixItems', 'additionalItems', 'additionalProperties', 'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then', 'else', 'contains', 'propertyNames', 'unevaluatedItems', 'unevaluatedProperties', 'contentSchema'];
+
+    /** Keywords whose values map arbitrary names to subschemas. */
+    private const SCHEMA_MAP_KEYWORDS = ['properties', 'patternProperties', '$defs', 'definitions', 'dependentSchemas', 'dependencies'];
 
     /**
      * The subject of a request, per method. Anything unlisted is exempt.
@@ -118,6 +126,13 @@ final class McpHeader
      */
     public static function checkAnnotations(array $schema): ?string
     {
+        /** @var array<string, mixed> $schema */
+        $schema = Json::objectsToArrays($schema);
+
+        if (null !== $path = self::findUnreachable($schema, '', false)) {
+            return \sprintf('the annotation at "%s" is not reachable through "properties" alone', $path);
+        }
+
         $seen = [];
 
         foreach (self::annotations($schema) as [$name, $type, $path]) {
@@ -172,9 +187,9 @@ final class McpHeader
             }
 
             $path = '' === $prefix ? (string) $property : $prefix.'.'.$property;
-            $annotation = $definition['x-mcp-header'] ?? null;
+            if (\array_key_exists('x-mcp-header', $definition)) {
+                $annotation = $definition['x-mcp-header'];
 
-            if (null !== $annotation) {
                 if (!\is_string($annotation)) {
                     $found[] = ['', null, $path];
                 } else {
@@ -186,6 +201,53 @@ final class McpHeader
         }
 
         return $found;
+    }
+
+    /**
+     * The path of the first annotation that does not sit on a property reached
+     * through a chain of `properties`, e.g. one under `items`, `anyOf` or `$defs`.
+     *
+     * @param array<mixed> $schema
+     */
+    private static function findUnreachable(array $schema, string $path, bool $reachable): ?string
+    {
+        if (!$reachable && \array_key_exists('x-mcp-header', $schema)) {
+            return '' === $path ? '/' : $path;
+        }
+
+        foreach ($schema as $key => $value) {
+            if (!\is_array($value)) {
+                continue;
+            }
+
+            $here = '' === $path ? (string) $key : $path.'.'.$key;
+
+            if (\in_array($key, self::SCHEMA_MAP_KEYWORDS, true)) {
+                $intoProperty = 'properties' === $key && ($reachable || '' === $path);
+
+                foreach ($value as $name => $subschema) {
+                    if (\is_array($subschema) && null !== $found = self::findUnreachable($subschema, $here.'.'.$name, $intoProperty)) {
+                        return $found;
+                    }
+                }
+
+                continue;
+            }
+
+            if (!\in_array($key, self::SCHEMA_KEYWORDS, true)) {
+                continue;
+            }
+
+            foreach (array_is_list($value) ? $value : ['' => $value] as $index => $subschema) {
+                $subpath = '' === $index ? $here : $here.'.'.$index;
+
+                if (\is_array($subschema) && null !== $found = self::findUnreachable($subschema, $subpath, false)) {
+                    return $found;
+                }
+            }
+        }
+
+        return null;
     }
 
     private static function wrap(string $value): string

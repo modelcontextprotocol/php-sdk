@@ -391,6 +391,31 @@ class StandardHeaderValidatorTest extends TestCase
         ));
     }
 
+    #[TestDox('an annotation in a schema held as objects is enforced')]
+    public function testObjectHeldAnnotationIsEnforced(): void
+    {
+        $registry = new Registry();
+        $registry->registerTool(
+            new Tool(
+                name: 'mirrored',
+                title: null,
+                inputSchema: [
+                    'type' => 'object',
+                    'properties' => (object) ['region' => (object) ['type' => 'string', 'x-mcp-header' => 'Region']],
+                ],
+                description: 'x',
+                annotations: null,
+            ),
+            static fn (): string => 'ok',
+        );
+
+        $this->assertStringContainsString('Missing required Mcp-Param-Region', (string) (new StandardHeaderValidator($registry))->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['region' => 'us-west1']],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored'],
+        ));
+    }
+
     #[TestDox('a mirrored header without its argument in the body is rejected')]
     public function testMirroredHeaderWithoutArgumentIsRejected(): void
     {
