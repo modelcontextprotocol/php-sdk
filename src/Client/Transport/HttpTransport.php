@@ -27,6 +27,7 @@ use Mcp\Schema\Wire\McpHeader;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
@@ -160,6 +161,15 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->httpClient = null === $auth ? $client : new AuthenticatingHttpClient($client, $auth);
         $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
+    }
+
+    private function sendUnchallenged(RequestInterface $request): ResponseInterface
+    {
+        if ($this->httpClient instanceof AuthenticatingHttpClient) {
+            return $this->httpClient->sendUnchallenged($request);
+        }
+
+        return $this->httpClient->sendRequest($request);
     }
 
     public function connect(): void
@@ -554,7 +564,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
                     $request = $request->withHeader($name, $value);
                 }
 
-                $response = $this->httpClient->sendRequest($request);
+                $response = $this->sendUnchallenged($request);
 
                 if (null !== $redirect = self::describeRedirect($response)) {
                     $response->getBody()->close();
@@ -656,7 +666,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         try {
-            $response = $this->httpClient->sendRequest($request);
+            $response = $this->sendUnchallenged($request);
         } catch (\Throwable $e) {
             $this->logger->warning('Could not open the listening stream', ['exception' => $e]);
 

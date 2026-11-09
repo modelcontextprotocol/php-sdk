@@ -52,6 +52,14 @@ final class AuthenticatingHttpClient implements ClientInterface
         $this->client = NoRedirects::apply($client);
     }
 
+    /**
+     * Send a request that isn't worth a new authorization, such as closing a session.
+     */
+    public function sendUnchallenged(RequestInterface $request): ResponseInterface
+    {
+        return $this->client->sendRequest($this->authenticator->authenticate($request));
+    }
+
     public function sendRequest(RequestInterface $request): ResponseInterface
     {
         $body = $request->getBody();
