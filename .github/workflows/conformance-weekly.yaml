@@ -33,7 +33,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - run: composer install --prefer-dist --no-progress --no-interaction
+      - run: composer install --prefer-dist --no-progress --no-interaction --no-plugins
       - name: Start conformance server
         run: |
           mkdir -p tests/Conformance/sessions tests/Conformance/logs
@@ -92,7 +92,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - run: composer install --prefer-dist --no-progress --no-interaction
+      - run: composer install --prefer-dist --no-progress --no-interaction --no-plugins
       - run: mkdir -p tests/Conformance/logs
       - name: Run conformance tests
         working-directory: ./tests/Conformance
