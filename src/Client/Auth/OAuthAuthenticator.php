@@ -507,15 +507,17 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         return $this->storage->synchronize(function () use ($metadata, $configuration, $scopes, $scopesSupported): ClientRegistration {
             $stored = $this->storage->getClientRegistration($metadata->issuer);
 
-            if (null !== $stored && !$stored->isExpired() && $this->matchesRedirectUris($stored)) {
+            if (null !== $stored && !$stored->isExpired() && $this->matchesRedirectUris($stored)
+                && (null === $stored->scopes || [] === array_diff($scopes, $stored->scopes))
+            ) {
                 return $stored;
             }
 
             self::assertSupportsPkce($metadata);
             $this->assertIdentifiesItsResponses($metadata);
 
-            // A registration limits what the client may ever request (RFC 7591 section 2), so it covers a later step-up.
-            $registered = array_values(array_unique([...$scopes, ...array_diff($scopesSupported ?? [], ['offline_access'])]));
+            // A registration limits what the client may ever request (RFC 7591 section 2), so it covers what it may ask for later.
+            $registered = array_values(array_unique([...$stored->scopes ?? [], ...$scopes, ...array_diff($scopesSupported ?? [], ['offline_access'])]));
 
             $registration = $this->registrar->register(
                 $metadata,

@@ -88,6 +88,15 @@ final class ClientRegistrationTest extends TestCase
         $this->assertTrue($registration->isExpired(1001));
     }
 
+    #[TestDox('the registered scopes survive storage, and a registration without them limits nothing')]
+    public function testKeepsTheRegisteredScopes(): void
+    {
+        $registration = new ClientRegistration('issued', null, TokenEndpointAuthMethod::None, true, null, [], ['mcp:read', 'mcp:write']);
+
+        $this->assertSame(['mcp:read', 'mcp:write'], ClientRegistration::fromArray($registration->jsonSerialize())->scopes);
+        $this->assertNull(ClientRegistration::fromArray(['client_id' => 'issued'])->scopes);
+    }
+
     #[TestDox('an auth method that is not a string counts as not given')]
     public function testIgnoresAnAuthMethodThatIsNotAString(): void
     {

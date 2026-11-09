@@ -76,7 +76,7 @@ final class ClientRegistrar
         }
 
         try {
-            return ClientRegistration::fromResponse($decoded, $preferredAuthMethod, $clientMetadata->redirectUris);
+            return ClientRegistration::fromResponse($decoded, $preferredAuthMethod, $clientMetadata->redirectUris, null === $scope ? null : explode(' ', $scope));
         } catch (InvalidArgumentException $e) {
             throw new AuthorizationException(\sprintf('The authorization server sent an invalid client registration response: %s', $e->getMessage()), 0, $e);
         }

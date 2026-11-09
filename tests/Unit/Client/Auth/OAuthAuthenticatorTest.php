@@ -1275,6 +1275,34 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('other-process-client', $server->authorization['client_id'] ?? null);
     }
 
+    #[TestDox('a step-up beyond the registered scopes registers the client again')]
+    public function testRegistersAgainForScopesBeyondTheRegistration(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server);
+        $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+        $this->assertSame('mcp:read', $server->registration['scope'] ?? null);
+
+        $authenticator->handleChallenge($authenticator->authenticate($this->request()), $server->challenge(['mcp:write'], 403, 'insufficient_scope'));
+
+        $this->assertSame('mcp:read mcp:write', $server->registration['scope'] ?? null);
+        $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
+    }
+
+    #[TestDox('a registration that covers the scopes of a step-up is kept')]
+    public function testKeepsARegistrationThatCoversTheStepUp(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read', 'mcp:write']);
+        $authenticator = $this->authenticator($server);
+        $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+        $server->registration = [];
+
+        $authenticator->handleChallenge($authenticator->authenticate($this->request()), $server->challenge(['mcp:write'], 403, 'insufficient_scope'));
+
+        $this->assertSame([], $server->registration);
+        $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {

@@ -86,7 +86,7 @@ $auth = OAuth::forApplication('My App')
 
 The file contains tokens and client secrets. The SDK creates it with the mode `0600` in a directory with the mode `0700`, and doesn't encrypt it. Windows ignores these modes, so store the file in a directory that only you can read (e.g. your user profile). The SDK also creates two lock files next to it, so processes can share the file and only one of them refreshes a token at a time. To use a keychain or a secrets manager, implement `CredentialStorageInterface`. Its `synchronize()` method must run one operation at a time across all processes that share the storage.
 
-The storage keys everything by the issuer of the authorization server. If a server moves to another authorization server, the client registers again and doesn't send its old client ID to the new one. It also registers again if you change the redirect URI, or if the token endpoint answers `invalid_client` for a client that it registered.
+The storage keys everything by the issuer of the authorization server. If a server moves to another authorization server, the client registers again and doesn't send its old client ID to the new one. It also registers again if you change the redirect URI, if it needs scopes that its registration doesn't include, or if the token endpoint answers `invalid_client` for a client that it registered.
 
 ## Using a Pre-registered Client
 
