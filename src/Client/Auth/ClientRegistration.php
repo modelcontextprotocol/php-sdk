@@ -60,7 +60,7 @@ final class ClientRegistration implements \JsonSerializable
         // Without a secret there is nothing to authenticate with, whatever the method says.
         $method = null === $secret
             ? TokenEndpointAuthMethod::None
-            : TokenEndpointAuthMethod::tryFrom((string) ($response['token_endpoint_auth_method'] ?? '')) ?? $fallback;
+            : self::authMethod($response['token_endpoint_auth_method'] ?? null) ?? $fallback;
 
         $expiresAt = $response['client_secret_expires_at'] ?? null;
 
@@ -72,6 +72,11 @@ final class ClientRegistration implements \JsonSerializable
             is_numeric($expiresAt) && 0 !== (int) $expiresAt ? (int) $expiresAt : null,
             $redirectUris,
         );
+    }
+
+    private static function authMethod(mixed $value): ?TokenEndpointAuthMethod
+    {
+        return \is_string($value) ? TokenEndpointAuthMethod::tryFrom($value) : null;
     }
 
     public function isExpired(?int $now = null): bool
@@ -106,7 +111,7 @@ final class ClientRegistration implements \JsonSerializable
         return new self(
             \is_string($data['client_id'] ?? null) ? $data['client_id'] : '',
             \is_string($data['client_secret'] ?? null) ? $data['client_secret'] : null,
-            TokenEndpointAuthMethod::tryFrom((string) ($data['token_endpoint_auth_method'] ?? '')) ?? TokenEndpointAuthMethod::None,
+            self::authMethod($data['token_endpoint_auth_method'] ?? null) ?? TokenEndpointAuthMethod::None,
             (bool) ($data['dynamic'] ?? false),
             isset($data['client_secret_expires_at']) && is_numeric($data['client_secret_expires_at']) ? (int) $data['client_secret_expires_at'] : null,
             array_values(array_filter((array) ($data['redirect_uris'] ?? []), 'is_string')),

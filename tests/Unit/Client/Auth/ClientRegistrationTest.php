@@ -88,6 +88,13 @@ final class ClientRegistrationTest extends TestCase
         $this->assertTrue($registration->isExpired(1001));
     }
 
+    #[TestDox('an auth method that is not a string counts as not given')]
+    public function testIgnoresAnAuthMethodThatIsNotAString(): void
+    {
+        $this->assertSame(TokenEndpointAuthMethod::ClientSecretPost, ClientRegistration::fromResponse(['client_id' => 'issued', 'client_secret' => 'secret', 'token_endpoint_auth_method' => ['basic']], TokenEndpointAuthMethod::ClientSecretPost)->tokenEndpointAuthMethod);
+        $this->assertSame(TokenEndpointAuthMethod::None, ClientRegistration::fromArray(['client_id' => 'issued', 'token_endpoint_auth_method' => ['basic']])->tokenEndpointAuthMethod);
+    }
+
     #[TestDox('an expiry of 0 never expires, however the registration was created')]
     public function testExpiryOfZeroNeverExpires(): void
     {
