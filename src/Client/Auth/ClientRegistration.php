@@ -76,7 +76,11 @@ final class ClientRegistration implements \JsonSerializable
 
     public function isExpired(?int $now = null): bool
     {
-        return null !== $this->clientSecretExpiresAt && ($now ?? time()) >= $this->clientSecretExpiresAt;
+        if (null === $this->clientSecretExpiresAt || 0 === $this->clientSecretExpiresAt) {
+            return false;
+        }
+
+        return ($now ?? time()) >= $this->clientSecretExpiresAt;
     }
 
     /**

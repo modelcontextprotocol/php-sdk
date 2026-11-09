@@ -88,6 +88,13 @@ final class ClientRegistrationTest extends TestCase
         $this->assertTrue($registration->isExpired(1001));
     }
 
+    #[TestDox('an expiry of 0 never expires, however the registration was created')]
+    public function testExpiryOfZeroNeverExpires(): void
+    {
+        $this->assertFalse((new ClientRegistration('issued', clientSecretExpiresAt: 0))->isExpired());
+        $this->assertFalse(ClientRegistration::fromArray(['client_id' => 'issued', 'client_secret_expires_at' => 0])->isExpired());
+    }
+
     #[TestDox('a secret that never expires is reported as 0, and is not an expiry')]
     public function testNonExpiringSecret(): void
     {
