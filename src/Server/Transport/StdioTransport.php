@@ -403,7 +403,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     private static function isNotification(mixed $decoded): bool
     {
         if (!\is_array($decoded) || MessageInterface::JSONRPC_VERSION !== ($decoded['jsonrpc'] ?? null)
-            || !\is_string($decoded['method'] ?? null) || null !== ($decoded['id'] ?? null)) {
+            || !\is_string($decoded['method'] ?? null) || \array_key_exists('id', $decoded)) {
             return false;
         }
 

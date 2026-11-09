@@ -346,7 +346,6 @@ final class StdioDualEraTest extends TestCase
         $lines = $this->exchange(self::builder(), [
             ['jsonrpc' => '2.0', 'method' => 'notifications/initialized'],
             ['jsonrpc' => '2.0', 'method' => 'notifications/cancelled', 'params' => ['requestId' => 1]],
-            ['jsonrpc' => '2.0', 'method' => 'notifications/initialized', 'id' => null],
             self::initialize(1),
         ]);
 
