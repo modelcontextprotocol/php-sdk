@@ -411,6 +411,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     private function grant(AuthorizationServerMetadata $metadata, ClientRegistration $client, array $scopes, string $resource): AccessToken
     {
         self::assertSupportsPkce($metadata);
+        $this->assertIdentifiesItsResponses($metadata);
 
         $pkce = Pkce::generate();
         $state = rtrim(strtr(base64_encode(random_bytes(24)), '+/', '-_'), '=');
@@ -508,6 +509,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         }
 
         self::assertSupportsPkce($metadata);
+        $this->assertIdentifiesItsResponses($metadata);
 
         $registration = $this->registrar->register(
             $metadata,
@@ -537,6 +539,25 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         }
 
         return $values;
+    }
+
+    /**
+     * Refuse an authorization endpoint that may belong to another server, unless its responses can prove they don't.
+     *
+     * A hostile server can name the endpoint of a real one, and keep the token endpoint. The user signs in at the real
+     * address, and the code goes to the hostile server unless the response names its issuer (RFC 9700 section 4.4).
+     */
+    private function assertIdentifiesItsResponses(AuthorizationServerMetadata $metadata): void
+    {
+        if (null !== $this->configuration->expectedIssuer
+            || $metadata->issuerParameterSupported
+            || null === $metadata->authorizationEndpoint
+            || self::origin($metadata->authorizationEndpoint) === self::origin($metadata->issuer)
+        ) {
+            return;
+        }
+
+        throw new AuthorizationException(\sprintf('The authorization server "%s" has its authorization endpoint "%s" on another origin and does not announce the iss parameter, so a response could come from another server. Call OAuth::setExpectedIssuer() if you trust this authorization server.', $metadata->issuer, $metadata->authorizationEndpoint));
     }
 
     private static function assertSupportsPkce(AuthorizationServerMetadata $metadata): void

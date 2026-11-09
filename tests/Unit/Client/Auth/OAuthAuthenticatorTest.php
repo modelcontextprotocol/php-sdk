@@ -573,6 +573,47 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame([], array_filter($server->requested, static fn (string $url): bool => str_starts_with($url, $issuer)));
     }
 
+    #[TestDox('an authorization endpoint on another origin needs iss, so a relayed code can not leave the real server')]
+    public function testRefusesAnAuthorizationEndpointOnAnotherOriginWithoutIss(): void
+    {
+        $server = new FakeOAuthServer(authorizationEndpoint: 'https://login.example.com/authorize', announcesIssuer: false);
+
+        try {
+            $this->authenticator($server)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The authorization endpoint on another origin was not refused.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('setExpectedIssuer', $e->getMessage());
+        }
+
+        $this->assertNotContains('https://auth.example.com/register', $server->requested);
+        $this->assertSame([], $server->authorization);
+    }
+
+    #[TestDox('an authorization endpoint on another origin is fine with iss')]
+    public function testAcceptsAnAuthorizationEndpointOnAnotherOriginWithIss(): void
+    {
+        $server = new FakeOAuthServer(authorizationEndpoint: 'https://login.example.com/authorize');
+
+        $this->assertTrue($this->authenticator($server)->handleChallenge($this->request(), $server->challenge()));
+    }
+
+    #[TestDox('an authorization endpoint on another origin is fine with an expected issuer')]
+    public function testAcceptsAnAuthorizationEndpointOnAnotherOriginWithAnExpectedIssuer(): void
+    {
+        $server = new FakeOAuthServer(authorizationEndpoint: 'https://login.example.com/authorize', announcesIssuer: false);
+        $configuration = OAuth::forApplication('test')->setExpectedIssuer('https://auth.example.com');
+
+        $this->assertTrue($this->authenticator($server, configuration: $configuration)->handleChallenge($this->request(), $server->challenge()));
+    }
+
+    #[TestDox('an authorization endpoint on the origin of the issuer needs no iss')]
+    public function testAcceptsAnAuthorizationEndpointOnTheSameOriginWithoutIss(): void
+    {
+        $server = new FakeOAuthServer(announcesIssuer: false);
+
+        $this->assertTrue($this->authenticator($server)->handleChallenge($this->request(), $server->challenge()));
+    }
+
     #[TestDox('an application can allow a loopback authorization server with the expected issuer')]
     public function testExpectedIssuerAllowsALoopbackIssuer(): void
     {
@@ -1369,6 +1410,8 @@ final class FakeOAuthServer implements ClientInterface
         private readonly ?string $codeError = null,
         private readonly bool $hasAuthorizationEndpoint = true,
         private readonly ?array $codeChallengeMethods = ['S256'],
+        private readonly ?string $authorizationEndpoint = null,
+        private readonly bool $announcesIssuer = true,
     ) {
     }
 
@@ -1413,13 +1456,13 @@ final class FakeOAuthServer implements ClientInterface
 
             'https://auth.example.com/.well-known/oauth-authorization-server' => self::json([
                 'issuer' => 'https://auth.example.com',
-                'authorization_endpoint' => $this->hasAuthorizationEndpoint ? ($this->insecureEndpoints ? 'http' : 'https').'://auth.example.com/authorize' : null,
+                'authorization_endpoint' => null !== $this->authorizationEndpoint ? $this->authorizationEndpoint : ($this->hasAuthorizationEndpoint ? ($this->insecureEndpoints ? 'http' : 'https').'://auth.example.com/authorize' : null),
                 'token_endpoint' => ($this->insecureEndpoints ? 'http' : 'https').'://auth.example.com/token',
                 'registration_endpoint' => ($this->insecureEndpoints ? 'http' : 'https').'://auth.example.com/register',
                 'scopes_supported' => $this->serverScopes,
                 'grant_types_supported' => $this->hasAuthorizationEndpoint ? $this->grantTypes : ['client_credentials'],
                 'code_challenge_methods_supported' => $this->codeChallengeMethods,
-                'authorization_response_iss_parameter_supported' => true,
+                'authorization_response_iss_parameter_supported' => $this->announcesIssuer,
             ]),
 
             'https://auth.example.com/register' => $this->register((string) $request->getBody()),

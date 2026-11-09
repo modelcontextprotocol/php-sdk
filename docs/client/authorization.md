@@ -145,6 +145,7 @@ The client treats the MCP server and its metadata as untrusted input. It stops w
 | The MCP server URL, an authorization server URL or an endpoint doesn't use `https` on a host that isn't loopback | Credentials would travel without encryption |
 | A server that isn't on loopback names a loopback authorization server or endpoint, unless `setExpectedIssuer()` allows that issuer | It could reach services that only listen on this machine |
 | The authorization server metadata doesn't list `S256` in `code_challenge_methods_supported` | The client can't use PKCE with this server |
+| The authorization endpoint is on another origin than the issuer and the metadata doesn't announce `iss`, without `setExpectedIssuer()` | A response could come from another server, and the code would go to this one |
 | The authorization response has no `state`, or another `state` | It doesn't answer the request of this client |
 | `iss` doesn't match the issuer, or is missing although the server announced it | The response may come from another server |
 | The token response has another `token_type` than `Bearer` | The client can only send bearer tokens |
