@@ -332,12 +332,12 @@ resumes the handler after that, so the handler runs to its end and its side effe
 
 A fiber scheduler lets handlers await I/O while the event loop serves other requests. These limits apply:
 
-- `StreamableHttpTransport` writes streamed responses to the PHP output, not to the PSR-7 response body, and waits
-  there with the event loop blocked, e.g. while a handler waits for an answer from the client. A server that sends
-  the body itself (e.g. `amphp/http-server`) gets the SSE text of a streamed response from
+- A server that sends the body itself (e.g. `amphp/http-server`) gets the SSE text of a streamed response from
   `CallbackStream::chunks()`, in both protocol eras. On an empty chunk, an idle turn, it must wait on the loop before
   it asks for the next one, or the stream polls without pause; it may write a keep-alive then. Dropping the
-  generator ends the stream, and the handler sends nothing more. The Revolt and ReactPHP examples show it.
+  generator ends the stream, and the handler sends nothing more. The Revolt and ReactPHP examples show it. Without
+  `chunks()`, `StreamableHttpTransport` writes streamed responses to the PHP output and blocks the event loop while
+  it waits, e.g. while a handler waits for an answer from the client.
 - When the client goes away, a handler stops at the next message it sends, not in the middle of an await.
 - Without a subscription lifetime (`setSubscriptionLifetime(0)`), a `subscriptions/listen` stream stays open until
   the client closes it. Under an event loop, each open stream takes one of the server's connections, so its

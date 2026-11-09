@@ -377,7 +377,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                     }
 
                     if (!$resumed) {
-                        // Waiting for the client: an idle turn, which the stream's consumer paces and keeps alive.
+                        // An idle turn: the consumer paces it and keeps it alive.
                         yield '';
                     }
                 }
