@@ -36,6 +36,10 @@ final class SecureUrlTest extends TestCase
         yield 'http on nested localhost subdomain' => ['http://a.b.localhost'];
         yield 'http on uppercase localhost subdomain with trailing dot' => ['http://Shop.LocalHost.:8080/mcp'];
         yield 'http on other IPv4 loopback address' => ['http://127.1.2.3'];
+        yield 'https on public IPv4 address' => ['https://203.0.113.5/mcp'];
+        yield 'https on IPv6 address' => ['https://[2001:db8::1]/mcp'];
+        yield 'https on name of hex letters' => ['https://deadbeef.example.com'];
+        yield 'https on numeric label' => ['https://123.example.com'];
     }
 
     #[DataProvider('provideAcceptedUrls')]
@@ -75,6 +79,18 @@ final class SecureUrlTest extends TestCase
         yield 'NUL in the host' => ["http://evil.example\0.localhost"];
         yield 'space in the host' => ['https://auth.example .com'];
         yield 'DEL in the host' => ["http://evil.example\x7f.localhost"];
+        yield 'unspecified IPv4 address' => ['https://0.0.0.0/x'];
+        yield 'unspecified IPv6 address' => ['https://[::]/x'];
+        yield 'IPv4-mapped loopback on https' => ['https://[::ffff:127.0.0.1]/x'];
+        yield 'IPv4-mapped private address' => ['https://[::ffff:10.0.0.1]/x'];
+        yield 'IPv4-compatible loopback' => ['https://[::127.0.0.1]/x'];
+        yield 'IPv6 loopback spelled out' => ['https://[0:0:0:0:0:0:0:1]/x'];
+        yield 'shortened IPv4 loopback' => ['https://127.1/x'];
+        yield 'decimal IPv4 loopback' => ['https://2130706433/x'];
+        yield 'hexadecimal IPv4 loopback' => ['https://0x7f000001/x'];
+        yield 'octal IPv4 loopback' => ['https://0177.0.0.1/x'];
+        yield 'zero-padded IPv4 loopback' => ['https://127.000.000.001/x'];
+        yield 'shortened IPv4 with trailing dot' => ['https://127.1./x'];
     }
 
     #[DataProvider('provideRejectedUrls')]

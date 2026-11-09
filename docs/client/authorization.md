@@ -143,6 +143,7 @@ The client treats the MCP server and its metadata as untrusted input. It stops w
 | The protected resource metadata names a `resource` that doesn't cover the endpoint | The token would be issued for another server |
 | The authorization server metadata names another `issuer` than the one it was fetched for | The document describes another server |
 | The MCP server URL, an authorization server URL or an endpoint doesn't use `https` on a host that isn't loopback | Credentials would travel without encryption |
+| One of these URLs names `0.0.0.0`, `::`, an IPv4 address within IPv6 or an IPv4 address in another form than four decimal numbers (e.g. `127.1`) | The request could reach a local service or a private network without looking like it |
 | A server that isn't on loopback names a loopback authorization server or endpoint, unless `setExpectedIssuer()` allows that issuer | It could reach services that only listen on this machine |
 | The authorization server metadata doesn't list `S256` in `code_challenge_methods_supported` | The client can't use PKCE with this server |
 | The authorization endpoint is on another origin than the issuer and the metadata doesn't announce `iss`, without `setExpectedIssuer()` | A response could come from another server, and the code would go to this one |

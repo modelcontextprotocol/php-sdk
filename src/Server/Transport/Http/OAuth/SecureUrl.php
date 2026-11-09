@@ -44,6 +44,10 @@ final class SecureUrl
             throw new InvalidArgumentException(\sprintf('The %s "%s" must use https; plain http is only accepted for loopback hosts.', $label, $url));
         }
 
+        if (self::hidesItsAddress($parts['host'])) {
+            throw new InvalidArgumentException(\sprintf('The %s "%s" must name its host, or an IP address in standard form that is neither unspecified nor IPv4 within IPv6.', $label, $url));
+        }
+
         return $parts;
     }
 
@@ -55,6 +59,24 @@ final class SecureUrl
         $host = parse_url($url, \PHP_URL_HOST);
 
         return \is_string($host) && self::isLoopbackHost($host);
+    }
+
+    // Each of these can reach this machine or a private network without looking like it.
+    private static function hidesItsAddress(string $host): bool
+    {
+        $host = strtolower(trim($host, '[]'));
+
+        if (false !== filter_var($host, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4)) {
+            return '0.0.0.0' === $host;
+        }
+
+        if (false !== filter_var($host, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV6)) {
+            $bytes = (string) inet_pton($host);
+
+            return '::1' !== $host && str_starts_with($bytes, str_repeat("\0", 10)) && \in_array(substr($bytes, 10, 2), ["\0\0", "\xff\xff"], true);
+        }
+
+        return 1 === preg_match('/^(?:0x[0-9a-f]*|[0-9]+)(?:\.(?:0x[0-9a-f]*|[0-9]+)){0,3}\.?$/', $host);
     }
 
     private static function isLoopbackHost(string $host): bool
