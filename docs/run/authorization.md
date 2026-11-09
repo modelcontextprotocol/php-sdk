@@ -179,6 +179,9 @@ path (RFC 9728, Section 3.1) — `/.well-known/oauth-protected-resource/mcp` in 
 
 Resource and authorization server URLs must use https; plain http is only accepted for loopback
 hosts (`localhost` and its subdomains such as `shop.localhost`, `127.0.0.0/8`, `::1`) during development.
+The host must be a name in ASCII, an internationalized one in punycode, or an IP address in standard form.
+The SDK refuses `0.0.0.0`, `::`, an IPv4 address within IPv6 and an IPv4 address in another form than
+four decimal numbers (e.g. `127.1`), as these can reach this machine or a private network without looking like it.
 
 ### Serving the metadata from a framework
 
@@ -203,7 +206,7 @@ audience.
 `fromIssuer()` discovers the JWKS URI (RFC 8414, then OpenID Connect Discovery) on the first token
 and caches it and the keys in a PSR-6 pool. An unknown key id triggers a rate-limited refetch, so key
 rotation does not lock clients out. Keys published without `alg`, as Entra ID does, are matched
-against the token's algorithm. Issuer and JWKS URI must use https (loopback hosts excepted).
+against the token's algorithm. Issuer and JWKS URI must use https (loopback hosts excepted) and follow the same rules for their host.
 
 The refetch limit is 10 requests per minute. At the limit, a token with an unknown key id gets a 503
 until the minute ends. Tokens with a cached key keep working:
