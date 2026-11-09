@@ -1497,6 +1497,20 @@ class StatelessProtocolTest extends TestCase
         return json_encode(['jsonrpc' => '2.0', 'id' => 9, 'method' => $method, 'params' => $params], \JSON_THROW_ON_ERROR);
     }
 
+    #[TestDox('a request with a null id is refused, not taken for a notification')]
+    public function testNullIdIsRefused(): void
+    {
+        $message = json_decode(self::inlineRequest('server/discover'), true);
+        $message['id'] = null;
+
+        $result = self::protocol()->handleInline(json_encode($message, \JSON_THROW_ON_ERROR));
+
+        $this->assertSame(400, $result->httpStatus);
+        $answer = json_decode($result->toJson(), true);
+        $this->assertSame(Error::INVALID_REQUEST, $answer['error']['code']);
+        $this->assertArrayNotHasKey('id', $answer);
+    }
+
     #[TestDox('a message off a transport without headers is answered without them')]
     public function testInlineMessageNeedsNoHeaders(): void
     {
