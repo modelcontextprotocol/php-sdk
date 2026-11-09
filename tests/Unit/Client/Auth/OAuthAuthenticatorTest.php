@@ -986,6 +986,22 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame([true], $storage->savedWhileSynchronized);
     }
 
+    #[TestDox('a stored token stays with its server when the resource parameter is overridden')]
+    public function testStoredTokenOfAnOverriddenResourceStaysWithItsServer(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $this->authenticator($server, storage: $storage, configuration: OAuth::forApplication('test')->setResource('https://api.example.com/v1'))
+            ->handleChallenge($this->request(), $server->challenge());
+
+        $server->resource = 'https://mcp.example.com/other';
+        $otherServer = (new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/other');
+        $authenticator = $this->authenticator($server, storage: $storage, configuration: OAuth::forApplication('test')->setResource('https://api.example.com/v1'));
+        $authenticator->handleChallenge($otherServer, $server->challenge());
+
+        $this->assertSame('Bearer access-token-2', $authenticator->authenticate($otherServer)->getHeaderLine('Authorization'));
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {

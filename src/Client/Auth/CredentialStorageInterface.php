@@ -27,7 +27,7 @@ interface CredentialStorageInterface
 
     /**
      * @param string $issuer   the authorization server's issuer identifier
-     * @param string $resource the canonical URI of the protected resource the token is for
+     * @param string $resource the canonical URI of the protected resource the token may be sent to
      */
     public function getToken(string $issuer, string $resource): ?AccessToken;
 

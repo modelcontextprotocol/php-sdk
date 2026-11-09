@@ -99,7 +99,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->issuer = $metadata->issuer;
         $this->resource = $resource;
 
-        $stored = $this->storage->getToken($metadata->issuer, $resource);
+        $stored = $this->storage->getToken($metadata->issuer, $audience);
         $scopes = $this->selectScopes($challenge, $scopesSupported, $metadata, $stored);
         // The resource never requires offline_access, which only gets a refresh token.
         $needed = array_values(array_diff($scopes, ['offline_access']));
@@ -117,7 +117,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $refreshable = 'insufficient_scope' === $challenge->getError() ? null : $stored;
 
         try {
-            $token = $this->refresh($refreshable, $metadata, $client, $needed, $resource, $request);
+            $token = $this->refresh($refreshable, $metadata, $client, $needed, $resource, $audience, $request);
         } catch (OAuthErrorException) {
             $this->logger->info('The authorization server no longer knows this client; registering it again.', ['issuer' => $metadata->issuer]);
             $this->storage->forget($metadata->issuer);
@@ -138,7 +138,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             }
 
             $token = $token->withGrantedScopes($scopes);
-            $this->storage->saveToken($metadata->issuer, $resource, $token);
+            $this->storage->saveToken($metadata->issuer, $audience, $token);
         }
 
         $this->token = $token;
@@ -299,7 +299,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      *
      * @param string[] $scopes
      */
-    private function refresh(?AccessToken $stored, AuthorizationServerMetadata $metadata, ClientRegistration $client, array $scopes, string $resource, RequestInterface $request): ?AccessToken
+    private function refresh(?AccessToken $stored, AuthorizationServerMetadata $metadata, ClientRegistration $client, array $scopes, string $resource, string $audience, RequestInterface $request): ?AccessToken
     {
         if (null === $stored || null === $stored->refreshToken) {
             return null;
@@ -310,9 +310,9 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return null;
         }
 
-        return $this->storage->synchronize(function () use ($metadata, $client, $scopes, $resource, $request): ?AccessToken {
+        return $this->storage->synchronize(function () use ($metadata, $client, $scopes, $resource, $audience, $request): ?AccessToken {
             // Another process may have refreshed the token while this one waited.
-            $current = $this->storage->getToken($metadata->issuer, $resource);
+            $current = $this->storage->getToken($metadata->issuer, $audience);
 
             if (null === $current) {
                 return null;
@@ -329,7 +329,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             $token = $this->spendRefreshToken($current, $current->refreshToken, $metadata, $client, $resource);
 
             if (null !== $token) {
-                $this->storage->saveToken($metadata->issuer, $resource, $token);
+                $this->storage->saveToken($metadata->issuer, $audience, $token);
             }
 
             return $token;
