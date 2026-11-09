@@ -11,7 +11,12 @@
 
 namespace Mcp\Client\Auth;
 
+use Http\Discovery\Psr17FactoryDiscovery;
+use Mcp\Client\Transport\NoRedirects;
 use Mcp\Exception\AuthorizationException;
+use Psr\Http\Client\ClientExceptionInterface;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -22,12 +27,20 @@ use Psr\Log\NullLogger;
  */
 final class HeadlessAuthorizationHandler implements AuthorizationHandlerInterface
 {
-    private const MAX_HEADER_BYTES = 65536;
+    private readonly ClientInterface $httpClient;
+    private readonly RequestFactoryInterface $requestFactory;
 
+    /**
+     * @param ?ClientInterface $httpClient the client for the request, which must not follow redirects,
+     *                                     so pass the one given to OAuth::setHttpClient()
+     */
     public function __construct(
-        private readonly float $timeout = 10.0,
+        ?ClientInterface $httpClient = null,
+        ?RequestFactoryInterface $requestFactory = null,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
+        $this->httpClient = null === $httpClient ? NoRedirects::discover() : NoRedirects::apply($httpClient);
+        $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
     }
 
     public function authorize(string $authorizationUrl, string $redirectUri): array
@@ -55,71 +68,21 @@ final class HeadlessAuthorizationHandler implements AuthorizationHandlerInterfac
         return $callback;
     }
 
-    /**
-     * Issue a single GET and return the `Location` header without following it.
-     */
     private function fetchRedirect(string $url): string
     {
-        $parts = parse_url($url);
-
-        if (!\is_array($parts) || !isset($parts['host'])) {
-            throw new AuthorizationException(\sprintf('The authorization URL "%s" cannot be parsed.', $url));
-        }
-
-        $secure = 'https' === strtolower($parts['scheme'] ?? 'https');
-        $port = $parts['port'] ?? ($secure ? 443 : 80);
-        $target = ($parts['path'] ?? '/').(isset($parts['query']) ? '?'.$parts['query'] : '');
-
-        $socket = @stream_socket_client(
-            \sprintf('%s://%s:%d', $secure ? 'ssl' : 'tcp', $parts['host'], $port),
-            $errorCode,
-            $errorMessage,
-            $this->timeout,
-        );
-
-        if (false === $socket) {
-            throw new AuthorizationException(\sprintf('Could not reach the authorization endpoint at "%s": %s (%d).', $url, $errorMessage, $errorCode));
-        }
-
         try {
-            $deadline = microtime(true) + $this->timeout;
-            stream_set_timeout($socket, (int) ceil($this->timeout));
-            fwrite($socket, \sprintf(
-                "GET %s HTTP/1.1\r\nHost: %s\r\nAccept: */*\r\nConnection: close\r\n\r\n",
-                $target,
-                $parts['host'].(\in_array($port, [80, 443], true) ? '' : ':'.$port),
-            ));
-
-            $headers = '';
-
-            while (!feof($socket) && !str_contains($headers, "\r\n\r\n")) {
-                $remaining = $deadline - microtime(true);
-
-                if ($remaining <= 0) {
-                    throw new AuthorizationException(\sprintf('The authorization endpoint "%s" did not answer within %s seconds.', $url, $this->timeout));
-                }
-
-                stream_set_timeout($socket, (int) ceil($remaining));
-                $chunk = fread($socket, 4096);
-
-                if (false === $chunk || '' === $chunk) {
-                    break;
-                }
-
-                $headers .= $chunk;
-
-                if (\strlen($headers) > self::MAX_HEADER_BYTES) {
-                    throw new AuthorizationException(\sprintf('The answer of the authorization endpoint "%s" is too large.', $url));
-                }
-            }
-        } finally {
-            fclose($socket);
+            $response = $this->httpClient->sendRequest($this->requestFactory->createRequest('GET', $url));
+        } catch (ClientExceptionInterface $e) {
+            throw new AuthorizationException(\sprintf('Could not reach the authorization endpoint at "%s": %s', $url, $e->getMessage()), 0, $e);
         }
 
-        if (preg_match('/^Location:\s*(\S+)\s*$/im', $headers, $matches)) {
-            return $matches[1];
+        $response->getBody()->close();
+        $location = $response->getHeaderLine('Location');
+
+        if ($response->getStatusCode() < 300 || $response->getStatusCode() >= 400 || '' === $location) {
+            throw new AuthorizationException(\sprintf('The authorization endpoint "%s" did not answer with a redirect. It may need a user to approve the request, in which case an interactive authorization handler is required.', $url));
         }
 
-        throw new AuthorizationException(\sprintf('The authorization endpoint "%s" did not answer with a redirect. It may need a user to approve the request, in which case an interactive authorization handler is required.', $url));
+        return $location;
     }
 }

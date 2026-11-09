@@ -14,9 +14,14 @@ namespace Mcp\Tests\Unit\Client\Auth;
 use Mcp\Client\Auth\HeadlessAuthorizationHandler;
 use Mcp\Client\Auth\LoopbackAuthorizationHandler;
 use Mcp\Exception\AuthorizationException;
+use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Client\ClientExceptionInterface;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * The interactive handlers, exercised over a real socket and a real stream rather than a
@@ -139,22 +144,51 @@ final class AuthorizationHandlerTest extends TestCase
 
     // A bare code carries neither state nor iss, so accepting one would silently skip
     // both of the checks that tie the response to this request.
-    // The listener speaks no TLS and never accepts, so only a plain socket can connect and write.
-    #[TestDox('the headless handler uses TLS for an uppercase HTTPS scheme')]
-    public function testHeadlessHandlerUsesTlsForAnUppercaseScheme(): void
+    #[TestDox('the headless handler sends its request with the given HTTP client')]
+    public function testHeadlessHandlerUsesTheGivenClient(): void
     {
-        $listener = stream_socket_server('tcp://127.0.0.1:0');
-        $this->assertIsResource($listener);
-        $port = (int) explode(':', (string) stream_socket_get_name($listener, false))[1];
+        $client = new class implements ClientInterface {
+            /** @var string[] */
+            public array $requested = [];
 
-        try {
-            (new HeadlessAuthorizationHandler(1))->authorize(\sprintf('HTTPS://127.0.0.1:%d/authorize', $port), 'http://127.0.0.1:8765/callback');
-            $this->fail('The authorization should have failed.');
-        } catch (AuthorizationException $e) {
-            $this->assertStringContainsString('Could not reach', $e->getMessage());
-        } finally {
-            fclose($listener);
-        }
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $this->requested[] = $request->getMethod().' '.$request->getUri();
+
+                return new Response(302, ['Location' => 'http://127.0.0.1:8765/callback?code=abc&state=xyz']);
+            }
+        };
+
+        $parameters = (new HeadlessAuthorizationHandler($client))->authorize('https://auth.example.com/authorize?state=xyz', 'http://127.0.0.1:8765/callback');
+
+        $this->assertSame(['code' => 'abc', 'state' => 'xyz'], $parameters);
+        $this->assertSame(['GET https://auth.example.com/authorize?state=xyz'], $client->requested);
+    }
+
+    #[TestDox('the headless handler reports an endpoint it cannot reach')]
+    public function testHeadlessHandlerReportsAnUnreachableEndpoint(): void
+    {
+        $client = $this->createStub(ClientInterface::class);
+        $client->method('sendRequest')->willThrowException(new class('Connection refused') extends \RuntimeException implements ClientExceptionInterface {});
+
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('Could not reach');
+
+        (new HeadlessAuthorizationHandler($client))->authorize('https://auth.example.com/authorize', 'http://127.0.0.1:8765/callback');
+    }
+
+    #[TestWith([200, []])]
+    #[TestWith([302, []])]
+    #[TestDox('the headless handler needs a redirect')]
+    public function testHeadlessHandlerNeedsARedirectWithALocation(int $status, array $headers): void
+    {
+        $client = $this->createStub(ClientInterface::class);
+        $client->method('sendRequest')->willReturn(new Response($status, $headers));
+
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('did not answer with a redirect');
+
+        (new HeadlessAuthorizationHandler($client))->authorize('https://auth.example.com/authorize', 'http://127.0.0.1:8765/callback');
     }
 
     #[TestDox('the loopback handler shows the URL when no browser can be opened')]
@@ -215,36 +249,6 @@ final class AuthorizationHandlerTest extends TestCase
         }
 
         $this->assertFalse($opened);
-    }
-
-    #[TestDox('the headless handler stops reading a header block that never ends')]
-    public function testHeadlessHandlerLimitsTheSizeOfTheHeaders(): void
-    {
-        $this->assertHeadlessHandlerFailsOn('fwrite($c, str_repeat("x", 2097152)); sleep(5);', 'too large');
-    }
-
-    #[TestDox('the headless handler stops waiting for a server that answers byte by byte')]
-    public function testHeadlessHandlerLimitsTheTimeForTheHeaders(): void
-    {
-        $this->assertHeadlessHandlerFailsOn('for ($i = 0; $i < 25; ++$i) { fwrite($c, "x"); usleep(200000); }', 'within');
-    }
-
-    private function assertHeadlessHandlerFailsOn(string $answer, string $message): void
-    {
-        $code = '$s = stream_socket_server("tcp://127.0.0.1:0"); echo substr(strrchr(stream_socket_get_name($s, false), ":"), 1), "\n"; $c = stream_socket_accept($s, 5); fread($c, 4096); fwrite($c, "HTTP/1.1 200 OK\r\n"); '.$answer;
-        $server = proc_open([\PHP_BINARY, '-r', $code], [1 => ['pipe', 'w']], $pipes);
-        $this->assertIsResource($server);
-
-        try {
-            $port = (int) fgets($pipes[1]);
-            (new HeadlessAuthorizationHandler(1))->authorize(\sprintf('http://127.0.0.1:%d/authorize', $port), 'http://127.0.0.1:1/callback');
-            $this->fail('The handler should have given up.');
-        } catch (AuthorizationException $e) {
-            $this->assertStringContainsString($message, $e->getMessage());
-        } finally {
-            proc_terminate($server);
-            proc_close($server);
-        }
     }
 
     private function runDefaultHandler(string $url, string $path): string
