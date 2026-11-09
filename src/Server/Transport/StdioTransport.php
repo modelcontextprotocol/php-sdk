@@ -67,6 +67,8 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
     private readonly InboundClassifier $classifier;
 
+    private bool $handlingNotification = false;
+
     /** Null until the client's first request settles the era. */
     private ?bool $modern = null;
 
@@ -130,6 +132,13 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     {
         if (isset($context['session_id'])) {
             $this->sessionId = $context['session_id'];
+        }
+
+        // Over HTTP a refused notification gets an error status; stdio has nothing to answer it with.
+        if ($this->handlingNotification && 'response' === ($context['type'] ?? null)) {
+            $this->logger->warning('StdioTransport did not answer a notification it refused.', ['error' => $data]);
+
+            return;
         }
 
         $this->writeLine($data);
@@ -290,7 +299,13 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             return;
         }
 
-        $this->handleMessage($message, $this->sessionId);
+        $this->handlingNotification = \is_array($decoded) && isset($decoded['method']) && !\array_key_exists('id', $decoded);
+
+        try {
+            $this->handleMessage($message, $this->sessionId);
+        } finally {
+            $this->handlingNotification = false;
+        }
     }
 
     /**

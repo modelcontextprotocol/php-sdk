@@ -74,6 +74,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix `JwtTokenValidator` throwing a `TypeError` on a token naming a JWKS key whose type or curve `firebase/php-jwt` does not support, e.g. `AKP`, or `P-521` since its v7.1. The token is rejected with `401` now.
 * Fix a `2026-07-28` request with `"id": null` being taken for a notification and left unanswered: it is refused with `-32600`, as MCP forbids a null id.
 * Fix messages with a `jsonrpc` other than `"2.0"` being served: a `2026-07-28` request that does not go through `MessageFactory`, like `subscriptions/listen`, is refused with `-32600`, and `Notification::fromArray()` throws for such a notification, as `Request::fromArray()` already did.
+* Fix a stdio server answering a notification it refuses, e.g. one sent before `initialize`, although a notification must never be answered: the refusal is only logged now.
 
 ### Client
 

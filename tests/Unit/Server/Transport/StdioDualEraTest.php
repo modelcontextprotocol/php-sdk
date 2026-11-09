@@ -340,6 +340,20 @@ final class StdioDualEraTest extends TestCase
         $this->assertSame(Error::INVALID_REQUEST, $answers[1]['error']['code']);
     }
 
+    #[TestDox('a notification before the handshake is refused without an answer')]
+    public function testNotificationBeforeTheHandshakeIsNotAnswered(): void
+    {
+        $lines = $this->exchange(self::builder(), [
+            ['jsonrpc' => '2.0', 'method' => 'notifications/initialized'],
+            ['jsonrpc' => '2.0', 'method' => 'notifications/cancelled', 'params' => ['requestId' => 1]],
+            self::initialize(1),
+        ]);
+
+        $this->assertCount(1, $lines);
+        $this->assertSame(1, $lines[0]['id'] ?? null);
+        $this->assertArrayHasKey('result', $lines[0]);
+    }
+
     #[TestDox('a server/discover handler added to the builder answers a modern stdio client')]
     public function testCustomDiscoverHandlerOverStdio(): void
     {
