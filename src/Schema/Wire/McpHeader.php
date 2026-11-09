@@ -37,6 +37,9 @@ final class McpHeader
     /** Keywords whose values are instance data, so a key named `x-mcp-header` in them is no annotation. */
     private const DATA_KEYWORDS = ['const', 'default', 'enum', 'examples'];
 
+    /** Keywords whose values map arbitrary names to subschemas. */
+    private const SCHEMA_MAP_KEYWORDS = ['properties', 'patternProperties', '$defs', 'definitions', 'dependentSchemas', 'dependencies'];
+
     /**
      * The subject of a request, per method. Anything unlisted is exempt.
      *
@@ -199,24 +202,26 @@ final class McpHeader
      * The path of the first annotation that does not sit on a property reached
      * through a chain of `properties`, e.g. one under `items`, `anyOf` or `$defs`.
      *
-     * @param array<mixed> $node
+     * @param array<mixed> $schema
      */
-    private static function findUnreachable(array $node, string $path, bool $isProperty, bool $chainIntact = true): ?string
+    private static function findUnreachable(array $schema, string $path, bool $isProperty, bool $chainIntact = true): ?string
     {
-        foreach ($node as $key => $value) {
-            if ('x-mcp-header' === $key && !\is_array($value) && !$isProperty) {
-                return '' === $path ? '/' : $path;
-            }
+        if (\array_key_exists('x-mcp-header', $schema) && !$isProperty) {
+            return '' === $path ? '/' : $path;
+        }
 
-            if (!\is_array($value) || \in_array($key, self::DATA_KEYWORDS, true)) {
+        foreach ($schema as $key => $value) {
+            if ('x-mcp-header' === $key || !\is_array($value) || \in_array($key, self::DATA_KEYWORDS, true)) {
                 continue;
             }
 
             $here = '' === $path ? (string) $key : $path.'.'.$key;
 
-            if ('properties' === $key && $chainIntact) {
-                foreach ($value as $property => $definition) {
-                    if (\is_array($definition) && null !== $found = self::findUnreachable($definition, $here.'.'.$property, true)) {
+            if (\in_array($key, self::SCHEMA_MAP_KEYWORDS, true)) {
+                $reachable = 'properties' === $key && $chainIntact;
+
+                foreach ($value as $name => $subschema) {
+                    if (\is_array($subschema) && null !== $found = self::findUnreachable($subschema, $here.'.'.$name, $reachable, $reachable)) {
                         return $found;
                     }
                 }

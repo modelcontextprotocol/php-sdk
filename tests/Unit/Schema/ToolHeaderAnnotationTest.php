@@ -160,6 +160,8 @@ class ToolHeaderAnnotationTest extends TestCase
         ]];
         yield 'under additionalProperties' => [['additionalProperties' => $annotated]];
         yield 'on the root' => [['x-mcp-header' => 'Region']];
+        yield 'non-string value under items' => [['properties' => ['tags' => ['type' => 'array', 'items' => ['type' => 'string', 'x-mcp-header' => ['Region']]]]]];
+        yield 'under a definition named default' => [['$defs' => ['default' => $annotated]]];
     }
 
     /**
@@ -181,7 +183,16 @@ class ToolHeaderAnnotationTest extends TestCase
         $tool = self::tool([
             'x-mcp-header' => ['type' => 'string'],
             'target' => ['type' => 'object', 'default' => ['x-mcp-header' => 'Region']],
+            'nested' => ['type' => 'object', 'items' => ['properties' => ['x-mcp-header' => true]]],
         ]);
+
+        $this->assertSame('a_tool', $tool->name);
+    }
+
+    #[TestDox('a definition named x-mcp-header is no annotation')]
+    public function testDefinitionNamedLikeTheAnnotationIsNotAnAnnotation(): void
+    {
+        $tool = new Tool(name: 'a_tool', title: null, inputSchema: ['type' => 'object', '$defs' => ['x-mcp-header' => true]], description: 'x', annotations: null);
 
         $this->assertSame('a_tool', $tool->name);
     }
