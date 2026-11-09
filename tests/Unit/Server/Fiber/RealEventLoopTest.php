@@ -83,6 +83,28 @@ final class RealEventLoopTest extends TestCase
     }
 
     /**
+     * @return iterable<string, array{FiberSchedulerInterface, \Closure(float): void, \Closure(list<\Closure(): void>): void, bool}>
+     */
+    public static function runtimesWithAndWithoutSessions(): iterable
+    {
+        foreach (self::runtimes() as $runtime => $arguments) {
+            yield "$runtime, on a session" => [...$arguments, true];
+            yield "$runtime, sessionless" => [...$arguments, false];
+        }
+    }
+
+    /**
+     * @return iterable<string, array{FiberSchedulerInterface, \Closure(float): void, \Closure(list<\Closure(): void>): void, bool}>
+     */
+    public static function runtimesWithAndWithoutASessionLock(): iterable
+    {
+        foreach (self::runtimes() as $runtime => $arguments) {
+            yield "$runtime, without a session lock" => [...$arguments, false];
+            yield "$runtime, with a session lock" => [...$arguments, true];
+        }
+    }
+
+    /**
      * @param \Closure(float): void                  $sleep
      * @param \Closure(list<\Closure(): void>): void $run
      */
@@ -417,6 +439,143 @@ final class RealEventLoopTest extends TestCase
         $this->assertFalse($finished);
     }
 
+    /**
+     * @param \Closure(float): void                  $sleep
+     * @param \Closure(list<\Closure(): void>): void $run
+     */
+    #[DataProvider('runtimesWithAndWithoutSessions')]
+    #[TestDox('a runtime writing the body itself streams a handshake-era notification ahead of the result')]
+    public function testChunksStreamAHandshakeEraNotification(FiberSchedulerInterface $scheduler, \Closure $sleep, \Closure $run, bool $sessions): void
+    {
+        $server = $this->builder($scheduler, $sessions)
+            ->addTool(static function (RequestContext $context) use ($sleep): string {
+                $sleep(0.01);
+                $context->getClientGateway()->notify(new ToolListChangedNotification());
+                $sleep(0.01);
+
+                return 'notified';
+            }, name: 'notifier', description: 'Sends a notification')
+            ->build();
+
+        $written = '';
+        $run([
+            function () use ($server, $sleep, &$written): void {
+                $body = $this->handshakeCall($server, $this->handshake($server), 'notifier', 2)->getBody();
+                $this->assertInstanceOf(CallbackStream::class, $body);
+
+                foreach ($body->chunks() ?? [] as $chunk) {
+                    '' === $chunk ? $sleep(0.01) : $written .= $chunk;
+                }
+            },
+        ]);
+
+        $this->assertMatchesRegularExpression('/^event: message\ndata: [^\n]*list_changed[^\n]*\n\nevent: message\ndata: [^\n]*"id":2,"result"[^\n]*notified[^\n]*\n\n$/', $written);
+    }
+
+    /**
+     * @param \Closure(float): void                  $sleep
+     * @param \Closure(list<\Closure(): void>): void $run
+     */
+    #[DataProvider('runtimesWithAndWithoutASessionLock')]
+    #[TestDox('a handshake-era handler waiting on the client gets the answer of another request served by the same loop')]
+    public function testAHandshakeEraElicitationIsAnsweredOnTheSameLoop(FiberSchedulerInterface $scheduler, \Closure $sleep, \Closure $run, bool $locked): void
+    {
+        $server = ($locked ? $this->lockedBuilder($scheduler) : $this->builder($scheduler))
+            ->addTool(static function (RequestContext $context) use ($sleep): string {
+                $sleep(0.01);
+                $answer = $context->getClientGateway()->elicit('name?', new ElicitationSchema(['n' => new StringSchemaDefinition('N')], ['n']));
+                $sleep(0.01);
+
+                return 'hello '.($answer->content['n'] ?? '?');
+            }, name: 'asks', description: 'Asks the client for a name')
+            ->build();
+
+        $headers = $this->handshake($server, ['elicitation' => new \stdClass()]);
+
+        $asked = null;
+        $written = '';
+        $run([
+            function () use ($server, $headers, $sleep, &$asked, &$written): void {
+                $body = $this->handshakeCall($server, $headers, 'asks', 2)->getBody();
+                $this->assertInstanceOf(CallbackStream::class, $body);
+
+                foreach ($body->chunks() ?? [] as $chunk) {
+                    if ('' === $chunk) {
+                        $sleep(0.01);
+
+                        continue;
+                    }
+
+                    $written .= $chunk;
+                    $message = json_decode(substr(explode("\n", $chunk)[1], 6), true, 512, \JSON_THROW_ON_ERROR);
+                    if ('elicitation/create' === ($message['method'] ?? null)) {
+                        $asked = $message['id'];
+                    }
+                }
+            },
+            function () use ($server, $headers, $sleep, &$asked): void {
+                for ($turn = 0; null === $asked && $turn < 300; ++$turn) {
+                    $sleep(0.01);
+                }
+
+                if (null === $asked) {
+                    return;
+                }
+
+                $this->post($server, ['jsonrpc' => '2.0', 'id' => $asked, 'result' => ['action' => 'accept', 'content' => ['n' => 'Ada']]], $headers);
+            },
+        ]);
+
+        $this->assertNotNull($asked);
+        $this->assertMatchesRegularExpression('/"id":2,"result"[^\n]*hello Ada/', $written);
+    }
+
+    /**
+     * @param \Closure(float): void                  $sleep
+     * @param \Closure(list<\Closure(): void>): void $run
+     */
+    #[DataProvider('runtimes')]
+    #[TestDox('dropping the chunks of a handshake-era handler waiting on the client stops the handler')]
+    public function testDroppingTheChunksStopsAHandshakeEraHandlerWaitingOnTheClient(FiberSchedulerInterface $scheduler, \Closure $sleep, \Closure $run): void
+    {
+        $unwound = false;
+        $answered = false;
+        $server = $this->builder($scheduler)
+            ->addTool(static function (RequestContext $context) use (&$unwound, &$answered): string {
+                try {
+                    $context->getClientGateway()->elicit('name?', new ElicitationSchema(['n' => new StringSchemaDefinition('N')], ['n']));
+                    $answered = true;
+
+                    return 'answered';
+                } finally {
+                    $unwound = true;
+                }
+            }, name: 'asks', description: 'Asks the client for a name')
+            ->build();
+        $headers = $this->handshake($server, ['elicitation' => new \stdClass()]);
+
+        $written = [];
+        $unwoundWhileTheBodyIsHeld = false;
+        $run([
+            function () use ($server, $headers, &$written, &$unwound, &$unwoundWhileTheBodyIsHeld): void {
+                $body = $this->handshakeCall($server, $headers, 'asks', 2)->getBody();
+                $this->assertInstanceOf(CallbackStream::class, $body);
+                $chunks = $body->chunks();
+                $this->assertNotNull($chunks);
+
+                $written[] = $chunks->current();
+                unset($chunks);
+                $unwoundWhileTheBodyIsHeld = $unwound;
+                unset($body);
+            },
+        ]);
+
+        $this->assertCount(1, $written);
+        $this->assertStringContainsString('"method":"elicitation\\/create"', $written[0]);
+        $this->assertTrue($unwoundWhileTheBodyIsHeld, 'Dropping the chunks unwinds the handler while the body is still held.');
+        $this->assertFalse($answered);
+    }
+
     private function lockedBuilder(FiberSchedulerInterface $scheduler): Builder
     {
         $directory = sys_get_temp_dir().'/mcp-event-loop-'.bin2hex(random_bytes(4));
@@ -425,14 +584,16 @@ final class RealEventLoopTest extends TestCase
     }
 
     /**
+     * @param array<string, mixed> $capabilities
+     *
      * @return array<string, string>
      */
-    private function handshake(Server $server): array
+    private function handshake(Server $server, array $capabilities = []): array
     {
         $version = ProtocolVersion::V2025_11_25->value;
         $response = $this->post($server, ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'initialize', 'params' => [
             'protocolVersion' => $version,
-            'capabilities' => new \stdClass(),
+            'capabilities' => (object) $capabilities,
             'clientInfo' => ['name' => 'event-loop-client', 'version' => '1.0.0'],
         ]], []);
         $headers = ['Mcp-Session-Id' => $response->getHeaderLine('Mcp-Session-Id'), 'MCP-Protocol-Version' => $version];
@@ -468,12 +629,13 @@ final class RealEventLoopTest extends TestCase
         return $server->run(new StreamableHttpTransport($request, $this->factory, $this->factory));
     }
 
-    private function builder(FiberSchedulerInterface $scheduler): Builder
+    private function builder(FiberSchedulerInterface $scheduler, bool $sessions = true): Builder
     {
-        return Server::builder()
+        $builder = Server::builder()
             ->setServerInfo('event-loop-server', '1.0.0')
-            ->setSession(new InMemorySessionStore())
             ->setFiberScheduler($scheduler);
+
+        return $sessions ? $builder->setSession(new InMemorySessionStore()) : $builder;
     }
 
     /**
