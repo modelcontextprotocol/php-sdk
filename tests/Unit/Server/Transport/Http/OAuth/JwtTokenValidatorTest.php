@@ -274,6 +274,18 @@ final class JwtTokenValidatorTest extends TestCase
         $this->assertSame('Token signing key could not be resolved.', $result->getErrorDescription());
     }
 
+    public function testKeyOfUnsupportedTypeIsUnauthorized(): void
+    {
+        $factory = new Psr17Factory();
+        $jwk = ['kty' => 'AKP', 'kid' => 'kid-1', 'pub' => 'x'];
+        $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, new ArrayAdapter(), $this->jwksClient($factory, [$jwk]), $factory);
+
+        $result = $validator->validate($this->token([]));
+
+        $this->assertSame(401, $result->getStatusCode());
+        $this->assertSame('Token signing key could not be resolved.', $result->getErrorDescription());
+    }
+
     public function testUnreachableJwksIsUnavailable(): void
     {
         $factory = new Psr17Factory();

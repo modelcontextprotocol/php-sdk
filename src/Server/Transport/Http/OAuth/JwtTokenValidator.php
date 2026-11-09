@@ -161,6 +161,9 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
             }
 
             $key = null;
+        } catch (\TypeError) {
+            // php-jwt's CachedKeySet breaks its own `Key` return type on a key type or curve it does not support.
+            $key = null;
         }
 
         if (!$key instanceof Key) {
