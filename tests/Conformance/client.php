@@ -11,12 +11,9 @@
 
 require_once dirname(__DIR__, 2).'/vendor/autoload.php';
 
-use Http\Discovery\Psr17FactoryDiscovery;
-use Http\Discovery\Psr18ClientDiscovery;
 use Mcp\Client;
 use Mcp\Client\Auth\AuthenticatorInterface;
 use Mcp\Client\Auth\HeadlessAuthorizationHandler;
-use Mcp\Client\Auth\MetadataDiscovery;
 use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
 use Mcp\Client\Transport\HttpTransport;
@@ -46,8 +43,9 @@ $version = ProtocolVersion::tryFrom(getenv('MCP_CONFORMANCE_PROTOCOL_VERSION') ?
 // on the scenario:
 //
 //   toolCalls           http-custom-headers: the exact calls to make
-//   client_id           auth/pre-registration: credentials an administrator would
-//   client_secret       have configured out of band
+//   client_id           auth/pre-registration: the credentials and the issuer an
+//   client_secret       administrator would have configured out of band
+//   issuer
 $context = json_decode(getenv('MCP_CONFORMANCE_CONTEXT') ?: '[]', true);
 $context = is_array($context) ? $context : [];
 
@@ -98,30 +96,13 @@ if (in_array($scenario, ['elicitation-sep1034-client-defaults', 'sep-2322-client
 }
 
 /**
- * Reads the issuer from the harness, which starts its authorization server on a random port.
- *
- * An application configures this value, since it can't trust the server to name it.
- */
-function discoverIssuer(string $url): string
-{
-    $discovery = new MetadataDiscovery(Psr18ClientDiscovery::find(), Psr17FactoryDiscovery::findRequestFactory());
-    $issuer = $discovery->discoverProtectedResource($url)?->authorizationServers[0] ?? null;
-
-    if (null === $issuer) {
-        throw new RuntimeException(sprintf('The server at "%s" names no authorization server.', $url));
-    }
-
-    return $issuer;
-}
-
-/**
  * Wires up OAuth for the scenarios that need it.
  *
  * The authorization endpoint of the harness grants without asking a human, so the
  * headless handler stands in for the browser. Everything else -- discovery, PKCE,
  * registration, scope selection -- is the SDK doing what it would do in production.
  */
-function buildAuthenticator(string $url, string $scenario, array $context, Psr\Log\LoggerInterface $logger): ?AuthenticatorInterface
+function buildAuthenticator(string $scenario, array $context, Psr\Log\LoggerInterface $logger): ?AuthenticatorInterface
 {
     if (!str_starts_with($scenario, 'auth/')) {
         return null;
@@ -135,10 +116,10 @@ function buildAuthenticator(string $url, string $scenario, array $context, Psr\L
         ->setLogger($logger);
 
     // Pre-registration: the server does not offer dynamic registration, so the runner
-    // passes the credentials an administrator would have configured.
-    if (isset($context['client_id'])) {
+    // passes the credentials and the issuer an administrator would have configured.
+    if (isset($context['client_id'], $context['issuer'])) {
         $oauth->setClientCredentials($context['client_id'], $context['client_secret'] ?? null);
-        $oauth->setExpectedIssuer(discoverIssuer($url));
+        $oauth->setExpectedIssuer($context['issuer']);
     }
 
     // These two scenarios are 2025-03-26 servers: no protected resource metadata, and
@@ -152,7 +133,7 @@ function buildAuthenticator(string $url, string $scenario, array $context, Psr\L
 }
 
 $client = $builder->build();
-$transport = new HttpTransport($url, logger: $logger, auth: buildAuthenticator($url, $scenario, $context, $logger));
+$transport = new HttpTransport($url, logger: $logger, auth: buildAuthenticator($scenario, $context, $logger));
 
 try {
     $client->connect($transport);
