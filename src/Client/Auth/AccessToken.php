@@ -48,7 +48,7 @@ final class AccessToken implements \JsonSerializable
         }
 
         if (0 !== strcasecmp('Bearer', $tokenType)) {
-            throw new InvalidArgumentException(\sprintf('The token type "%s" is not supported, only "Bearer" is.', $tokenType));
+            throw new InvalidArgumentException('The token type is not supported, only "Bearer" is.');
         }
     }
 
