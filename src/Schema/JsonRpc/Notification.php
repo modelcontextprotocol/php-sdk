@@ -37,6 +37,9 @@ abstract class Notification implements HasMethodInterface, MessageInterface
      */
     public static function fromArray(array $data): self
     {
+        if (($data['jsonrpc'] ?? null) !== MessageInterface::JSONRPC_VERSION) {
+            throw new InvalidArgumentException('Invalid or missing "jsonrpc" version for Notification.');
+        }
         if (isset($data['id'])) {
             throw new InvalidArgumentException('Notification MUST NOT contain an "id" field.');
         }

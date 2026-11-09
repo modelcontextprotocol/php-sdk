@@ -23,6 +23,7 @@ use Mcp\Exception\UnknownMethodException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -211,6 +212,10 @@ final class StatelessProtocol
 
         if (!\is_string($id) && !\is_int($id)) {
             $id = null;
+        }
+
+        if (MessageInterface::JSONRPC_VERSION !== ($decoded['jsonrpc'] ?? null)) {
+            return StatelessResult::error(Error::forInvalidRequest('A JSON-RPC message must carry "jsonrpc": "2.0".', $id), 400);
         }
 
         $method = $decoded['method'] ?? null;
