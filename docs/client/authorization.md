@@ -176,4 +176,4 @@ try {
 }
 ```
 
-After `connect()`, requests throw the `AuthorizationException` directly. The client doesn't retry a failed authorization. Pass a PSR-3 logger with `setLogger()` to see each step.
+After `connect()`, requests throw the `AuthorizationException` directly. The client doesn't retry a failed authorization. If the token endpoint is unavailable during a refresh, the request fails and the client keeps the refresh token. Pass a PSR-3 logger with `setLogger()` to see each step.

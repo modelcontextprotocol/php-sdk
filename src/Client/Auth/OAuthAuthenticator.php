@@ -13,6 +13,7 @@ namespace Mcp\Client\Auth;
 
 use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\OAuthErrorException;
+use Mcp\Exception\TokenEndpointUnavailableException;
 use Mcp\Server\Transport\Http\OAuth\SecureUrl;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -360,7 +361,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
                 'resource' => $resource,
             ]));
         } catch (AuthorizationException $e) {
-            if (self::isForgottenClient($e, $client)) {
+            if ($e instanceof TokenEndpointUnavailableException || self::isForgottenClient($e, $client)) {
                 throw $e;
             }
 

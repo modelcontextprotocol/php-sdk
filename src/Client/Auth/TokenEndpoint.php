@@ -14,6 +14,7 @@ namespace Mcp\Client\Auth;
 use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\OAuthErrorException;
+use Mcp\Exception\TokenEndpointUnavailableException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -97,7 +98,7 @@ final class TokenEndpoint
         try {
             $response = $this->httpClient->sendRequest($request);
         } catch (ClientExceptionInterface $e) {
-            throw new AuthorizationException(\sprintf('The token request to "%s" failed: %s', $endpoint, $e->getMessage()), 0, $e);
+            throw new TokenEndpointUnavailableException(\sprintf('The token request to "%s" failed: %s', $endpoint, $e->getMessage()), 0, $e);
         }
 
         $decoded = json_decode(ResponseBody::read($response) ?? '', true);
@@ -108,8 +109,15 @@ final class TokenEndpoint
                 200 === $response->getStatusCode() => ', and a body this client could not read as JSON', \is_array($decoded) => ': '.self::describeError($decoded), default => '',
             });
 
-            if (\is_array($decoded) && \is_string($decoded['error'] ?? null)) {
-                throw new OAuthErrorException($message, $decoded['error']);
+            $status = $response->getStatusCode();
+            $error = \is_array($decoded) ? ($decoded['error'] ?? null) : null;
+
+            if ($status >= 500 || 408 === $status || 429 === $status || \in_array($error, ['temporarily_unavailable', 'server_error'], true)) {
+                throw new TokenEndpointUnavailableException($message);
+            }
+
+            if (\is_string($error)) {
+                throw new OAuthErrorException($message, $error);
             }
 
             throw new AuthorizationException($message);

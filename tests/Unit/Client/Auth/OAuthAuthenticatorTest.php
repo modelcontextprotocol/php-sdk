@@ -1070,6 +1070,44 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
     }
 
+    #[TestWith([503, ''])]
+    #[TestWith([500, '{"error":"server_error"}'])]
+    #[TestWith([429, ''])]
+    #[TestWith([400, '{"error":"temporarily_unavailable"}'])]
+    #[TestDox('an outage of the token endpoint keeps the refresh token and does not send the user to the browser')]
+    public function testAnOutageDoesNotStartANewAuthorization(int $status, string $body): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $server->refreshAnswer = new Response($status, [], $body);
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'still-good'));
+
+        try {
+            $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The outage should have been reported.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString((string) $status, $e->getMessage());
+        }
+
+        $this->assertSame([], $server->authorization);
+        $this->assertSame('still-good', $storage->getToken('https://auth.example.com', self::ENDPOINT)?->refreshToken);
+    }
+
+    #[TestWith(['invalid_grant'])]
+    #[TestWith(['unsupported_grant_type'])]
+    #[TestDox('a refused refresh token starts a new authorization')]
+    public function testARefusedRefreshTokenStartsANewAuthorization(string $error): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $server->refreshAnswer = new Response(400, [], (string) json_encode(['error' => $error]));
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'revoked'));
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertNotSame([], $server->authorization);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {
@@ -1293,6 +1331,8 @@ final class FakeOAuthServer implements ClientInterface
 
     public int $expiresIn = 3600;
 
+    public ?ResponseInterface $refreshAnswer = null;
+
     /** @var ?string[] */
     public ?array $grantTypes = ['authorization_code', 'refresh_token'];
 
@@ -1425,6 +1465,10 @@ final class FakeOAuthServer implements ClientInterface
 
         if (null !== $this->codeError && 'authorization_code' === $form['grant_type']) {
             return self::json(['error' => $this->codeError], 400);
+        }
+
+        if (null !== $this->refreshAnswer && 'refresh_token' === $form['grant_type']) {
+            return $this->refreshAnswer;
         }
 
         if (!$this->refreshTokens) {
