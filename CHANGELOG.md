@@ -70,7 +70,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix a stdio server on Windows ending by itself after about 13.5 hours without input, when `fgets()` on the idle pipe reported a false EOF: `StdioTransport` now reads only once `stream_select()` reports input, which also keeps the run loop going while idle. Requires PHP 8.5, as `stream_select()` on Windows reports an idle pipe as readable before that.
 * Fix `StdioTransport` throwing a `ValueError` on an input that cannot be selected, like `php://memory`.
 * Fix `StandardHeaderValidator` accepting an `Mcp-Param-*` header that does not match the body: a fraction that rounds to an integer argument and object or array arguments are refused with `-32020`, and so is a mirrored argument outside the safe integer range of ±(2^53-1).
-* Fix `JwtTokenValidator` throwing a `TypeError` on a token naming a JWKS key whose type or curve `firebase/php-jwt` does not support, e.g. `AKP` or `P-521`. The token is rejected with `401` now.
+* Fix `JwtTokenValidator` throwing a `TypeError` on a token naming a JWKS key whose type or curve `firebase/php-jwt` does not support, e.g. `AKP`, or `P-521` since its v7.1. The token is rejected with `401` now.
 
 ### Client
 
