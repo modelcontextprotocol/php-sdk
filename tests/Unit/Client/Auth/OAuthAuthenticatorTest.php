@@ -938,6 +938,18 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame(1, $handler->calls);
     }
 
+    #[TestDox('a new authorization without a step-up does not add the scopes of a stored token')]
+    public function testOnlyAStepUpKeepsTheScopesOfAStoredToken(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, null, ['openid', 'mcp:read']));
+
+        $this->authenticator($server, storage: $storage, configuration: OAuth::forApplication('test')->setScopes('openid'))->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('openid', $server->authorization['scope'] ?? null);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {

@@ -260,7 +260,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             $scopes = [...$scopes, ...$challenge->getScopes()];
         }
 
-        $held = array_diff($stored->scopes ?? [], ['offline_access']);
+        $held = 'insufficient_scope' === $challenge->getError() ? array_diff($stored->scopes ?? [], ['offline_access']) : [];
         $scopes = array_values(array_unique([...$this->requestedScopes, ...$held, ...$scopes]));
 
         if ($this->offlineAccessRefused) {
