@@ -15,6 +15,7 @@ use Mcp\Client\Auth\AccessToken;
 use Mcp\Client\Auth\AuthorizationHandlerInterface;
 use Mcp\Client\Auth\ClientRegistrar;
 use Mcp\Client\Auth\ClientRegistration;
+use Mcp\Client\Auth\CredentialStorageInterface;
 use Mcp\Client\Auth\InMemoryCredentialStorage;
 use Mcp\Client\Auth\MetadataDiscovery;
 use Mcp\Client\Auth\OAuth;
@@ -35,7 +36,7 @@ use Psr\Http\Message\ResponseInterface;
 
 final class OAuthAuthenticatorTest extends TestCase
 {
-    private const ENDPOINT = 'https://mcp.example.com/mcp';
+    public const ENDPOINT = 'https://mcp.example.com/mcp';
 
     #[TestDox('a challenge drives discovery, registration and the code exchange in one pass')]
     public function testCompletesTheFlowFromASingleChallenge(): void
@@ -950,6 +951,41 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('openid', $server->authorization['scope'] ?? null);
     }
 
+    #[TestDox('a token another process refreshed in the meantime is used, without spending its refresh token')]
+    public function testUsesATokenRefreshedByAnotherProcess(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $storage = $this->storageWithAnotherProcess(new AccessToken('from-other-process', 'Bearer', time() + 3600, 'rotated'));
+        $authenticator = $this->authenticator($server, storage: $storage);
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('Bearer from-other-process', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
+        $this->assertSame([], $server->token);
+    }
+
+    #[TestDox('a refresh spends the refresh token another process stored in the meantime')]
+    public function testSpendsTheRefreshTokenOfAnotherProcess(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $storage = $this->storageWithAnotherProcess(new AccessToken('also-expired', 'Bearer', time() - 60, 'rotated'));
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('rotated', $server->token['refresh_token'] ?? null);
+    }
+
+    #[TestDox('a refreshed token is stored before another process can start its refresh')]
+    public function testStoresARefreshedTokenWhileSynchronized(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $storage = $this->storageWithAnotherProcess(new AccessToken('also-expired', 'Bearer', time() - 60, 'rotated'));
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame([true], $storage->savedWhileSynchronized);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {
@@ -1031,10 +1067,69 @@ final class OAuthAuthenticatorTest extends TestCase
         return (new Psr17Factory())->createRequest('POST', self::ENDPOINT);
     }
 
+    /**
+     * @return CredentialStorageInterface&object{savedWhileSynchronized: bool[]}
+     */
+    private function storageWithAnotherProcess(AccessToken $tokenOfOtherProcess): CredentialStorageInterface
+    {
+        return new class($tokenOfOtherProcess) implements CredentialStorageInterface {
+            /** @var bool[] */
+            public array $savedWhileSynchronized = [];
+
+            private readonly InMemoryCredentialStorage $storage;
+
+            private bool $synchronized = false;
+
+            public function __construct(private readonly AccessToken $tokenOfOtherProcess)
+            {
+                $this->storage = new InMemoryCredentialStorage();
+                $this->storage->saveToken('https://auth.example.com', OAuthAuthenticatorTest::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'original'));
+            }
+
+            public function getClientRegistration(string $issuer): ?ClientRegistration
+            {
+                return $this->storage->getClientRegistration($issuer);
+            }
+
+            public function saveClientRegistration(string $issuer, ClientRegistration $registration): void
+            {
+                $this->storage->saveClientRegistration($issuer, $registration);
+            }
+
+            public function getToken(string $issuer, string $resource): ?AccessToken
+            {
+                return $this->storage->getToken($issuer, $resource);
+            }
+
+            public function saveToken(string $issuer, string $resource, AccessToken $token): void
+            {
+                $this->savedWhileSynchronized[] = $this->synchronized;
+                $this->storage->saveToken($issuer, $resource, $token);
+            }
+
+            public function forget(?string $issuer = null): void
+            {
+                $this->storage->forget($issuer);
+            }
+
+            public function synchronize(callable $operation): mixed
+            {
+                $this->storage->saveToken('https://auth.example.com', OAuthAuthenticatorTest::ENDPOINT, $this->tokenOfOtherProcess);
+                $this->synchronized = true;
+
+                try {
+                    return $operation();
+                } finally {
+                    $this->synchronized = false;
+                }
+            }
+        };
+    }
+
     private function authenticator(
         FakeOAuthServer $server,
         ?AuthorizationHandlerInterface $handler = null,
-        ?InMemoryCredentialStorage $storage = null,
+        ?CredentialStorageInterface $storage = null,
         ?OAuth $configuration = null,
     ): OAuthAuthenticator {
         $factory = new Psr17Factory();

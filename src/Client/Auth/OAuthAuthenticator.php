@@ -117,7 +117,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $refreshable = 'insufficient_scope' === $challenge->getError() ? null : $stored;
 
         try {
-            $token = $this->refresh($refreshable, $metadata, $client, $needed);
+            $token = $this->refresh($refreshable, $metadata, $client, $needed, $resource, $request);
         } catch (OAuthErrorException) {
             $this->logger->info('The authorization server no longer knows this client; registering it again.', ['issuer' => $metadata->issuer]);
             $this->storage->forget($metadata->issuer);
@@ -138,12 +138,12 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             }
 
             $token = $token->withGrantedScopes($scopes);
+            $this->storage->saveToken($metadata->issuer, $resource, $token);
         }
 
         $this->token = $token;
         $this->audience = $audience;
         $this->requestedScopes = $scopes;
-        $this->storage->saveToken($metadata->issuer, $resource, $this->token);
 
         return true;
     }
@@ -295,13 +295,13 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     }
 
     /**
-     * Trade a refresh token for a new access token, if it covers the scopes.
+     * Trade a refresh token for a new access token, one process at a time as a rotated refresh token can only be spent once.
      *
      * @param string[] $scopes
      */
-    private function refresh(?AccessToken $stored, AuthorizationServerMetadata $metadata, ClientRegistration $client, array $scopes): ?AccessToken
+    private function refresh(?AccessToken $stored, AuthorizationServerMetadata $metadata, ClientRegistration $client, array $scopes, string $resource, RequestInterface $request): ?AccessToken
     {
-        if (null === $stored || null === $stored->refreshToken || !$stored->covers($scopes)) {
+        if (null === $stored || null === $stored->refreshToken) {
             return null;
         }
 
@@ -310,11 +310,39 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return null;
         }
 
+        return $this->storage->synchronize(function () use ($metadata, $client, $scopes, $resource, $request): ?AccessToken {
+            // Another process may have refreshed the token while this one waited.
+            $current = $this->storage->getToken($metadata->issuer, $resource);
+
+            if (null === $current) {
+                return null;
+            }
+
+            if ($this->isUsable($current, $scopes, $request)) {
+                return $current;
+            }
+
+            if (null === $current->refreshToken || !$current->covers($scopes)) {
+                return null;
+            }
+
+            $token = $this->spendRefreshToken($current, $current->refreshToken, $metadata, $client, $resource);
+
+            if (null !== $token) {
+                $this->storage->saveToken($metadata->issuer, $resource, $token);
+            }
+
+            return $token;
+        });
+    }
+
+    private function spendRefreshToken(AccessToken $stored, string $refreshToken, AuthorizationServerMetadata $metadata, ClientRegistration $client, string $resource): ?AccessToken
+    {
         try {
             $token = $this->tokenEndpoint->request($metadata, $client, self::withoutEmptyValues([
                 'grant_type' => Grant::RefreshToken->value,
-                'refresh_token' => $stored->refreshToken,
-                'resource' => $this->resource,
+                'refresh_token' => $refreshToken,
+                'resource' => $resource,
             ]));
         } catch (AuthorizationException $e) {
             if (self::isForgottenClient($e, $client)) {
@@ -331,7 +359,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             $token->accessToken,
             $token->tokenType,
             $token->expiresAt,
-            $token->refreshToken ?? $stored->refreshToken,
+            $token->refreshToken ?? $refreshToken,
             [] === $token->scopes ? $stored->scopes : $token->scopes,
         );
     }

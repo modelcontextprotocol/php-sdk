@@ -33,10 +33,10 @@ final class FileCredentialStorageTest extends TestCase
             unlink($this->path);
         }
 
-        $lock = \dirname($this->path).'/.'.basename($this->path).'.lock';
-
-        if (is_file($lock)) {
-            unlink($lock);
+        foreach ([\dirname($this->path).'/counter', \dirname($this->path).'/.'.basename($this->path).'.lock', \dirname($this->path).'/.'.basename($this->path).'.refresh.lock'] as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
         }
 
         if (is_dir(\dirname($this->path))) {
@@ -187,6 +187,27 @@ final class FileCredentialStorageTest extends TestCase
         $storage->saveToken('https://auth.example.com', 'https://mcp.example.com/mcp', new AccessToken('token'));
 
         $this->assertSame('token', $storage->getToken('https://auth.example.com', 'https://mcp.example.com/mcp')?->accessToken);
+    }
+
+    #[TestDox('processes sharing the file run their synchronized operations one at a time')]
+    public function testSynchronizeExcludesOtherProcesses(): void
+    {
+        $counter = \dirname($this->path).'/counter';
+        mkdir(\dirname($this->path), 0700, true);
+        $code = 'require $argv[1]; (new Mcp\Client\Auth\FileCredentialStorage($argv[2]))->synchronize(function () use ($argv) { $count = (int) @file_get_contents($argv[3]); usleep(300000); file_put_contents($argv[3], $count + 1); });';
+
+        $processes = [];
+
+        for ($i = 0; $i < 3; ++$i) {
+            $processes[] = proc_open([\PHP_BINARY, '-r', $code, \dirname(__DIR__, 4).'/vendor/autoload.php', $this->path, $counter], [], $pipes);
+        }
+
+        foreach ($processes as $process) {
+            $this->assertIsResource($process);
+            $this->assertSame(0, proc_close($process));
+        }
+
+        $this->assertSame('3', file_get_contents($counter));
     }
 
     #[TestDox('nothing is stored until there is something to store')]

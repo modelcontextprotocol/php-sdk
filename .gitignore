@@ -8,6 +8,7 @@ examples/**/cache
 examples/**/sessions
 examples/client/.oauth-credentials.json
 examples/client/..oauth-credentials.json.lock
+examples/client/..oauth-credentials.json.refresh.lock
 tests/Conformance/client-conformance*.json
 tests/Conformance/server-conformance*.json
 tests/Conformance/results*

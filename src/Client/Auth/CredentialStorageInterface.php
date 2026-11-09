@@ -37,4 +37,15 @@ interface CredentialStorageInterface
      * Drop everything held for one authorization server, or the whole store when null.
      */
     public function forget(?string $issuer = null): void;
+
+    /**
+     * Run an operation while no other process sharing this storage runs one.
+     *
+     * @template T
+     *
+     * @param callable(): T $operation
+     *
+     * @return T
+     */
+    public function synchronize(callable $operation): mixed;
 }

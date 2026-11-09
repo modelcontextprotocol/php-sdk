@@ -87,6 +87,12 @@ final class FileCredentialStorage implements CredentialStorageInterface
         });
     }
 
+    public function synchronize(callable $operation): mixed
+    {
+        // Its own lock file, as the operation saves credentials under the other one.
+        return $this->underLock('.refresh.lock', $operation);
+    }
+
     /**
      * @return array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>}
      */
@@ -117,13 +123,27 @@ final class FileCredentialStorage implements CredentialStorageInterface
      */
     private function update(callable $change): void
     {
+        $this->underLock('.lock', function () use ($change): void {
+            $this->write($change($this->read()));
+        });
+    }
+
+    /**
+     * @template T
+     *
+     * @param callable(): T $operation
+     *
+     * @return T
+     */
+    private function underLock(string $suffix, callable $operation): mixed
+    {
         $directory = \dirname($this->path);
 
         if (!is_dir($directory) && !@mkdir($directory, 0700, true) && !is_dir($directory)) {
             throw new RuntimeException(\sprintf('Could not create the credential directory "%s".', $directory));
         }
 
-        $lockPath = $directory.'/.'.basename($this->path).'.lock';
+        $lockPath = $directory.'/.'.basename($this->path).$suffix;
         $lock = @fopen($lockPath, 'c');
 
         if (false === $lock) {
@@ -137,7 +157,7 @@ final class FileCredentialStorage implements CredentialStorageInterface
                 throw new RuntimeException(\sprintf('Could not lock the credential lock file "%s".', $lockPath));
             }
 
-            $this->write($change($this->read()));
+            return $operation();
         } finally {
             fclose($lock);
         }

@@ -55,4 +55,9 @@ final class InMemoryCredentialStorage implements CredentialStorageInterface
 
         unset($this->registrations[$issuer], $this->tokens[$issuer]);
     }
+
+    public function synchronize(callable $operation): mixed
+    {
+        return $operation();
+    }
 }
