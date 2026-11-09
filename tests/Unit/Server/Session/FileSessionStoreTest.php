@@ -385,7 +385,12 @@ class FileSessionStoreTest extends TestCase
         // The writers finish in whatever order they like.
         ksort($exitCodes);
 
-        $this->assertSame([0, 0, 0], $exitCodes, 'The concurrent writers did not all run to completion.');
+        $errors = '';
+        foreach (array_keys($writers) as $i) {
+            $errors .= file_get_contents($this->directory.\DIRECTORY_SEPARATOR.'writer-'.$i.'.err');
+        }
+
+        $this->assertSame([0, 0, 0], $exitCodes, 'The concurrent writers did not all run to completion: '.$errors);
 
         foreach (array_keys($writers) as $i) {
             $this->assertSame('', file_get_contents($this->directory.\DIRECTORY_SEPARATOR.'writer-'.$i.'.err'));
@@ -406,12 +411,20 @@ class FileSessionStoreTest extends TestCase
 
             require $argv[1];
 
-            $store = new Mcp\Server\Session\FileSessionStore($argv[2]);
+            // The store logs why a write failed, which ends up in this writer's error file.
+            $logger = new class extends Psr\Log\AbstractLogger {
+                public function log($level, $message, array $context = []): void
+                {
+                    fwrite(\STDERR, $level.': '.$message.' '.json_encode($context).\PHP_EOL);
+                }
+            };
+            $store = new Mcp\Server\Session\FileSessionStore($argv[2], logger: $logger);
             $id = Symfony\Component\Uid\Uuid::fromString($argv[3]);
             $payload = json_encode(['queue' => array_fill(0, 200, str_repeat('x', 200))]);
 
             for ($i = 0; $i < 200; ++$i) {
                 if (!$store->write($id, $payload)) {
+                    fwrite(\STDERR, sprintf('Write %d of 200 failed.', $i + 1).\PHP_EOL);
                     exit(1);
                 }
             }
