@@ -154,7 +154,7 @@ The client treats the MCP server and its metadata as untrusted input. It stops w
 | With `setLegacyDiscovery(true)`, a metadata location answers anything but a `404` and gives no usable metadata | The client only uses the fixed endpoints after a `404` |
 | The server has no protected resource metadata, without `setLegacyDiscovery(true)` | There is nothing to check the authorization server against |
 
-If you run the client on a server, block requests to private networks in your HTTP client or proxy (e.g. with Symfony's `NoPrivateNetworkHttpClient`) and pass that client to `setHttpClient()`. Pass it to `HeadlessAuthorizationHandler` as well, which sends its own request to the authorization endpoint.
+These checks only look at how a URL writes its host. A DNS name that points at loopback or a private network still gets through. If you run the client on a server, block requests to private networks in your HTTP client or proxy (e.g. with Symfony's `NoPrivateNetworkHttpClient`) and pass that client to `setHttpClient()`. Pass it to `HeadlessAuthorizationHandler` as well, which sends its own request to the authorization endpoint.
 
 !!! warning
     A client that you pass to `setHttpClient()` *must not* follow redirects. The client only turns them off on a `Psr18Client` of `symfony/http-client` 6.2 or later. With redirects on, an authorization server can send the authorization code and the client credentials to any address.

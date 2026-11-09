@@ -79,7 +79,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Client
 
-* [BC Break] Refuse discovered OAuth URLs whose host is `0.0.0.0`, `::`, an IPv4 address within IPv6 or an IPv4 address in a non-standard form (e.g. `127.1`).
+* [BC Break] Refuse OAuth URLs whose host is `0.0.0.0`, `::`, an IPv4 address within IPv6 or an IPv4 address in a non-standard form (e.g. `127.1`).
 * [BC Break] Start a stdio server on Windows without `cmd.exe`, as it corrupted arguments containing `"`, `%` or `!`. A batch file like `npx` now needs `command: 'cmd'` and `args: ['/c', 'npx', ...]`.
 * Fix the stdio client hanging on Windows while the server stays silent, without enforcing its timeouts: `StdioTransport` now reads only once `stream_select()` reports output. Requires PHP 8.5, as `stream_select()` on Windows reports an idle pipe as readable before that.
 * [BC Break] Remove JSON-RPC batch support: a JSON array from the server is dropped with a warning. Batching was removed from MCP in `2025-06-18`.
