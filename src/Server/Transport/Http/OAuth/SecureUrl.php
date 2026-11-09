@@ -47,6 +47,16 @@ final class SecureUrl
         return $parts;
     }
 
+    /**
+     * Whether a URL points at the machine it is requested from, on any scheme.
+     */
+    public static function isLoopback(string $url): bool
+    {
+        $host = parse_url($url, \PHP_URL_HOST);
+
+        return \is_string($host) && self::isLoopbackHost($host);
+    }
+
     private static function isLoopbackHost(string $host): bool
     {
         $host = strtolower(trim($host, '[]'));

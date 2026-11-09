@@ -545,6 +545,35 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('known-client', $server->authorization['client_id'] ?? null);
     }
 
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function loopbackIssuerProvider(): iterable
+    {
+        yield 'an IPv4 address' => ['http://127.0.0.1:9000'];
+        yield 'another IPv4 loopback address' => ['http://127.1.2.3:9000'];
+        yield 'an IPv6 address' => ['http://[::1]:9000'];
+        yield 'localhost' => ['http://localhost:9000'];
+        yield 'a name below localhost' => ['http://admin.localhost:9000'];
+        yield 'https on loopback' => ['https://127.0.0.1:9000'];
+    }
+
+    #[DataProvider('loopbackIssuerProvider')]
+    #[TestDox('a remote server can not make the client request its own loopback: $_dataName')]
+    public function testRefusesALoopbackIssuerOfARemoteServer(string $issuer): void
+    {
+        $server = new FakeOAuthServer(authorizationServer: $issuer);
+
+        try {
+            $this->authenticator($server)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The loopback authorization server was not refused.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('loopback', $e->getMessage());
+        }
+
+        $this->assertSame([], array_filter($server->requested, static fn (string $url): bool => str_starts_with($url, $issuer)));
+    }
+
     #[TestDox('a server on plain http is refused before anything is fetched')]
     public function testRefusesAnInsecureServer(): void
     {

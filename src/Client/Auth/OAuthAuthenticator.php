@@ -13,6 +13,7 @@ namespace Mcp\Client\Auth;
 
 use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\OAuthErrorException;
+use Mcp\Server\Transport\Http\OAuth\SecureUrl;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
@@ -171,6 +172,11 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         // Checked before the fetch, as even the request is made on the server's behalf.
         if (!AuthorizationServerMetadata::isTransportSecure($issuer)) {
             throw new AuthorizationException(\sprintf('The protected resource metadata for "%s" names "%s" as its authorization server, which is neither an HTTPS URL nor a loopback address.', $endpoint, $issuer));
+        }
+
+        // Even the request is made on the server's behalf, so a remote one can't reach what only listens locally.
+        if (SecureUrl::isLoopback($issuer) && !SecureUrl::isLoopback($endpoint) && $issuer !== $this->configuration->expectedIssuer) {
+            throw new AuthorizationException(\sprintf('The protected resource metadata for "%s" names "%s" as its authorization server, which is a loopback address. Call OAuth::setExpectedIssuer() if that is intended.', $endpoint, $issuer));
         }
 
         $server = $this->discovery->discoverAuthorizationServer($issuer);

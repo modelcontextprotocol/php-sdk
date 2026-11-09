@@ -83,6 +83,11 @@ final class AuthorizationServerMetadata
                 throw new InvalidArgumentException(\sprintf('The authorization server metadata declares "%s" as "%s", which is neither an HTTPS URL nor a loopback address.', $endpoint, $data[$endpoint]));
             }
 
+            // Only a server on this machine may send the client back to this machine.
+            if (SecureUrl::isLoopback($data[$endpoint]) && \is_string($data['issuer'] ?? null) && !SecureUrl::isLoopback($data['issuer'])) {
+                throw new InvalidArgumentException(\sprintf('The authorization server metadata of "%s" declares "%s" as "%s", which is a loopback address.', $data['issuer'], $endpoint, $data[$endpoint]));
+            }
+
             $parts = SecureUrl::parse($data[$endpoint], $endpoint);
 
             // RFC 6749 sections 3.1 and 3.2 rule out fragments; RFC 9110 section 4.2.4 treats untrusted userinfo as an error.
