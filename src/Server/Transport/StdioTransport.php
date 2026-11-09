@@ -241,15 +241,22 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     private function route(string $message): void
     {
         $classification = $this->classifier->classify('POST', $message);
+        $decoded = json_decode($message, true);
 
         if ($classification->isRejected()) {
             \assert(null !== $classification->error);
+
+            if (self::isNotification($decoded)) {
+                $this->logger->warning('StdioTransport did not answer a notification it refused.', ['error' => $classification->error]);
+
+                return;
+            }
+
             $this->writeError($classification->error);
 
             return;
         }
 
-        $decoded = json_decode($message, true);
         // Only a request with a usable id may settle the era; anything else is left to the dispatcher.
         $request = \is_array($decoded) && \is_string($decoded['method'] ?? null)
             && (\is_string($decoded['id'] ?? null) || \is_int($decoded['id'] ?? null)) ? $decoded : null;
@@ -299,7 +306,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             return;
         }
 
-        $this->handlingNotification = \is_array($decoded) && \is_string($decoded['method'] ?? null) && !\array_key_exists('id', $decoded);
+        $this->handlingNotification = self::isNotification($decoded);
 
         try {
             $this->handleMessage($message, $this->sessionId);
@@ -390,6 +397,15 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
                 unset($this->streams[$id]);
             }
         }
+    }
+
+    private static function isNotification(mixed $decoded): bool
+    {
+        if (!\is_array($decoded) || !\is_string($decoded['method'] ?? null) || null !== ($decoded['id'] ?? null)) {
+            return false;
+        }
+
+        return null === ($decoded['params'] ?? null) || \is_array($decoded['params']);
     }
 
     private static function streamKey(string|int $id): string

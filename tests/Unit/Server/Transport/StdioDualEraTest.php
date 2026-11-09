@@ -346,6 +346,7 @@ final class StdioDualEraTest extends TestCase
         $lines = $this->exchange(self::builder(), [
             ['jsonrpc' => '2.0', 'method' => 'notifications/initialized'],
             ['jsonrpc' => '2.0', 'method' => 'notifications/cancelled', 'params' => ['requestId' => 1]],
+            ['jsonrpc' => '2.0', 'method' => 'notifications/initialized', 'id' => null],
             self::initialize(1),
         ]);
 
@@ -354,17 +355,42 @@ final class StdioDualEraTest extends TestCase
         $this->assertArrayHasKey('result', $lines[0]);
     }
 
-    #[TestDox('a message without an id whose method is not a string is answered as an invalid request')]
-    public function testMessageWithNonStringMethodIsAnswered(): void
+    #[TestDox('a notification with an invalid protocol version claim is refused without an answer')]
+    public function testNotificationWithInvalidVersionClaimIsNotAnswered(): void
     {
         $lines = $this->exchange(self::builder(), [
-            ['jsonrpc' => '2.0', 'method' => 123],
+            ['jsonrpc' => '2.0', 'method' => 'notifications/initialized', 'params' => ['_meta' => [RequestMeta::PROTOCOL_VERSION => 5]]],
             self::initialize(1),
         ]);
 
+        $this->assertCount(1, $lines);
+        $this->assertSame(1, $lines[0]['id'] ?? null);
+    }
+
+    /**
+     * @param array<string, mixed> $message
+     */
+    #[TestDox('a message without an id that is no valid notification is answered as an invalid request')]
+    #[DataProvider('provideMalformedIdLessMessages')]
+    public function testMalformedIdLessMessageIsAnswered(array $message): void
+    {
+        $lines = $this->exchange(self::builder(), [
+            self::initialize(1),
+            $message,
+        ]);
+
         $this->assertCount(2, $lines);
-        $this->assertSame(Error::INVALID_REQUEST, $lines[0]['error']['code'] ?? null);
-        $this->assertSame(1, $lines[1]['id'] ?? null);
+        $this->assertSame(1, $lines[0]['id'] ?? null);
+        $this->assertSame(Error::INVALID_REQUEST, $lines[1]['error']['code'] ?? null);
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>}>
+     */
+    public static function provideMalformedIdLessMessages(): iterable
+    {
+        yield 'method is not a string' => [['jsonrpc' => '2.0', 'method' => 123]];
+        yield 'params are not structured' => [['jsonrpc' => '2.0', 'method' => 'notifications/cancelled', 'params' => 'x']];
     }
 
     #[TestDox('a server/discover handler added to the builder answers a modern stdio client')]
