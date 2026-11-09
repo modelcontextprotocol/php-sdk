@@ -16,6 +16,7 @@ use Mcp\Exception\InvalidInputMessageException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Stateless\StatelessResult;
@@ -66,6 +67,8 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     private ?array $handshakeVersions = null;
 
     private readonly InboundClassifier $classifier;
+
+    private bool $handlingNotification = false;
 
     /** Null until the client's first request settles the era. */
     private ?bool $modern = null;
@@ -130,6 +133,13 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     {
         if (isset($context['session_id'])) {
             $this->sessionId = $context['session_id'];
+        }
+
+        // Over HTTP a refused notification gets an error status; stdio has nothing to answer it with.
+        if ($this->handlingNotification && 'response' === ($context['type'] ?? null)) {
+            $this->logger->warning('StdioTransport did not answer a notification it refused.', ['error' => $data]);
+
+            return;
         }
 
         $this->writeLine($data);
@@ -232,15 +242,22 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     private function route(string $message): void
     {
         $classification = $this->classifier->classify('POST', $message);
+        $decoded = json_decode($message, true);
 
         if ($classification->isRejected()) {
             \assert(null !== $classification->error);
+
+            if (self::isNotification($decoded)) {
+                $this->logger->warning('StdioTransport did not answer a notification it refused.', ['error' => $classification->error]);
+
+                return;
+            }
+
             $this->writeError($classification->error);
 
             return;
         }
 
-        $decoded = json_decode($message, true);
         // Only a request with a usable id may settle the era; anything else is left to the dispatcher.
         $request = \is_array($decoded) && \is_string($decoded['method'] ?? null)
             && (\is_string($decoded['id'] ?? null) || \is_int($decoded['id'] ?? null)) ? $decoded : null;
@@ -290,7 +307,13 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             return;
         }
 
-        $this->handleMessage($message, $this->sessionId);
+        $this->handlingNotification = self::isNotification($decoded);
+
+        try {
+            $this->handleMessage($message, $this->sessionId);
+        } finally {
+            $this->handlingNotification = false;
+        }
     }
 
     /**
@@ -375,6 +398,16 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
                 unset($this->streams[$id]);
             }
         }
+    }
+
+    private static function isNotification(mixed $decoded): bool
+    {
+        if (!\is_array($decoded) || MessageInterface::JSONRPC_VERSION !== ($decoded['jsonrpc'] ?? null)
+            || !\is_string($decoded['method'] ?? null) || \array_key_exists('id', $decoded)) {
+            return false;
+        }
+
+        return null === ($decoded['params'] ?? null) || \is_array($decoded['params']);
     }
 
     private static function streamKey(string|int $id): string
