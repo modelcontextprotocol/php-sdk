@@ -14,6 +14,7 @@ namespace Mcp\Client\Auth;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Client\Transport\NoRedirects;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Transport\Http\OAuth\SecureUrl;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
@@ -105,23 +106,19 @@ final class OAuth
     }
 
     /**
-     * Publish the client's identity at a URL and use that URL as the client id.
-     *
-     * Servers that support client id metadata documents read the client's metadata from
-     * this URL, so one identity works everywhere instead of one registration per server.
-     * The document must be reachable by the authorization server. A client id set with
-     * {@see self::setClientCredentials()} takes precedence.
-     *
-     * @param string $url an https URL with a path, and without a fragment, credentials or
-     *                    dot segments, as client id metadata documents require
+     * Use the URL of a client ID metadata document as the client id where the server supports it.
      */
     public function setClientMetadataUrl(string $url): self
     {
-        $parts = parse_url($url);
+        try {
+            $parts = SecureUrl::parse($url, 'client metadata URL');
+        } catch (InvalidArgumentException) {
+            $parts = null;
+        }
 
-        if (false === filter_var($url, \FILTER_VALIDATE_URL)
-            || !\is_array($parts)
-            || 'https' !== strtolower($parts['scheme'] ?? '')
+        if (null === $parts
+            || false === filter_var($url, \FILTER_VALIDATE_URL)
+            || 'https' !== strtolower($parts['scheme'])
             || '' === trim($parts['path'] ?? '', '/')
             || isset($parts['fragment']) || isset($parts['user']) || isset($parts['pass'])
             || [] !== array_intersect(explode('/', rawurldecode($parts['path'] ?? '')), ['.', '..'])

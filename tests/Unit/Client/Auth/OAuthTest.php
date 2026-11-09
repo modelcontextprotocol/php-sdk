@@ -118,10 +118,12 @@ final class OAuthTest extends TestCase
         yield 'a single-dot segment' => ['https://app.example.com/./client.json'];
         yield 'a double-dot segment' => ['https://app.example.com/a/../client.json'];
         yield 'an encoded dot segment' => ['https://app.example.com/a/%2e%2e/client.json'];
+        yield 'a backslash dot segment' => ['https://app.example.com/a\\..\\client.json'];
+        yield 'plain http on loopback' => ['http://localhost/client.json'];
     }
 
     #[DataProvider('invalidClientMetadataUrlProvider')]
-    #[TestDox('a client metadata URL needs https and a path: $_dataName')]
+    #[TestDox('an invalid client metadata URL is refused: $_dataName')]
     public function testRejectsAnInvalidClientMetadataUrl(string $url): void
     {
         $this->expectException(InvalidArgumentException::class);
