@@ -194,6 +194,27 @@ final class HttpTransportListenTest extends TestCase
         $client->disconnect();
     }
 
+    #[TestDox('an event larger than one read that already arrived is handled within the same call')]
+    public function testEventLargerThanOneReadIsHandledWithinOneCall(): void
+    {
+        $server = new FakeListeningServer(rootsOnGet: false);
+        $client = $this->client($server, listen: true);
+
+        fwrite($server->getStream(), 'data: '.json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 'srv-1',
+            'method' => 'roots/list',
+            'params' => ['_meta' => ['padding' => str_repeat('x', 20_000)]],
+        ])."\n\n");
+
+        $this->assertSame('hello', $this->echo($client, 'hello'));
+
+        $answers = array_filter($server->requests('POST'), static fn (RequestInterface $r): bool => str_contains((string) $r->getBody(), '"srv-1"'));
+        $this->assertCount(1, $answers, 'the client answered the server request');
+
+        $client->disconnect();
+    }
+
     #[TestDox('an oversized event on the listening stream closes it, leaving the connection usable')]
     public function testOversizedEventOnListenStreamClosesIt(): void
     {
