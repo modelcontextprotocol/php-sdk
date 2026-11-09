@@ -31,8 +31,6 @@ final class OAuthConfiguration
      * @param bool           $offlineAccess   whether to ask for a refresh token where the server offers one
      * @param bool           $legacyDiscovery whether to fall back to pre-2025-06-18 discovery when a
      *                                        server publishes no protected resource metadata
-     * @param ?string        $resource        the canonical resource URI to request tokens for, when it
-     *                                        should not be derived from the endpoint being called
      * @param ?string        $expectedIssuer  the only authorization server to authorize with
      *
      * @throws InvalidArgumentException when the redirect URI is insecure, or a client id is set without an expected issuer
@@ -45,7 +43,6 @@ final class OAuthConfiguration
         public readonly array $scopes = [],
         public readonly bool $offlineAccess = true,
         public readonly bool $legacyDiscovery = false,
-        public readonly ?string $resource = null,
         public readonly ?string $expectedIssuer = null,
     ) {
         if (!AuthorizationServerMetadata::isTransportSecure($redirectUri)) {

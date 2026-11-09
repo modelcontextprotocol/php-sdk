@@ -45,7 +45,6 @@ final class OAuth
     private array $scopes = [];
     private bool $offlineAccess = true;
     private bool $legacyDiscovery = false;
-    private ?string $resource = null;
 
     private ?CredentialStorageInterface $storage = null;
     private ?AuthorizationHandlerInterface $authorizationHandler = null;
@@ -130,16 +129,6 @@ final class OAuth
     public function setLegacyDiscovery(bool $legacyDiscovery): self
     {
         $this->legacyDiscovery = $legacyDiscovery;
-
-        return $this;
-    }
-
-    /**
-     * Request tokens for this resource identifier instead of the endpoint being called.
-     */
-    public function setResource(string $resource): self
-    {
-        $this->resource = $resource;
 
         return $this;
     }
@@ -235,7 +224,6 @@ final class OAuth
             $this->scopes,
             $this->offlineAccess,
             $this->legacyDiscovery,
-            $this->resource,
             $this->expectedIssuer,
         );
 

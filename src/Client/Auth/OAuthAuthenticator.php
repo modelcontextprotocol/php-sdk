@@ -30,7 +30,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     private ?AccessToken $token = null;
 
     /**
-     * The resource the current token may be sent to, which an overridden $resource doesn't change.
+     * The resource the current token may be sent to, which stays behind $resource when an authorization fails.
      */
     private ?string $audience = null;
 
@@ -80,7 +80,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             throw new AuthorizationException(\sprintf('Refusing to authorize the server at "%s": it is neither an HTTPS URL nor a loopback address.', $endpoint));
         }
 
-        [$resource, $audience, $metadata, $scopesSupported] = $this->discover($endpoint, $challenge);
+        [$resource, $metadata, $scopesSupported] = $this->discover($endpoint, $challenge);
 
         if (null !== $this->configuration->expectedIssuer && $metadata->issuer !== $this->configuration->expectedIssuer) {
             throw new AuthorizationException(\sprintf('The server at "%s" names the authorization server "%s", but only "%s" is expected.', $endpoint, $metadata->issuer, $this->configuration->expectedIssuer));
@@ -99,7 +99,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->issuer = $metadata->issuer;
         $this->resource = $resource;
 
-        $stored = $this->storage->getToken($metadata->issuer, $audience);
+        $stored = $this->storage->getToken($metadata->issuer, $resource);
         $scopes = $this->selectScopes($challenge, $scopesSupported, $metadata, $stored);
         // The resource never requires offline_access, which only gets a refresh token.
         $needed = array_values(array_diff($scopes, ['offline_access']));
@@ -107,7 +107,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         if (null !== $stored && $this->isUsable($stored, $needed, $request)) {
             $this->logger->debug('Reusing a stored access token', ['issuer' => $metadata->issuer, 'resource' => $resource]);
             $this->token = $stored;
-            $this->audience = $audience;
+            $this->audience = $resource;
 
             return true;
         }
@@ -117,7 +117,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $refreshable = 'insufficient_scope' === $challenge->getError() ? null : $stored;
 
         try {
-            $token = $this->refresh($refreshable, $metadata, $client, $needed, $resource, $audience, $request);
+            $token = $this->refresh($refreshable, $metadata, $client, $needed, $resource, $request);
         } catch (OAuthErrorException) {
             $this->logger->info('The authorization server no longer knows this client; registering it again.', ['issuer' => $metadata->issuer]);
             $this->storage->forget($metadata->issuer);
@@ -138,27 +138,27 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             }
 
             $token = $token->withGrantedScopes($scopes);
-            $this->storage->saveToken($metadata->issuer, $audience, $token);
+            $this->storage->saveToken($metadata->issuer, $resource, $token);
         }
 
         $this->token = $token;
-        $this->audience = $audience;
+        $this->audience = $resource;
         $this->requestedScopes = $scopes;
 
         return true;
     }
 
     /**
-     * Find the requested resource, the token's audience and the server, on every challenge as a resource may move.
+     * Find the resource and the server, on every challenge as a resource may move.
      *
-     * @return array{string, string, AuthorizationServerMetadata, ?string[]}
+     * @return array{string, AuthorizationServerMetadata, ?string[]}
      */
     private function discover(string $endpoint, AuthorizationChallenge $challenge): array
     {
         $metadata = $this->discovery->discoverProtectedResource($endpoint, self::trustedMetadataUrl($endpoint, $challenge));
 
         if (null === $metadata) {
-            return [$this->configuration->resource ?? $endpoint, $endpoint, $this->discoverLegacyServer($endpoint), null];
+            return [$endpoint, $this->discoverLegacyServer($endpoint), null];
         }
 
         if (!$metadata->covers($endpoint)) {
@@ -179,7 +179,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             throw new AuthorizationException(\sprintf('No usable metadata was found for the authorization server "%s".', $issuer));
         }
 
-        return [$this->configuration->resource ?? $metadata->resource, $metadata->resource, $server, $metadata->scopesSupported];
+        return [$metadata->resource, $server, $metadata->scopesSupported];
     }
 
     private static function isForgottenClient(AuthorizationException $e, ClientRegistration $client): bool
@@ -299,7 +299,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      *
      * @param string[] $scopes
      */
-    private function refresh(?AccessToken $stored, AuthorizationServerMetadata $metadata, ClientRegistration $client, array $scopes, string $resource, string $audience, RequestInterface $request): ?AccessToken
+    private function refresh(?AccessToken $stored, AuthorizationServerMetadata $metadata, ClientRegistration $client, array $scopes, string $resource, RequestInterface $request): ?AccessToken
     {
         if (null === $stored || null === $stored->refreshToken) {
             return null;
@@ -310,9 +310,9 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return null;
         }
 
-        return $this->storage->synchronize(function () use ($metadata, $client, $scopes, $resource, $audience, $request): ?AccessToken {
+        return $this->storage->synchronize(function () use ($metadata, $client, $scopes, $resource, $request): ?AccessToken {
             // Another process may have refreshed the token while this one waited.
-            $current = $this->storage->getToken($metadata->issuer, $audience);
+            $current = $this->storage->getToken($metadata->issuer, $resource);
 
             if (null === $current) {
                 return null;
@@ -329,7 +329,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             $token = $this->spendRefreshToken($current, $current->refreshToken, $metadata, $client, $resource);
 
             if (null !== $token) {
-                $this->storage->saveToken($metadata->issuer, $audience, $token);
+                $this->storage->saveToken($metadata->issuer, $resource, $token);
             }
 
             return $token;

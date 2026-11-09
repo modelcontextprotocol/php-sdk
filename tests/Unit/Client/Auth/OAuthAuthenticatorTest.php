@@ -531,20 +531,6 @@ final class OAuthAuthenticatorTest extends TestCase
         }
     }
 
-    // An application overriding the RFC 8707 resource parameter is choosing which token
-    // to ask for, not where it may be spent -- the token still has to reach the server.
-    #[TestDox('an overridden resource parameter does not stop the token reaching the server')]
-    public function testOverriddenResourceStillAuthenticatesTheEndpoint(): void
-    {
-        $server = new FakeOAuthServer();
-        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')->setResource('https://api.example.com/v1'));
-
-        $authenticator->handleChallenge($this->request(), $server->challenge());
-
-        $this->assertSame('https://api.example.com/v1', $server->authorization['resource'] ?? null);
-        $this->assertSame('Bearer access-token-1', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
-    }
-
     #[TestDox('a client id configured up front is used instead of registering')]
     public function testSkipsRegistrationForAKnownClient(): void
     {
@@ -984,22 +970,6 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
 
         $this->assertSame([true], $storage->savedWhileSynchronized);
-    }
-
-    #[TestDox('a stored token stays with its server when the resource parameter is overridden')]
-    public function testStoredTokenOfAnOverriddenResourceStaysWithItsServer(): void
-    {
-        $server = new FakeOAuthServer();
-        $storage = new InMemoryCredentialStorage();
-        $this->authenticator($server, storage: $storage, configuration: OAuth::forApplication('test')->setResource('https://api.example.com/v1'))
-            ->handleChallenge($this->request(), $server->challenge());
-
-        $server->resource = 'https://mcp.example.com/other';
-        $otherServer = (new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/other');
-        $authenticator = $this->authenticator($server, storage: $storage, configuration: OAuth::forApplication('test')->setResource('https://api.example.com/v1'));
-        $authenticator->handleChallenge($otherServer, $server->challenge());
-
-        $this->assertSame('Bearer access-token-2', $authenticator->authenticate($otherServer)->getHeaderLine('Authorization'));
     }
 
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
