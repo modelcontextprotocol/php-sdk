@@ -69,7 +69,7 @@ final class SecureUrl
     // Each of these can reach this machine or a private network without looking like it.
     private static function hidesItsAddress(string $host): bool
     {
-        $host = strtolower(trim($host, '[]'));
+        $host = self::normalizeHost($host);
 
         if (false !== filter_var($host, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4)) {
             return '0.0.0.0' === $host;
@@ -86,7 +86,7 @@ final class SecureUrl
 
     private static function isLoopbackHost(string $host): bool
     {
-        $host = strtolower(trim($host, '[]'));
+        $host = self::normalizeHost($host);
         if ('::1' === $host) {
             return true;
         }
@@ -100,5 +100,16 @@ final class SecureUrl
         }
 
         return 1 === preg_match('/^(?:[a-z0-9_-]+\.)*localhost$/', $host);
+    }
+
+    private static function normalizeHost(string $host): string
+    {
+        $host = strtolower(trim($host, '[]'));
+
+        if (false !== filter_var($host, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV6)) {
+            return (string) inet_ntop((string) inet_pton($host));
+        }
+
+        return $host;
     }
 }

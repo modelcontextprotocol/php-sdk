@@ -36,6 +36,8 @@ final class SecureUrlTest extends TestCase
         yield 'http on nested localhost subdomain' => ['http://a.b.localhost'];
         yield 'http on uppercase localhost subdomain with trailing dot' => ['http://Shop.LocalHost.:8080/mcp'];
         yield 'http on other IPv4 loopback address' => ['http://127.1.2.3'];
+        yield 'http on IPv6 loopback spelled out' => ['http://[0:0:0:0:0:0:0:1]/mcp'];
+        yield 'https on shortened IPv6 loopback' => ['https://[0::1]/mcp'];
         yield 'https on public IPv4 address' => ['https://203.0.113.5/mcp'];
         yield 'https on IPv6 address' => ['https://[2001:db8::1]/mcp'];
         yield 'https on name of hex letters' => ['https://deadbeef.example.com'];
@@ -86,7 +88,6 @@ final class SecureUrlTest extends TestCase
         yield 'IPv4-mapped loopback on https' => ['https://[::ffff:127.0.0.1]/x'];
         yield 'IPv4-mapped private address' => ['https://[::ffff:10.0.0.1]/x'];
         yield 'IPv4-compatible loopback' => ['https://[::127.0.0.1]/x'];
-        yield 'IPv6 loopback spelled out' => ['https://[0:0:0:0:0:0:0:1]/x'];
         yield 'shortened IPv4 loopback' => ['https://127.1/x'];
         yield 'decimal IPv4 loopback' => ['https://2130706433/x'];
         yield 'hexadecimal IPv4 loopback' => ['https://0x7f000001/x'];
@@ -107,5 +108,25 @@ final class SecureUrlTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         SecureUrl::parse($url, 'issuer');
+    }
+
+    /**
+     * @return iterable<string, array{string, bool}>
+     */
+    public static function provideLoopbackUrls(): iterable
+    {
+        yield 'localhost' => ['https://localhost/x', true];
+        yield 'IPv4 loopback' => ['https://127.0.0.1/x', true];
+        yield 'IPv6 loopback' => ['https://[::1]/x', true];
+        yield 'IPv6 loopback spelled out' => ['https://[0:0:0:0:0:0:0:1]/x', true];
+        yield 'shortened IPv6 loopback' => ['https://[0::1]/x', true];
+        yield 'public name' => ['https://auth.example.com/x', false];
+        yield 'other IPv6 address' => ['https://[::2]/x', false];
+    }
+
+    #[DataProvider('provideLoopbackUrls')]
+    public function testDetectsLoopbackUrls(string $url, bool $loopback): void
+    {
+        $this->assertSame($loopback, SecureUrl::isLoopback($url));
     }
 }
