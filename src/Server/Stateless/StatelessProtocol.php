@@ -204,9 +204,9 @@ final class StatelessProtocol
         // empty-string id.
         //
         // An absent id and an unreadable one are different messages: the first
-        // is a notification, the second a malformed request. JSON-RPC 2.0
-        // writes "no id" as an explicit null, so that counts as absent too.
-        $isNotification = !\array_key_exists('id', $decoded) || null === $decoded['id'];
+        // is a notification, the second a malformed request. That includes a
+        // null id, which MCP forbids for requests.
+        $isNotification = !\array_key_exists('id', $decoded);
         $id = $decoded['id'] ?? null;
 
         if (!\is_string($id) && !\is_int($id)) {

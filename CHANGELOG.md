@@ -72,6 +72,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix `StdioTransport` throwing a `ValueError` on an input that cannot be selected, like `php://memory`.
 * Fix `StandardHeaderValidator` accepting an `Mcp-Param-*` header that does not match the body: a fraction that rounds to an integer argument and object or array arguments are refused with `-32020`, and so is a mirrored argument outside the safe integer range of ±(2^53-1).
 * Fix `JwtTokenValidator` throwing a `TypeError` on a token naming a JWKS key whose type or curve `firebase/php-jwt` does not support, e.g. `AKP`, or `P-521` since its v7.1. The token is rejected with `401` now.
+* Fix a `2026-07-28` request with `"id": null` being taken for a notification and left unanswered: it is refused with `-32600`, as MCP forbids a null id.
 
 ### Client
 
