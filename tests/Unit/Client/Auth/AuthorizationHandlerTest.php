@@ -143,8 +143,6 @@ final class AuthorizationHandlerTest extends TestCase
             ->authorize('https://auth.example.com/authorize', \sprintf('http://127.0.0.1:%d/callback', self::freePort()));
     }
 
-    // A bare code carries neither state nor iss, so accepting one would silently skip
-    // both of the checks that tie the response to this request.
     #[TestDox('the headless handler sends its request with the given HTTP client')]
     public function testHeadlessHandlerUsesTheGivenClient(): void
     {
@@ -201,8 +199,6 @@ final class AuthorizationHandlerTest extends TestCase
         );
     }
 
-    // A bare code carries neither state nor iss, so accepting one would silently skip
-    // both of the checks that tie the response to this request.
     #[TestDox('the console handler refuses a bare code, which would skip the response checks')]
     public function testConsoleHandlerRefusesABareCode(): void
     {
@@ -210,6 +206,24 @@ final class AuthorizationHandlerTest extends TestCase
         $this->expectExceptionMessage('Paste the whole URL');
 
         $this->console("abc\n");
+    }
+
+    #[TestDox('the console handler refuses the authorization URL pasted back instead of the redirect')]
+    public function testConsoleHandlerRefusesAUrlWithoutCodeOrError(): void
+    {
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('neither a code nor an error');
+
+        $this->console("https://auth.example.com/authorize?response_type=code&state=xyz\n");
+    }
+
+    #[TestDox('the console handler passes an error response on')]
+    public function testConsoleHandlerPassesAnErrorOn(): void
+    {
+        $this->assertSame(
+            ['error' => 'access_denied', 'state' => 'xyz'],
+            $this->console("http://127.0.0.1:8765/callback?error=access_denied&state=xyz\n"),
+        );
     }
 
     #[TestDox('the console handler shows the URL it wants opened')]

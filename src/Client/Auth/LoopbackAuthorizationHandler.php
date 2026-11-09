@@ -107,15 +107,7 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
         }
 
         $target = parse_url($matches[1]);
-        parse_str(\is_string($target['query'] ?? null) ? $target['query'] : '', $parameters);
-
-        $callback = [];
-
-        foreach ($parameters as $name => $value) {
-            if (\is_string($name) && \is_scalar($value)) {
-                $callback[$name] = (string) $value;
-            }
-        }
+        $callback = AuthorizationCallback::parameters(\is_string($target['query'] ?? null) ? $target['query'] : '');
 
         $isCallback = [] !== $callback
             && $callbackPath === ($target['path'] ?? null)

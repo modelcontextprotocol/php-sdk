@@ -113,6 +113,8 @@ If you publish a client ID metadata document, the authorization server can read 
 OAuth::forApplication('My App')->setClientMetadataUrl('https://app.example.com/client-metadata.json');
 ```
 
+The document must be a JSON object whose `client_id` is exactly this URL. It must also contain `client_name` and `redirect_uris`, and `redirect_uris` must list the redirect URI of the client (by default `http://127.0.0.1:8765/callback`). The authorization server must be able to fetch the document.
+
 The client only uses this URL if the authorization server supports these documents. Otherwise, it registers. A client ID that you pass with `setClientCredentials()` takes precedence.
 
 ## Choosing Scopes

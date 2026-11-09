@@ -14,13 +14,7 @@ namespace Mcp\Client\Auth;
 use Mcp\Exception\AuthorizationException;
 
 /**
- * Prints the authorization URL and reads back whatever the browser landed on.
- *
- * The fallback for environments where nothing can listen on a loopback port -- a remote
- * shell, a container without a browser, a redirect URI the authorization server insists
- * must be a real https address. The user pastes the whole redirected URL rather than
- * just the code, so `state` and `iss` survive the round trip and can still be checked --
- * a bare code would leave both with nothing to compare against, and is refused.
+ * Prints the authorization URL and reads the redirected URL back, for a shell without a browser.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -53,19 +47,13 @@ final class ConsoleAuthorizationHandler implements AuthorizationHandlerInterface
         $query = parse_url($answer, \PHP_URL_QUERY);
 
         if (!\is_string($query) || '' === $query) {
-            // A bare code cannot carry the state and issuer the response is checked
-            // against, so accepting one would quietly skip both checks.
             throw new AuthorizationException('Paste the whole URL you were redirected to, not just the code: the rest of it is what proves the response belongs to this request.');
         }
 
-        parse_str($query, $parameters);
+        $callback = AuthorizationCallback::parameters($query);
 
-        $callback = [];
-
-        foreach ($parameters as $name => $value) {
-            if (\is_string($name) && \is_scalar($value)) {
-                $callback[$name] = (string) $value;
-            }
+        if (!isset($callback['code']) && !isset($callback['error'])) {
+            throw new AuthorizationException('The pasted URL carries neither a code nor an error. Paste the URL you were redirected to after signing in, not the one you opened.');
         }
 
         return $callback;

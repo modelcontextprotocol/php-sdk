@@ -1398,6 +1398,25 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertNotSame('https://app.example.com/client.json', $server->authorization['client_id'] ?? null);
     }
 
+    #[TestDox('a client metadata URL the token endpoint refuses on a refresh names the document')]
+    public function testClientMetadataUrlRefusedOnRefreshNamesTheDocument(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true, clientMetadataDocuments: true);
+        $server->unknownClient = 'https://app.example.com/client.json';
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'refresh'));
+        $configuration = OAuth::forApplication('test')->setClientMetadataUrl('https://app.example.com/client.json');
+
+        try {
+            $this->authenticator($server, storage: $storage, configuration: $configuration)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The refused client should have failed.');
+        } catch (OAuthErrorException $e) {
+            $this->assertSame('invalid_client', $e->error);
+            $this->assertStringContainsString('client metadata document', $e->getMessage());
+            $this->assertStringNotContainsString('setClientCredentials()', $e->getMessage());
+        }
+    }
+
     #[TestDox('a configured client id wins over a client metadata URL')]
     public function testConfiguredClientIdWinsOverTheClientMetadataUrl(): void
     {

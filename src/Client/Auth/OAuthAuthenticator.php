@@ -130,6 +130,10 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         try {
             $token = $this->refresh($refreshable, $metadata, $client, $needed, $resource, $request);
         } catch (OAuthErrorException $e) {
+            if ($client->clientId === $this->configuration->clientMetadataUrl) {
+                throw new OAuthErrorException(\sprintf('The authorization server "%s" answered invalid_client for the client metadata document "%s". Check that it can fetch the document and that its "client_id" and "redirect_uris" match.', $metadata->issuer, $client->clientId), $e->error);
+            }
+
             if (!$client->dynamic) {
                 throw new OAuthErrorException(\sprintf('The authorization server "%s" answered invalid_client for the configured client "%s". Check the client ID and secret given to setClientCredentials().', $metadata->issuer, $client->clientId), $e->error);
             }
@@ -513,9 +517,6 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             );
         }
 
-        // A client that can publish its metadata at a URL does not need to register at
-        // all: the URL is the client id, and every server it meets reads the same
-        // document instead of minting another identity for it.
         if ($metadata->clientIdMetadataDocumentSupported && null !== $configuration->clientMetadataUrl) {
             $this->logger->debug('Using the client metadata document URL as the client id', ['client_id' => $configuration->clientMetadataUrl]);
 

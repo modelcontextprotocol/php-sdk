@@ -52,15 +52,7 @@ final class HeadlessAuthorizationHandler implements AuthorizationHandlerInterfac
             throw new AuthorizationException(\sprintf('The authorization server redirected to "%s", which carries no query parameters.', $location));
         }
 
-        parse_str($query, $parameters);
-
-        $callback = [];
-
-        foreach ($parameters as $name => $value) {
-            if (\is_string($name) && \is_scalar($value)) {
-                $callback[$name] = (string) $value;
-            }
-        }
+        $callback = AuthorizationCallback::parameters($query);
 
         // Only the names, as the query carries the authorization code.
         $this->logger->debug('Authorization endpoint redirected', ['parameters' => array_keys($callback)]);
