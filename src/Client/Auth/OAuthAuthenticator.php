@@ -261,21 +261,21 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $scopes = $this->configuration->scopes;
 
         if ([] === $scopes) {
-            $scopes = $challenge->getScopes() ?: ($scopesSupported ?? []);
+            // What a server names is no reason to ask for a refresh token.
+            $scopes = array_diff($challenge->getScopes() ?: ($scopesSupported ?? []), ['offline_access']);
         } elseif ('insufficient_scope' === $challenge->getError()) {
-            $scopes = [...$scopes, ...$challenge->getScopes()];
+            $scopes = [...$scopes, ...array_diff($challenge->getScopes(), ['offline_access'])];
         }
 
         $held = 'insufficient_scope' === $challenge->getError() ? array_diff($stored->scopes ?? [], ['offline_access']) : [];
         $scopes = array_values(array_unique([...$this->requestedScopes, ...$held, ...$scopes]));
 
-        if ($this->offlineAccessRefused) {
+        if ($this->offlineAccessRefused || !$this->configuration->offlineAccess) {
             return array_values(array_diff($scopes, ['offline_access']));
         }
 
         // An unknown scope is an error, so it is only requested where the server lists it.
-        if ($this->configuration->offlineAccess
-            && $metadata->supportsScope('offline_access')
+        if ($metadata->supportsScope('offline_access')
             && $metadata->supportsGrant(Grant::RefreshToken->value)
             && !\in_array('offline_access', $scopes, true)
         ) {

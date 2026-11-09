@@ -1001,6 +1001,48 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame([true], $storage->savedWhileSynchronized);
     }
 
+    #[TestDox('offline_access named by the resource is not requested when turned off')]
+    public function testTurningOffOfflineAccessBeatsTheResource(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read', 'offline_access'], serverScopes: ['mcp:read', 'offline_access']);
+
+        $this->authenticator($server, configuration: OAuth::forApplication('test')->setOfflineAccess(false))->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('mcp:read', $server->authorization['scope'] ?? null);
+    }
+
+    #[TestDox('offline_access named by a challenge is not requested when turned off')]
+    public function testTurningOffOfflineAccessBeatsTheChallenge(): void
+    {
+        $server = new FakeOAuthServer(serverScopes: ['mcp:read', 'offline_access']);
+
+        $this->authenticator($server, configuration: OAuth::forApplication('test')->setOfflineAccess(false))->handleChallenge($this->request(), $server->challenge(['mcp:read', 'offline_access']));
+
+        $this->assertSame('mcp:read', $server->authorization['scope'] ?? null);
+    }
+
+    #[TestDox('offline_access named by the resource is not requested if the authorization server does not list it')]
+    public function testOfflineAccessNeedsTheAuthorizationServerToListIt(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read', 'offline_access'], serverScopes: ['mcp:read']);
+
+        $this->authenticator($server)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('mcp:read', $server->authorization['scope'] ?? null);
+    }
+
+    #[TestDox('offline_access asked for explicitly is requested, unless it is turned off')]
+    public function testExplicitOfflineAccess(): void
+    {
+        $server = new FakeOAuthServer(serverScopes: ['mcp:read']);
+        $this->authenticator($server, configuration: OAuth::forApplication('test')->setScopes('offline_access'))->handleChallenge($this->request(), $server->challenge());
+        $this->assertSame('offline_access', $server->authorization['scope'] ?? null);
+
+        $server = new FakeOAuthServer(serverScopes: ['mcp:read']);
+        $this->authenticator($server, configuration: OAuth::forApplication('test')->setScopes('offline_access', 'mcp:read')->setOfflineAccess(false))->handleChallenge($this->request(), $server->challenge());
+        $this->assertSame('mcp:read', $server->authorization['scope'] ?? null);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {
