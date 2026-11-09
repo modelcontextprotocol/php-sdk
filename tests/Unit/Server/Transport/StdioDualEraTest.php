@@ -355,6 +355,21 @@ final class StdioDualEraTest extends TestCase
         $this->assertArrayHasKey('result', $lines[0]);
     }
 
+    #[TestDox('an id-less message with a JSON-RPC version other than 2.0 is still answered before the handshake')]
+    public function testIdLessMessageWithWrongJsonRpcVersionIsAnswered(): void
+    {
+        $lines = $this->exchange(self::builder(), [
+            ['method' => 'notifications/initialized'],
+            ['jsonrpc' => '1.0', 'method' => 'notifications/initialized'],
+            self::initialize(1),
+        ]);
+
+        $this->assertCount(3, $lines);
+        $this->assertSame(Error::INVALID_REQUEST, $lines[0]['error']['code'] ?? null);
+        $this->assertSame(Error::INVALID_REQUEST, $lines[1]['error']['code'] ?? null);
+        $this->assertSame(1, $lines[2]['id'] ?? null);
+    }
+
     #[TestDox('a notification with an invalid protocol version claim is refused without an answer')]
     public function testNotificationWithInvalidVersionClaimIsNotAnswered(): void
     {

@@ -16,6 +16,7 @@ use Mcp\Exception\InvalidInputMessageException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Stateless\StatelessResult;
@@ -401,7 +402,8 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
     private static function isNotification(mixed $decoded): bool
     {
-        if (!\is_array($decoded) || !\is_string($decoded['method'] ?? null) || null !== ($decoded['id'] ?? null)) {
+        if (!\is_array($decoded) || MessageInterface::JSONRPC_VERSION !== ($decoded['jsonrpc'] ?? null)
+            || !\is_string($decoded['method'] ?? null) || null !== ($decoded['id'] ?? null)) {
             return false;
         }
 
