@@ -1191,6 +1191,25 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame([], $server->authorization);
     }
 
+    #[TestDox('an authorization endpoint with an explicit default port is on the same origin')]
+    public function testExplicitDefaultPortOfTheAuthorizationEndpoint(): void
+    {
+        $server = new FakeOAuthServer(authorizationEndpoint: 'https://auth.example.com:443/authorize', announcesIssuer: false);
+
+        $this->assertTrue($this->authenticator($server)->handleChallenge($this->request(), $server->challenge()));
+    }
+
+    #[TestDox('a metadata URL with an explicit default port is on the same origin')]
+    public function testExplicitDefaultPortOfTheMetadataUrl(): void
+    {
+        $server = new FakeOAuthServer();
+        $challenge = new Response(401, ['WWW-Authenticate' => 'Bearer resource_metadata="https://mcp.example.com:443/custom/location.json"']);
+
+        $this->authenticator($server)->handleChallenge($this->request(), $challenge);
+
+        $this->assertSame('https://mcp.example.com/custom/location.json', $server->requested[0] ?? null);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {

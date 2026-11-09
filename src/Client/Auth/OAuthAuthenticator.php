@@ -594,8 +594,14 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return $url;
         }
 
-        $origin = strtolower(($parts['scheme'] ?? 'https').'://'.($parts['host'] ?? ''));
+        $scheme = strtolower($parts['scheme'] ?? 'https');
+        $origin = $scheme.'://'.strtolower($parts['host'] ?? '');
+        $port = $parts['port'] ?? null;
 
-        return isset($parts['port']) ? $origin.':'.$parts['port'] : $origin;
+        if (null === $port || $port === (['https' => 443, 'http' => 80][$scheme] ?? null)) {
+            return $origin;
+        }
+
+        return $origin.':'.$port;
     }
 }
