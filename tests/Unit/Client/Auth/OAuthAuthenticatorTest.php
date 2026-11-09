@@ -1164,6 +1164,33 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertNotSame([], $server->authorization);
     }
 
+    #[TestDox('an insufficient_scope without scopes asks for the scopes of the resource')]
+    public function testHintlessStepUpUsesTheResourceScopes(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read', 'mcp:write']);
+        $authenticator = $this->authenticator($server);
+        $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+
+        $retry = $authenticator->handleChallenge($authenticator->authenticate($this->request()), $server->challenge([], 403, 'insufficient_scope'));
+
+        $this->assertTrue($retry);
+        $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
+    }
+
+    #[TestDox('an insufficient_scope without scopes does not send the user back for scopes the token holds')]
+    public function testHintlessStepUpStopsWhenNothingIsMissing(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read']);
+        $authenticator = $this->authenticator($server);
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+        $server->authorization = [];
+
+        $retry = $authenticator->handleChallenge($authenticator->authenticate($this->request()), $server->challenge([], 403, 'insufficient_scope'));
+
+        $this->assertFalse($retry);
+        $this->assertSame([], $server->authorization);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {

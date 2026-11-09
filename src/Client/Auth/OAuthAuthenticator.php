@@ -101,19 +101,19 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->issuer = $metadata->issuer;
         $this->resource = $resource;
 
-        // Signing in again can't help if this token holds or already asked for all the server wants.
-        if ('insufficient_scope' === $challenge->getError()
-            && null !== $this->token
-            && $request->getHeaderLine('Authorization') === $this->token->getAuthorizationHeader()
-            && [] === array_diff($challenge->getScopes(), ['offline_access'], $this->token->scopes, $this->requestedScopes)
-        ) {
-            return false;
-        }
-
         $stored = $this->storage->getToken($metadata->issuer, $resource);
         $scopes = $this->selectScopes($challenge, $scopesSupported, $metadata, $stored);
         // The resource never requires offline_access, which only gets a refresh token.
         $needed = array_values(array_diff($scopes, ['offline_access']));
+
+        // Signing in again can't help if this token holds or already asked for all the server wants.
+        if ('insufficient_scope' === $challenge->getError()
+            && null !== $this->token
+            && $request->getHeaderLine('Authorization') === $this->token->getAuthorizationHeader()
+            && [] === array_diff($needed, $this->token->scopes, $this->requestedScopes)
+        ) {
+            return false;
+        }
 
         if (null !== $stored && $this->isUsable($stored, $needed, $request)) {
             $this->logger->debug('Reusing a stored access token', ['issuer' => $metadata->issuer, 'resource' => $resource]);
