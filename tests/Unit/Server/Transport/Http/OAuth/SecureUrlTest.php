@@ -40,6 +40,8 @@ final class SecureUrlTest extends TestCase
         yield 'https on IPv6 address' => ['https://[2001:db8::1]/mcp'];
         yield 'https on name of hex letters' => ['https://deadbeef.example.com'];
         yield 'https on numeric label' => ['https://123.example.com'];
+        yield 'https on punycode name' => ['https://xn--bcher-kva.example'];
+        yield 'percent-encoding outside the host' => ['https://auth.example.com/realms/%6dcp?q=%31'];
     }
 
     #[DataProvider('provideAcceptedUrls')]
@@ -91,6 +93,12 @@ final class SecureUrlTest extends TestCase
         yield 'octal IPv4 loopback' => ['https://0177.0.0.1/x'];
         yield 'zero-padded IPv4 loopback' => ['https://127.000.000.001/x'];
         yield 'shortened IPv4 with trailing dot' => ['https://127.1./x'];
+        yield 'percent-encoded IPv4 loopback' => ['https://%31%32%37.0.0.1/x'];
+        yield 'percent-encoded shortened IPv4 loopback' => ['https://%31%32%37.1/x'];
+        yield 'percent-encoded name' => ['https://%61uth.example.com/x'];
+        yield 'fullwidth digits' => ['https://１２７.0.0.1/x'];
+        yield 'ideographic full stops' => ['https://127。0。0。1/x'];
+        yield 'name that is not punycode' => ['https://bücher.example/x'];
     }
 
     #[DataProvider('provideRejectedUrls')]

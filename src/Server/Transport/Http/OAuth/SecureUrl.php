@@ -39,6 +39,11 @@ final class SecureUrl
             throw new InvalidArgumentException(\sprintf('The %s must be an absolute URL.', $label));
         }
 
+        // Browsers and IDNA decode these into another host, e.g. "%31%32%37.1" or "１２７.0.0.1" into a loopback address.
+        if (1 === preg_match('/[%\x80-\xff]/', $parts['host'])) {
+            throw new InvalidArgumentException(\sprintf('The %s "%s" must write its host in ASCII without percent-encoding, an internationalized name in punycode.', $label, $url));
+        }
+
         $scheme = strtolower($parts['scheme']);
         if ('https' !== $scheme && ('http' !== $scheme || !self::isLoopbackHost($parts['host']))) {
             throw new InvalidArgumentException(\sprintf('The %s "%s" must use https; plain http is only accepted for loopback hosts.', $label, $url));
