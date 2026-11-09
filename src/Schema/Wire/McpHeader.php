@@ -11,6 +11,8 @@
 
 namespace Mcp\Schema\Wire;
 
+use Mcp\JsonRpc\Json;
+
 /**
  * The HTTP header vocabulary that mirrors a request's JSON-RPC body (SEP-2243).
  *
@@ -124,6 +126,9 @@ final class McpHeader
      */
     public static function checkAnnotations(array $schema): ?string
     {
+        /** @var array<string, mixed> $schema */
+        $schema = Json::objectsToArrays($schema);
+
         if (null !== $path = self::findUnreachable($schema, '', false)) {
             return \sprintf('the annotation at "%s" is not reachable through "properties" alone', $path);
         }

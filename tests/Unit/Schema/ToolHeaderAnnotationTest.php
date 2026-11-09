@@ -167,6 +167,8 @@ class ToolHeaderAnnotationTest extends TestCase
         yield 'on the root' => [['x-mcp-header' => 'Region']];
         yield 'non-string value under items' => [['properties' => ['tags' => ['type' => 'array', 'items' => ['type' => 'string', 'x-mcp-header' => ['Region']]]]]];
         yield 'null value under items' => [['properties' => ['tags' => ['type' => 'array', 'items' => ['type' => 'string', 'x-mcp-header' => null]]]]];
+        yield 'under items held as an object' => [['properties' => ['tags' => ['type' => 'array', 'items' => (object) $annotated]]]];
+        yield 'under an anyOf branch held as an object' => [['anyOf' => [(object) ['properties' => ['region' => $annotated]]]]];
         yield 'under a definition named default' => [['$defs' => ['default' => $annotated]]];
     }
 
@@ -181,6 +183,18 @@ class ToolHeaderAnnotationTest extends TestCase
         $this->expectExceptionMessage('is not reachable through "properties" alone');
 
         new Tool(name: 'a_tool', title: null, inputSchema: ['type' => 'object', ...$schema], description: 'x', annotations: null);
+    }
+
+    #[TestDox('an invalid annotation is refused when the schema holds objects instead of arrays')]
+    public function testObjectHeldAnnotationIsValidated(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('"Bad Name" is not a valid HTTP field name');
+
+        new Tool(name: 'a_tool', title: null, inputSchema: [
+            'type' => 'object',
+            'properties' => (object) ['region' => (object) ['type' => 'string', 'x-mcp-header' => 'Bad Name']],
+        ], description: 'x', annotations: null);
     }
 
     #[TestDox('a property named x-mcp-header or one in instance data is no annotation')]

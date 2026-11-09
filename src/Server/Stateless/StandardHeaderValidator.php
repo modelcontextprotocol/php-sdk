@@ -13,6 +13,7 @@ namespace Mcp\Server\Stateless;
 
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ToolNotFoundException;
+use Mcp\JsonRpc\Json;
 use Mcp\Schema\Wire\McpHeader;
 
 /**
@@ -144,7 +145,10 @@ final class StandardHeaderValidator
 
         $arguments = \is_array($params['arguments'] ?? null) ? $params['arguments'] : [];
 
-        foreach (self::mirroredProperties($tool->inputSchema) as $name => $path) {
+        /** @var array<string, mixed> $schema */
+        $schema = Json::objectsToArrays($tool->inputSchema);
+
+        foreach (self::mirroredProperties($schema) as $name => $path) {
             $error = $this->checkParam(
                 self::PARAM_HEADER_PREFIX.$name,
                 $headers,
