@@ -354,6 +354,19 @@ final class StdioDualEraTest extends TestCase
         $this->assertArrayHasKey('result', $lines[0]);
     }
 
+    #[TestDox('a message without an id whose method is not a string is answered as an invalid request')]
+    public function testMessageWithNonStringMethodIsAnswered(): void
+    {
+        $lines = $this->exchange(self::builder(), [
+            ['jsonrpc' => '2.0', 'method' => 123],
+            self::initialize(1),
+        ]);
+
+        $this->assertCount(2, $lines);
+        $this->assertSame(Error::INVALID_REQUEST, $lines[0]['error']['code'] ?? null);
+        $this->assertSame(1, $lines[1]['id'] ?? null);
+    }
+
     #[TestDox('a server/discover handler added to the builder answers a modern stdio client')]
     public function testCustomDiscoverHandlerOverStdio(): void
     {

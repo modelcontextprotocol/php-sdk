@@ -299,7 +299,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             return;
         }
 
-        $this->handlingNotification = \is_array($decoded) && isset($decoded['method']) && !\array_key_exists('id', $decoded);
+        $this->handlingNotification = \is_array($decoded) && \is_string($decoded['method'] ?? null) && !\array_key_exists('id', $decoded);
 
         try {
             $this->handleMessage($message, $this->sessionId);
