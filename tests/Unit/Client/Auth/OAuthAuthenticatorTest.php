@@ -22,6 +22,7 @@ use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Auth\OAuthAuthenticator;
 use Mcp\Client\Auth\OAuthConfiguration;
 use Mcp\Client\Auth\TokenEndpoint;
+use Mcp\Client\Auth\TokenEndpointAuthMethod;
 use Mcp\Exception\AuthorizationException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
@@ -1219,6 +1220,59 @@ final class OAuthAuthenticatorTest extends TestCase
 
         $this->assertSame('mcp:read', $server->authorization['scope'] ?? null);
         $this->assertSame('mcp:read mcp:write', $server->registration['scope'] ?? null);
+    }
+
+    #[TestDox('a client registered by another process in the meantime is used instead of registering again')]
+    public function testUsesAClientRegisteredByAnotherProcess(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new class implements CredentialStorageInterface {
+            private readonly InMemoryCredentialStorage $storage;
+
+            public function __construct()
+            {
+                $this->storage = new InMemoryCredentialStorage();
+            }
+
+            public function getClientRegistration(string $issuer): ?ClientRegistration
+            {
+                return $this->storage->getClientRegistration($issuer);
+            }
+
+            public function saveClientRegistration(string $issuer, ClientRegistration $registration): void
+            {
+                $this->storage->saveClientRegistration($issuer, $registration);
+            }
+
+            public function getToken(string $issuer, string $resource): ?AccessToken
+            {
+                return $this->storage->getToken($issuer, $resource);
+            }
+
+            public function saveToken(string $issuer, string $resource, AccessToken $token): void
+            {
+                $this->storage->saveToken($issuer, $resource, $token);
+            }
+
+            public function forget(?string $issuer = null): void
+            {
+                $this->storage->forget($issuer);
+            }
+
+            public function synchronize(callable $operation): mixed
+            {
+                if (null === $this->storage->getClientRegistration('https://auth.example.com')) {
+                    $this->storage->saveClientRegistration('https://auth.example.com', new ClientRegistration('other-process-client', null, TokenEndpointAuthMethod::None, true, null, ['http://127.0.0.1:8765/callback']));
+                }
+
+                return $operation();
+            }
+        };
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame([], $server->registration);
+        $this->assertSame('other-process-client', $server->authorization['client_id'] ?? null);
     }
 
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]

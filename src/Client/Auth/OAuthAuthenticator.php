@@ -503,28 +503,31 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             );
         }
 
-        $stored = $this->storage->getClientRegistration($metadata->issuer);
+        // Another process may register at the same time, and its tokens would not work with this client.
+        return $this->storage->synchronize(function () use ($metadata, $configuration, $scopes, $scopesSupported): ClientRegistration {
+            $stored = $this->storage->getClientRegistration($metadata->issuer);
 
-        if (null !== $stored && !$stored->isExpired() && $this->matchesRedirectUris($stored)) {
-            return $stored;
-        }
+            if (null !== $stored && !$stored->isExpired() && $this->matchesRedirectUris($stored)) {
+                return $stored;
+            }
 
-        self::assertSupportsPkce($metadata);
-        $this->assertIdentifiesItsResponses($metadata);
+            self::assertSupportsPkce($metadata);
+            $this->assertIdentifiesItsResponses($metadata);
 
-        // A registration limits what the client may ever request (RFC 7591 section 2), so it covers a later step-up.
-        $registered = array_values(array_unique([...$scopes, ...array_diff($scopesSupported ?? [], ['offline_access'])]));
+            // A registration limits what the client may ever request (RFC 7591 section 2), so it covers a later step-up.
+            $registered = array_values(array_unique([...$scopes, ...array_diff($scopesSupported ?? [], ['offline_access'])]));
 
-        $registration = $this->registrar->register(
-            $metadata,
-            $configuration->clientMetadata,
-            TokenEndpointAuthMethod::negotiate($metadata->tokenEndpointAuthMethodsSupported, true),
-            [] === $registered ? null : implode(' ', $registered),
-        );
+            $registration = $this->registrar->register(
+                $metadata,
+                $configuration->clientMetadata,
+                TokenEndpointAuthMethod::negotiate($metadata->tokenEndpointAuthMethodsSupported, true),
+                [] === $registered ? null : implode(' ', $registered),
+            );
 
-        $this->storage->saveClientRegistration($metadata->issuer, $registration);
+            $this->storage->saveClientRegistration($metadata->issuer, $registration);
 
-        return $registration;
+            return $registration;
+        });
     }
 
     /**
