@@ -35,7 +35,7 @@ final class OAuthConfiguration
      *                                        should not be derived from the endpoint being called
      * @param ?string        $expectedIssuer  the only authorization server to authorize with
      *
-     * @throws InvalidArgumentException when a client id is set without an expected issuer
+     * @throws InvalidArgumentException when the redirect URI is insecure, or a client id is set without an expected issuer
      */
     public function __construct(
         public readonly ClientMetadata $clientMetadata,
@@ -48,6 +48,10 @@ final class OAuthConfiguration
         public readonly ?string $resource = null,
         public readonly ?string $expectedIssuer = null,
     ) {
+        if (!AuthorizationServerMetadata::isTransportSecure($redirectUri)) {
+            throw new InvalidArgumentException(\sprintf('The redirect URI "%s" must use https, or http on a loopback host.', $redirectUri));
+        }
+
         if (null !== $clientId && null === $expectedIssuer) {
             throw new InvalidArgumentException('A configured client needs an expected issuer, or a hostile MCP server could receive its authorization codes and secret. Call OAuth::setExpectedIssuer().');
         }

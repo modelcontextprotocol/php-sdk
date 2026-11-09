@@ -101,6 +101,28 @@ final class OAuthTest extends TestCase
         $this->assertNull($configuration->expectedIssuer);
     }
 
+    #[TestWith(['http://app.example.com/callback'])]
+    #[TestWith(['http://0.0.0.0:8765/callback'])]
+    #[TestWith(['http://192.168.1.5:8765/callback'])]
+    #[TestWith(['com.example.app:/callback'])]
+    #[TestDox('a redirect URI must use https or a loopback host')]
+    public function testRefusesAnInsecureRedirectUri(string $redirectUri): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('redirect URI');
+
+        OAuth::forApplication('My App')->setRedirectUri($redirectUri)->build();
+    }
+
+    #[TestWith(['https://app.example.com/callback'])]
+    #[TestWith(['http://localhost:3000/callback'])]
+    #[TestWith(['http://[::1]:3000/callback'])]
+    #[TestDox('a redirect URI on https or a loopback host is accepted')]
+    public function testAcceptsASecureRedirectUri(string $redirectUri): void
+    {
+        $this->assertSame($redirectUri, $this->configurationOf(OAuth::forApplication('My App')->setRedirectUri($redirectUri))->redirectUri);
+    }
+
     #[TestDox('the redirect URI the handler listens on is the one registered')]
     public function testRedirectUriIsUsedForRegistration(): void
     {
