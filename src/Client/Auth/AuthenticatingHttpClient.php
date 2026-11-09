@@ -12,6 +12,7 @@
 namespace Mcp\Client\Auth;
 
 use Mcp\Client\Transport\NoRedirects;
+use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\InvalidArgumentException;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
@@ -68,10 +69,15 @@ final class AuthenticatingHttpClient implements ClientInterface
             // authenticator needs to see which of them the server just rejected.
             try {
                 $retry = $this->authenticator->handleChallenge($sent, $response);
-            } catch (\Throwable $e) {
+            } catch (AuthorizationException $e) {
                 $response->getBody()->close();
 
                 throw $e;
+            } catch (\Throwable $e) {
+                $response->getBody()->close();
+
+                // Anything else counts as a connection problem, and retrying that means signing in again.
+                throw new AuthorizationException('The authorization failed: '.$e->getMessage(), 0, $e);
             }
 
             if (!$retry) {

@@ -163,6 +163,27 @@ final class AuthenticatingHttpClientTest extends TestCase
         $this->assertFalse($rejected->getBody()->isReadable());
     }
 
+    #[TestDox('any failure of a challenge is an authorization failure, so nothing retries the sign-in')]
+    public function testAnyFailureOfAChallengeIsAnAuthorizationFailure(): void
+    {
+        $failure = new \RuntimeException('Could not write the credential file.');
+        $inner = $this->createStub(ClientInterface::class);
+        $inner->method('sendRequest')->willReturn(new Response(401));
+
+        $authenticator = $this->createStub(AuthenticatorInterface::class);
+        $authenticator->method('authenticate')->willReturnArgument(0);
+        $authenticator->method('handleChallenge')->willThrowException($failure);
+
+        try {
+            (new AuthenticatingHttpClient($inner, $authenticator))
+                ->sendRequest((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/mcp'));
+            $this->fail('The failure should have been reported.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('Could not write the credential file.', $e->getMessage());
+            $this->assertSame($failure, $e->getPrevious());
+        }
+    }
+
     #[TestDox('a failed challenge reaches a caller that catches the PSR-18 exception')]
     public function testFailedChallengeIsAClientException(): void
     {
