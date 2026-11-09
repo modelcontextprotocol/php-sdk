@@ -50,7 +50,7 @@ final class SecureUrl
         }
 
         if (self::hidesItsAddress($parts['host'])) {
-            throw new InvalidArgumentException(\sprintf('The %s "%s" must name its host, or an IP address in standard form that is neither unspecified nor IPv4 within IPv6.', $label, $url));
+            throw new InvalidArgumentException(\sprintf('The %s "%s" must use a host name or an IP address in standard form; unspecified addresses and IPv4 within IPv6 are refused.', $label, $url));
         }
 
         return $parts;
