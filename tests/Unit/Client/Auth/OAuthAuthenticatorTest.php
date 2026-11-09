@@ -1043,6 +1043,33 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('mcp:read', $server->authorization['scope'] ?? null);
     }
 
+    #[TestDox('an insufficient_scope for scopes the token already holds does not send the user back')]
+    public function testDoesNotAuthorizeAgainForScopesItAlreadyAskedFor(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server);
+        $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+        $server->authorization = [];
+
+        $retry = $authenticator->handleChallenge($authenticator->authenticate($this->request()), $server->challenge(['mcp:read'], 403, 'insufficient_scope'));
+
+        $this->assertFalse($retry);
+        $this->assertSame([], $server->authorization);
+    }
+
+    #[TestDox('an insufficient_scope for a new scope still sends the user back')]
+    public function testAuthorizesAgainForANewScope(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server);
+        $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+
+        $retry = $authenticator->handleChallenge($authenticator->authenticate($this->request()), $server->challenge(['mcp:write'], 403, 'insufficient_scope'));
+
+        $this->assertTrue($retry);
+        $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {

@@ -100,6 +100,15 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->issuer = $metadata->issuer;
         $this->resource = $resource;
 
+        // Signing in again can't help if this token holds or already asked for all the server wants.
+        if ('insufficient_scope' === $challenge->getError()
+            && null !== $this->token
+            && $request->getHeaderLine('Authorization') === $this->token->getAuthorizationHeader()
+            && [] === array_diff($challenge->getScopes(), ['offline_access'], $this->token->scopes, $this->requestedScopes)
+        ) {
+            return false;
+        }
+
         $stored = $this->storage->getToken($metadata->issuer, $resource);
         $scopes = $this->selectScopes($challenge, $scopesSupported, $metadata, $stored);
         // The resource never requires offline_access, which only gets a refresh token.
@@ -139,12 +148,12 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             }
 
             $token = $token->withGrantedScopes($scopes);
+            $this->requestedScopes = $scopes;
             $this->storage->saveToken($metadata->issuer, $resource, $token);
         }
 
         $this->token = $token;
         $this->audience = $resource;
-        $this->requestedScopes = $scopes;
 
         return true;
     }
