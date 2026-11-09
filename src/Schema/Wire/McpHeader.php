@@ -34,8 +34,8 @@ final class McpHeader
     private const BASE64_PREFIX = '=?base64?';
     private const BASE64_SUFFIX = '?=';
 
-    /** Keywords whose values are instance data, so a key named `x-mcp-header` in them is no annotation. */
-    private const DATA_KEYWORDS = ['const', 'default', 'enum', 'examples'];
+    /** Keywords whose value is a subschema or a list of subschemas. */
+    private const SCHEMA_KEYWORDS = ['items', 'prefixItems', 'additionalItems', 'additionalProperties', 'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then', 'else', 'contains', 'propertyNames', 'unevaluatedItems', 'unevaluatedProperties', 'contentSchema'];
 
     /** Keywords whose values map arbitrary names to subschemas. */
     private const SCHEMA_MAP_KEYWORDS = ['properties', 'patternProperties', '$defs', 'definitions', 'dependentSchemas', 'dependencies'];
@@ -204,24 +204,24 @@ final class McpHeader
      *
      * @param array<mixed> $schema
      */
-    private static function findUnreachable(array $schema, string $path, bool $isProperty, bool $chainIntact = true): ?string
+    private static function findUnreachable(array $schema, string $path, bool $reachable): ?string
     {
-        if (\array_key_exists('x-mcp-header', $schema) && !$isProperty) {
+        if (!$reachable && null !== ($schema['x-mcp-header'] ?? null)) {
             return '' === $path ? '/' : $path;
         }
 
         foreach ($schema as $key => $value) {
-            if ('x-mcp-header' === $key || !\is_array($value) || \in_array($key, self::DATA_KEYWORDS, true)) {
+            if (!\is_array($value)) {
                 continue;
             }
 
             $here = '' === $path ? (string) $key : $path.'.'.$key;
 
             if (\in_array($key, self::SCHEMA_MAP_KEYWORDS, true)) {
-                $reachable = 'properties' === $key && $chainIntact;
+                $intoProperty = 'properties' === $key && ($reachable || '' === $path);
 
                 foreach ($value as $name => $subschema) {
-                    if (\is_array($subschema) && null !== $found = self::findUnreachable($subschema, $here.'.'.$name, $reachable, $reachable)) {
+                    if (\is_array($subschema) && null !== $found = self::findUnreachable($subschema, $here.'.'.$name, $intoProperty)) {
                         return $found;
                     }
                 }
@@ -229,8 +229,16 @@ final class McpHeader
                 continue;
             }
 
-            if (null !== $found = self::findUnreachable($value, $here, false, false)) {
-                return $found;
+            if (!\in_array($key, self::SCHEMA_KEYWORDS, true)) {
+                continue;
+            }
+
+            foreach (array_is_list($value) ? $value : ['' => $value] as $index => $subschema) {
+                $subpath = '' === $index ? $here : $here.'.'.$index;
+
+                if (\is_array($subschema) && null !== $found = self::findUnreachable($subschema, $subpath, false)) {
+                    return $found;
+                }
             }
         }
 

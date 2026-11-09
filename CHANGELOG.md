@@ -92,7 +92,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Schema
 
-* [BC Break] An `x-mcp-header` annotation that is not on a property reached through `properties` alone, e.g. under `items`, `anyOf` or `$defs`, makes the tool definition invalid instead of being ignored: `Tool` throws an `InvalidArgumentException` for it, and the client drops such a tool from `tools/list`.
+* [BC Break] An `x-mcp-header` annotation that is not on a property reached through `properties` alone, e.g. under `items`, `anyOf` or `$defs`, makes the tool definition invalid instead of being ignored: `Tool` throws an `InvalidArgumentException` for it, the client drops such a tool from `tools/list` and refuses a sampling request that carries one.
 * [BC Break] `CallToolResult` preserves explicit `structuredContent: null` in construction and decoding. Calls that used null for omission must omit the argument (use `meta: $meta` for metadata) or pass `StructuredContent::Absent`. An explicit null that violates the output schema becomes a tool error, and strict handshake-era clients can reject it. `hasStructuredContent()` distinguishes absent content from null; text-only `success()` and `error()` results remain absent.
 
 0.9.0

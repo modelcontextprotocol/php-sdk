@@ -184,6 +184,7 @@ class ToolHeaderAnnotationTest extends TestCase
             'x-mcp-header' => ['type' => 'string'],
             'target' => ['type' => 'object', 'default' => ['x-mcp-header' => 'Region']],
             'nested' => ['type' => 'object', 'items' => ['properties' => ['x-mcp-header' => true]]],
+            'cleared' => ['type' => 'array', 'items' => ['type' => 'string', 'x-mcp-header' => null]],
         ]);
 
         $this->assertSame('a_tool', $tool->name);
@@ -193,6 +194,19 @@ class ToolHeaderAnnotationTest extends TestCase
     public function testDefinitionNamedLikeTheAnnotationIsNotAnAnnotation(): void
     {
         $tool = new Tool(name: 'a_tool', title: null, inputSchema: ['type' => 'object', '$defs' => ['x-mcp-header' => true]], description: 'x', annotations: null);
+
+        $this->assertSame('a_tool', $tool->name);
+    }
+
+    #[TestDox('a key named x-mcp-header under a keyword that holds no subschema is no annotation')]
+    public function testNonSchemaKeywordIsNotWalked(): void
+    {
+        $tool = new Tool(name: 'a_tool', title: null, inputSchema: [
+            'type' => 'object',
+            'properties' => ['region' => ['type' => 'string']],
+            'dependentRequired' => ['x-mcp-header' => ['region']],
+            'x-ui' => ['x-mcp-header' => 'Region'],
+        ], description: 'x', annotations: null);
 
         $this->assertSame('a_tool', $tool->name);
     }
