@@ -1210,6 +1210,17 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('https://mcp.example.com/custom/location.json', $server->requested[0] ?? null);
     }
 
+    #[TestDox('a registration covers the scopes the resource may ask for later')]
+    public function testRegistersTheScopesOfTheResource(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read', 'mcp:write', 'offline_access']);
+
+        $this->authenticator($server)->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+
+        $this->assertSame('mcp:read', $server->authorization['scope'] ?? null);
+        $this->assertSame('mcp:read mcp:write', $server->registration['scope'] ?? null);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {

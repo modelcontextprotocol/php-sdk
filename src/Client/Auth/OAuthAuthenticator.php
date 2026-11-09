@@ -123,7 +123,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return true;
         }
 
-        $client = $this->resolveClient($metadata, $scopes);
+        $client = $this->resolveClient($metadata, $scopes, $scopesSupported);
         // A refresh can't widen a grant (RFC 6749 section 6), so a step-up needs a new authorization.
         $refreshable = 'insufficient_scope' === $challenge->getError() ? null : $stored;
 
@@ -133,7 +133,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             $this->logger->info('The authorization server no longer knows this client; registering it again.', ['issuer' => $metadata->issuer]);
             $this->storage->forget($metadata->issuer);
             $token = null;
-            $client = $this->resolveClient($metadata, $scopes);
+            $client = $this->resolveClient($metadata, $scopes, $scopesSupported);
         }
 
         if (null === $token) {
@@ -485,9 +485,10 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     /**
      * Work out which client identity to use with this authorization server.
      *
-     * @param string[] $scopes
+     * @param string[]  $scopes
+     * @param ?string[] $scopesSupported
      */
-    private function resolveClient(AuthorizationServerMetadata $metadata, array $scopes): ClientRegistration
+    private function resolveClient(AuthorizationServerMetadata $metadata, array $scopes, ?array $scopesSupported): ClientRegistration
     {
         $configuration = $this->configuration;
 
@@ -511,11 +512,14 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         self::assertSupportsPkce($metadata);
         $this->assertIdentifiesItsResponses($metadata);
 
+        // A registration limits what the client may ever request (RFC 7591 section 2), so it covers a later step-up.
+        $registered = array_values(array_unique([...$scopes, ...array_diff($scopesSupported ?? [], ['offline_access'])]));
+
         $registration = $this->registrar->register(
             $metadata,
             $configuration->clientMetadata,
             TokenEndpointAuthMethod::negotiate($metadata->tokenEndpointAuthMethodsSupported, true),
-            [] === $scopes ? null : implode(' ', $scopes),
+            [] === $registered ? null : implode(' ', $registered),
         );
 
         $this->storage->saveClientRegistration($metadata->issuer, $registration);
