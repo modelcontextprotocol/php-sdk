@@ -573,6 +573,22 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame([], array_filter($server->requested, static fn (string $url): bool => str_starts_with($url, $issuer)));
     }
 
+    #[TestDox('an application can allow a loopback authorization server with the expected issuer')]
+    public function testExpectedIssuerAllowsALoopbackIssuer(): void
+    {
+        $server = new FakeOAuthServer(authorizationServer: 'http://127.0.0.1:2375');
+        $configuration = OAuth::forApplication('test')->setClientCredentials('known-client')->setExpectedIssuer('http://127.0.0.1:2375');
+
+        try {
+            $this->authenticator($server, configuration: $configuration)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The fake server has no metadata for this issuer.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('No usable metadata', $e->getMessage());
+        }
+
+        $this->assertNotSame([], array_filter($server->requested, static fn (string $url): bool => str_contains($url, '127.0.0.1')));
+    }
+
     #[TestDox('a server on plain http is refused before anything is fetched')]
     public function testRefusesAnInsecureServer(): void
     {
