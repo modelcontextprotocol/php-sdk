@@ -3,9 +3,9 @@
 MCP supports various ways a server can communicate back to a client on top of the main
 request-response flow.
 
-> **Protocol revision `2026-07-28`.** Logging, progress and notifications work as described
-> below on every revision; under the modern lifecycle they travel on the request's own
-> response stream and the client opts into each. Sampling is the exception — see its section.
+> **Revision `2026-07-28`.** Logging, progress and notifications reach the client on the
+> response stream of the request. The client opts into logging and progress per request.
+> Sampling and roots work differently on this revision, see their sections.
 > Asking the user something has a page of its own: [Asking for input](input-required.md).
 
 ## ClientGateway
@@ -64,7 +64,7 @@ validated OAuth token with `getAccessToken()` (see [Reading the token in handler
 
 ## Sampling
 
-> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. It keeps working on a handshake-era connection until then. Revision `2026-07-28` has no server-initiated requests, so on that revision `sample()` and `listRoots()` fail the call with an internal error (`-32603`) that your handler cannot catch. New integrations should call an LLM provider's API directly instead.
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. It keeps working on a handshake-era connection until then. Revision `2026-07-28` has no server-initiated requests, so on that revision `sample()` and `listRoots()` fail the call with an internal error (`-32603`) that your handler cannot catch. To sample on that revision, [return the ask](input-required.md#what-not-to-call). New integrations should call an LLM provider's API directly instead.
 
 With [sampling](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling) servers can request clients to
 execute "completions" or "generations" with a language model for them:
@@ -75,7 +75,7 @@ $result = $clientGateway->sample('Roses are red, violets are', 350, 90, ['temper
 
 The `sample` method accepts four arguments:
 
-1. `message`, which is **required** and accepts a string, an instance of `Content` or an array of `Mcp\Schema\Content\SamplingMessage` instances.
+1. `message`, which is **required** and accepts a string, a `TextContent`, `ImageContent` or `AudioContent`, or an array of `Mcp\Schema\Content\SamplingMessage` instances.
 2. `maxTokens`, which defaults to `1000`
 3. `timeout` in seconds, which defaults to `120`
 4. `options` which might include `systemPrompt`, `preferences` for model choice, `includeContext`, `temperature`,
@@ -116,6 +116,23 @@ Use `$result->getContentBlocks()` to iterate the response regardless of whether 
 
 [Find more details to sampling payload in the specification.](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#protocol-messages)
 
+## Roots
+
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. New integrations should pass directories through tool arguments, resource URIs or server configuration instead. To list roots on that revision, [return the ask](input-required.md#what-not-to-call).
+
+With [roots](https://modelcontextprotocol.io/specification/2025-11-25/client/roots), a server asks the client which
+directories or files it may work with:
+
+```php
+if ($clientGateway->supportsRoots()) {
+    foreach ($clientGateway->listRoots()->roots as $root) {
+        // $root->uri, e.g. file:///home/user/project, and the optional $root->name
+    }
+}
+```
+
+`listRoots()` accepts a timeout in seconds, which defaults to `120`.
+
 ## Logging
 
 > **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Logging keeps working until then; new integrations should log to stderr (stdio) or use OpenTelemetry instead.
@@ -130,11 +147,13 @@ $clientGateway->log(LoggingLevel::Warning, 'The end is near.');
 ```
 
 Messages below the client's log level are dropped, the same way as with the
-[client logger](logging.md). Until the client sets a level with `logging/setLevel`, the level is `warning`.
+[client logger](logging.md). In the handshake era, the level is `warning` until the client sets one with
+`logging/setLevel`, and a server without sessions drops all messages. On revision `2026-07-28`, a request that names no
+level receives no log messages, see [Logging](logging.md).
 
 ## Progress
 
-With a [Progress](https://modelcontextprotocol.io/specification/2025-06-18/basic/utilities/progress#progress)
+With a [Progress](https://modelcontextprotocol.io/specification/2025-06-18/basic/utilities/progress)
 notification a server can update a client while an operation is ongoing:
 
 ```php
@@ -146,9 +165,12 @@ call sends nothing.
 
 ## Notification
 
-Lastly, the server can push all kind of notifications, that extend the abstract `Mcp\Schema\JsonRpc\Notification` class
-to the client to:
+You can also send any notification that extends the abstract `Mcp\Schema\JsonRpc\Notification` class:
 
 ```php
 $clientGateway->notify($yourNotification);
 ```
+
+The SDK doesn't filter these notifications, and the client doesn't opt into them. On revision `2026-07-28`, a notification
+on the response stream must relate to the request. Change notifications, such as a changed tool list, belong on
+[`subscriptions/listen`](../run/subscriptions.md).

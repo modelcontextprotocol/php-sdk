@@ -1567,6 +1567,21 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame('ok', json_decode($result->toJson(), true)['result']['content'][0]['text']);
     }
 
+    #[TestDox('a tools/call over HTTP to a server with a bad manual element is an internal error, without its details')]
+    public function testBadManualElementIsAnInternalErrorOverHttp(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->addTool('Acme\\Missing::handler', name: 'bad', description: 'Bad')
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $answer = self::call($protocol, 'tools/call', ['name' => 'bad', 'arguments' => new \stdClass()], ['Mcp-Name' => 'bad']);
+
+        $this->assertSame(500, $answer['status']);
+        $this->assertSame(Error::INTERNAL_ERROR, $answer['body']['error']['code']);
+        $this->assertSame('Internal server error.', $answer['body']['error']['message']);
+    }
+
     #[TestDox('a handler failing in a finally after it asked the client is logged, not lost')]
     public function testAFailureAfterAQuestionIsLogged(): void
     {

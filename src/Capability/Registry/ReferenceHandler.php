@@ -174,7 +174,8 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 $reflectionName = $handlerName ?? ($reflection instanceof \ReflectionMethod
                     ? $reflection->class.'::'.$reflection->name
                     : 'Closure');
-                throw RegistryException::internalError("Missing required argument `{$paramName}` for {$reflectionName}.");
+                // The handler's name only reaches the log.
+                throw RegistryException::invalidParams("Missing required argument `{$paramName}`.", RegistryException::internalError("Missing required argument `{$paramName}` for {$reflectionName}."));
             }
         }
 

@@ -52,16 +52,26 @@ $elicitationRequestHandler = new ElicitationRequestHandler(new class implements 
             $default = $this->defaultFor($definition);
             $label = $this->labelFor($definition, $name);
 
-            if (null !== $default) {
-                $display = is_bool($default) ? ($default ? 'true' : 'false') : (string) $default;
-                echo "  {$label} [{$display}]: ";
-            } else {
-                echo "  {$label}: ";
-            }
+            do {
+                if (null !== $default) {
+                    $display = is_bool($default) ? ($default ? 'true' : 'false') : (string) $default;
+                    echo "  {$label} [{$display}]: ";
+                } else {
+                    echo "  {$label}: ";
+                }
 
-            $rawInput = fgets(\STDIN);
-            $input = false === $rawInput ? '' : trim($rawInput);
-            $value = '' === $input ? $default : $this->cast($definition, $input);
+                $rawInput = fgets(\STDIN);
+                $input = false === $rawInput ? '' : trim($rawInput);
+                $value = '' === $input ? $default : $this->parse($definition, $input);
+
+                if (false === $rawInput && null === $value) {
+                    return new ElicitResult(ElicitAction::Cancel);
+                }
+
+                if (null === $value) {
+                    echo "  Invalid value, please try again.\n";
+                }
+            } while (null === $value);
 
             $content[$name] = $value;
         }
@@ -87,13 +97,31 @@ $elicitationRequestHandler = new ElicitationRequestHandler(new class implements 
         return $definition->title ?? $name;
     }
 
-    private function cast(object $definition, string $input): mixed
+    // null means the input doesn't fit the field
+    private function parse(object $definition, string $input): string|int|float|bool|null
     {
-        return match (true) {
-            $definition instanceof BooleanSchemaDefinition => filter_var($input, \FILTER_VALIDATE_BOOLEAN),
-            $definition instanceof NumberSchemaDefinition => $definition->integerOnly ? (int) $input : (float) $input,
-            default => $input,
-        };
+        if ($definition instanceof BooleanSchemaDefinition) {
+            return filter_var($input, \FILTER_VALIDATE_BOOLEAN, \FILTER_NULL_ON_FAILURE);
+        }
+
+        if ($definition instanceof NumberSchemaDefinition) {
+            $number = filter_var($input, $definition->integerOnly ? \FILTER_VALIDATE_INT : \FILTER_VALIDATE_FLOAT, \FILTER_NULL_ON_FAILURE);
+
+            // the bounds may be fractional, even for an integer field
+            if (null === $number
+                || (null !== $definition->minimum && $number < $definition->minimum)
+                || (null !== $definition->maximum && $number > $definition->maximum)) {
+                return null;
+            }
+
+            return $number;
+        }
+
+        if ($definition instanceof EnumSchemaDefinition) {
+            return in_array($input, $definition->enum, true) ? $input : null;
+        }
+
+        return $input;
     }
 });
 

@@ -16,6 +16,7 @@ use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
+use Mcp\Exception\ConfigurationException;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ToolNotFoundException;
@@ -128,6 +129,7 @@ interface RegistryInterface
      * Gets a tool reference by name.
      *
      * @throws ToolNotFoundException
+     * @throws ConfigurationException when the elements fail to load
      */
     public function getTool(string $name): ToolReference;
 

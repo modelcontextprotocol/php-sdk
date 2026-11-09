@@ -1,12 +1,13 @@
-# Resource Templates
+# Resource templates
 
 Resource templates are **dynamic resources** that use parameterized URIs with variables. They follow all the same rules
-as static resources (URI schemas, return values, MIME types, etc.) but accept `{variable}` placeholders in the URI.
+as static resources (URI schemes, return values, MIME types, etc.) but accept `{variable}` placeholders in the URI.
 
 Only simple [RFC 6570](https://datatracker.ietf.org/doc/html/rfc6570) variable expansion
 is supported — `{var}`, one path segment each. Operators such as `{+var}`, `{#var}`,
 `{/path}`, `{?query}` and explode (`{list*}`) are not parsed, and a variable's value
-cannot contain `/`.
+cannot contain `/`. The SDK doesn't reject a template that uses them: it lists the
+template, but no real URI matches it.
 
 ```php
 use Mcp\Capability\Attribute\McpResourceTemplate;

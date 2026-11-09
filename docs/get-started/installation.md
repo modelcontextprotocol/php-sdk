@@ -25,10 +25,12 @@ Which extras you need depends on what you build:
 | discover `#[McpTool]` & friends from a directory | `symfony/finder` |
 | serve over [HTTP](../run/http.md) | any PSR-17 implementation, e.g. `nyholm/psr7` |
 | emit the response from a standalone HTTP entry point | `laminas/laminas-httphandlerrunner` |
-| [connect a client over HTTP](../client/transports.md) | any PSR-18 client, e.g. `symfony/http-client` |
+| [connect a client over HTTP](../client/transports.md) | any PSR-18 client and PSR-17 implementation, e.g. `symfony/http-client` and `nyholm/psr7` |
 | [validate JWT access tokens](../run/authorization.md) | `firebase/php-jwt` |
 | store sessions, cache discovery or share notifications through a PSR-6 or PSR-16 cache | `psr/cache` or `psr/simple-cache` implementation, e.g. `symfony/cache` |
-| [fetch JWT keys from an issuer](../run/authorization.md) with `JwtTokenValidator::fromIssuer()` | `psr/cache` (PSR-6) implementation, e.g. `symfony/cache` |
+| [fetch JWT keys from an issuer](../run/authorization.md) with `JwtTokenValidator::fromIssuer()` | `psr/cache` (PSR-6) implementation, PSR-18 client and PSR-17 implementation, e.g. `symfony/cache`, `symfony/http-client` and `nyholm/psr7` |
+| [lock sessions across machines](../run/sessions.md) with `SymfonyLockSessionLock` | `symfony/lock` |
+| [listen to server events](../advanced/events.md) | any PSR-14 event dispatcher, e.g. `symfony/event-dispatcher` |
 
 PSR-17 and PSR-18 implementations are found through
 [`php-http/discovery`](https://docs.php-http.org/en/latest/discovery.html), so

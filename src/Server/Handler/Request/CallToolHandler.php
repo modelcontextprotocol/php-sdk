@@ -118,7 +118,10 @@ final class CallToolHandler implements RequestHandlerInterface
                     ]);
                 }
 
-                $content = null === $structuredContent ? [new TextContent('null')] : $reference->formatResult($result);
+                // SEP-2106: a primitive `structuredContent` needs its serialized JSON in `content`.
+                $content = null === $structuredContent || \is_scalar($structuredContent)
+                    ? [new TextContent(json_encode($structuredContent, \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE))]
+                    : $reference->formatResult($result);
                 $result = new CallToolResult($content, structuredContent: $structuredContent);
             } elseif ($protocolVersion->requiresObjectStructuredContent()
                 && $result->hasStructuredContent()

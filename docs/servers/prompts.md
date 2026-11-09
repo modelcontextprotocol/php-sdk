@@ -105,9 +105,10 @@ makes the prompt handler throw.
 Prompt handlers can throw any exception, but the type determines how it's handled:
 
 - **`PromptGetException`**: Converted to JSON-RPC error response with the actual exception message
-- **Any other exception**: Converted to JSON-RPC error response, but with a generic error message
+- **Any other exception you throw from your handler**: Converted to JSON-RPC error response, but with a generic error message
 
 ```php
+use Mcp\Capability\Attribute\McpPrompt;
 use Mcp\Exception\PromptGetException;
 
 #[McpPrompt]
@@ -127,4 +128,7 @@ public function generatePrompt(string $topic, string $style): array
 }
 ```
 
-**Recommendation**: Use `PromptGetException` when you want to communicate specific errors to clients. Any other exception will still be converted to JSON-RPC compliant errors but with generic error messages.
+**Recommendation**: Use `PromptGetException` when you want to communicate specific errors to clients. Any other exception you throw will still be converted to JSON-RPC compliant errors but with generic error messages.
+
+If a required argument is missing and has no default, your handler isn't called. The client gets a `-32602` error with
+the message ``Missing required argument `language`.``

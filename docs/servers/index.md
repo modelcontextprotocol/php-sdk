@@ -17,8 +17,8 @@ Around those, the rest of what a server declares:
   resource-template arguments.
 * **[Schema generation](schemas.md)** explains how your PHP types and docblocks become
   the JSON Schema a model sees, and how to override it where the types are not enough.
-* **[Registering elements](registration.md)** covers the three ways an element reaches
-  the registry: attribute discovery, explicit registration, or both at once.
+* **[Registering elements](registration.md)** covers how an element reaches the registry:
+  attribute discovery, manual registration or explicit element registration.
 
 Every page here stands on its own; jump straight to the one you need. If you have not
 built a server yet, start with **[First server](../get-started/first-server.md)**

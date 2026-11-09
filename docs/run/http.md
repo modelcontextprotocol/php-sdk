@@ -1,4 +1,4 @@
-# HTTP Transport
+# HTTP transport
 
 The HTTP transport was designed to sit between any PHP project, regardless of the HTTP implementation or how they receive
 and process requests and send responses. It provides a flexible architecture that can integrate with any PSR-7 compatible application.
@@ -23,7 +23,6 @@ $transport = new StreamableHttpTransport(
 - **`logger`** (optional): `LoggerInterface` - PSR-3 logger for debugging. Defaults to `NullLogger`.
 - **`middleware`** (optional): `iterable<MiddlewareInterface>|null` - PSR-15 middleware chain. `null` (omitted) installs the [default stack](#default-middleware). A list replaces the defaults. When the surrounding application already handles CORS, host validation, etc., see [Opting Out of All Middleware](#opting-out-of-all-middleware).
 - **`maxBodyBytes`** (optional): `int` - Upper bound on the POST request body read, in bytes. Defaults to 4 MiB (`StreamableHttpTransport::DEFAULT_MAX_BODY_BYTES`). See [Request Body Size Limit](#request-body-size-limit).
-- **`clock`** (optional): `ClockInterface` - PSR-20 clock used to time out requests the server sent to the client. Defaults to `NativeClock`.
 
 ## PSR-17 Auto-Discovery
 
@@ -75,7 +74,7 @@ These run for both protocol eras. `ProtocolVersionMiddleware` is not part of thi
 ## CORS Configuration
 
 CORS is handled by `CorsMiddleware`. To enable cross-origin browser requests, configure it explicitly and pass it
-in place of (or alongside) the defaults:
+in place of the defaults:
 
 ```php
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
@@ -130,10 +129,10 @@ Headers already present on a response (e.g. set by inner middleware) are preserv
 defaults when they are absent.
 
 !!! warning
-    `Access-Control-Allow-Origin: *` is incompatible with credentialed browser requests (those carrying
-    `Authorization`, cookies, or client certificates). If your MCP server runs OAuth/Bearer auth and serves
-    a browser client, configure `allowedOrigins` with the explicit origin(s) you trust rather than `['*']`.
-    The middleware reflects the matching origin verbatim, which is the form browsers accept with credentials.
+    `Access-Control-Allow-Origin: *` doesn't work with credentialed browser requests, which carry cookies, TLS
+    client certificates or HTTP authentication entries. A token your script sets in the `Authorization` header
+    doesn't count. For a credentialed client, list the origins you trust in `allowedOrigins`. The middleware
+    reflects the matching origin verbatim, which is the form browsers accept with credentials.
 
 ## DNS Rebinding Protection
 
@@ -186,9 +185,9 @@ This header check is separate from, and happens after, the handshake itself. See
 first place. The check is also unaffected by `setProtocolVersion()`, so a server that pins the handshake still
 accepts every handshake revision in this header.
 
-Modern revisions never reach it. A `2026-07-28` request declares its revision in `params._meta` rather than in a
-header, and is routed away from this check entirely — see
-[Serving both eras](protocol-eras.md).
+Modern revisions never reach it. A `2026-07-28` request declares its revision in `params._meta` and repeats it in
+the `MCP-Protocol-Version` header. The server answers a missing or different header with `400` and error code
+`-32020`. See [Serving both eras](protocol-eras.md).
 
 ## Request Body Size Limit
 

@@ -50,7 +50,8 @@ $server = Server::builder()
         description: 'Advanced mathematical calculations',
         icons: [new Icon('https://example.com/icon.png', 'image/png', ['64x64'])],
         websiteUrl: 'https://example.com',
-    );
+    )
+    ->build();
 ```
 
 **Parameters:**
@@ -68,7 +69,8 @@ Configure the maximum number of items returned in paginated responses:
 
 ```php
 $server = Server::builder()
-    ->setPaginationLimit(100); // Default: 50
+    ->setPaginationLimit(100) // Default: 50
+    ->build();
 ```
 
 ### Instructions
@@ -77,7 +79,8 @@ Provide hints to help AI models understand how to use your server:
 
 ```php
 $server = Server::builder()
-    ->setInstructions('This calculator supports basic arithmetic operations. Use the calculate tool for math operations and check the config resource for current settings.');
+    ->setInstructions('This calculator supports basic arithmetic operations. Use the calculate tool for math operations and check the config resource for current settings.')
+    ->build();
 ```
 
 ### Protocol Version
@@ -89,7 +92,8 @@ not need to configure anything. `setProtocolVersion()` pins that handshake to ex
 use Mcp\Schema\Enum\ProtocolVersion;
 
 $server = Server::builder()
-    ->setProtocolVersion(ProtocolVersion::V2025_06_18);
+    ->setProtocolVersion(ProtocolVersion::V2025_06_18)
+    ->build();
 ```
 
 See [Protocol versions](../protocol-versions.md#negotiating-in-the-handshake-era) for how negotiation resolves and
@@ -121,7 +125,7 @@ $server = Server::builder()
     // Without a key, the server refuses every state the client sends back.
     // The optional binder ties each state to the principal and the call it was
     // minted for, so a client cannot echo it on another call or under another token.
-    ->setRequestState($_ENV['MCP_REQUEST_STATE_KEY'], ttl: 600, binder: new OriginatingRequestBinder())
+    ->setRequestState(getenv('MCP_REQUEST_STATE_KEY'), ttl: 600, binder: new OriginatingRequestBinder())
 
     // Bounds the input-required shim, which fulfils an `InputRequiredResult`
     // over a handshake-era connection. `withoutInputRequiredShim()` turns it off.
@@ -142,13 +146,14 @@ $server = Server::builder()
 ```
 
 `buildStateless()` returns the modern dispatcher alone, for an endpoint that serves no handshake-era traffic at all.
-Its requests are checked against the SEP-2243 standard headers — that `Mcp-Method`, `Mcp-Name` and `Mcp-Param-*` agree
-with the body they travel with. `build()` uses the same dispatcher for its modern leg, so the check applies there too.
-`setHeaderValidator(false)` turns that check off, which is needed only when the dispatcher is served by a transport
-that has no header layer to check.
+Its requests are checked against the SEP-2243 standard headers. `MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name` and
+`Mcp-Param-*` must be present where they apply, and must agree with the body. The server answers a missing or different
+header with `400`. `build()` uses the same dispatcher for its modern leg, so the check applies there too.
+`setHeaderValidator(false)` turns off this check. You only need this when a transport that has no headers serves the
+dispatcher. A `MCP-Protocol-Version` header that differs from `params._meta` still gets `400`.
 
 The modern leg answers `server/discover` with a request handler. A `ResponseEvent` listener can change its answer, for
-example to give stateless clients different instructions, and a handler added through `addRequestHandler()` replaces
+example to give modern-era clients different instructions, and a handler added through `addRequestHandler()` replaces
 it. See
 [Customizing `server/discover`](protocol-eras.md#customizing-serverdiscover).
 
@@ -166,7 +171,8 @@ $server = Server::builder()
         excludeDirs: ['vendor', 'tests'],        // Where NOT to look
         cache: $cacheInstance,                   // Optional: cache discovered elements
         namePatterns: ['*.php', '*.inc'],        // Optional: list of filename patterns to match
-    );
+    )
+    ->build();
 ```
 
 Discovery needs the `symfony/finder` package. Without it, `build()` and `buildStateless()` throw a `RuntimeException`.
@@ -191,7 +197,8 @@ $server = Server::builder()
 !!! warning
     Always exclude `vendor/` when the scanned directories contain it. The recursive scan
     tries to load every class it finds, and a single file that cannot be loaded makes the
-    scan abort — the server then reports an **empty** element list instead of an error.
+    scan abort. The server then reports a partial or empty element list, depending on the
+    scan order, and only a log entry names the error.
 
 **Production Setup with Caching:**
 ```php
@@ -255,14 +262,16 @@ You can also use any PSR-11 compatible container (Symfony DI, PHP-DI, Laravel Co
 Provide a PSR-3 logger instance for internal server logging (request/response processing, errors, session management, transport events):
 
 ```php
-use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
+use Monolog\Level;
+use Monolog\Logger;
 
 $logger = new Logger('mcp-server');
-$logger->pushHandler(new StreamHandler('mcp.log', Logger::INFO));
+$logger->pushHandler(new StreamHandler('mcp.log', Level::Info));
 
 $server = Server::builder()
-    ->setLogger($logger);
+    ->setLogger($logger)
+    ->build();
 ```
 
 ### Event Dispatcher
@@ -271,7 +280,8 @@ Configure event dispatching:
 
 ```php
 $server = Server::builder()
-    ->setEventDispatcher($eventDispatcher);
+    ->setEventDispatcher($eventDispatcher)
+    ->build();
 ```
 
 ### Fiber Scheduler
@@ -297,7 +307,8 @@ final class RevoltFiberScheduler implements FiberSchedulerInterface
 }
 
 $server = Server::builder()
-    ->setFiberScheduler(new RevoltFiberScheduler());
+    ->setFiberScheduler(new RevoltFiberScheduler())
+    ->build();
 ```
 
 The server calls the callback you pass to `then()` while the handler fiber is still running, so the callback must
@@ -323,9 +334,10 @@ final class ReactFiberScheduler implements FiberSchedulerInterface
 }
 ```
 
-If the callback wakes the fiber right away, the request fails with a `LogicException` that explains the fix.
+If the callback wakes the fiber right away, the client gets an internal error (`-32603`) with a message that explains
+the fix.
 
-Without a scheduler, a handler that awaits I/O fails the request with a `LogicException`. The event loop still
+Without a scheduler, the client of a handler that awaits I/O gets the same kind of error. The event loop still
 resumes the handler after that, so the handler runs to its end and its side effects still happen.
 
 #### Limits Under an Event Loop
@@ -335,7 +347,9 @@ A fiber scheduler lets handlers await I/O while the event loop serves other requ
 - A server that sends the body itself (e.g. `amphp/http-server`) gets the SSE text of a streamed response from
   `CallbackStream::chunks()`, in both protocol eras. On an empty chunk, an idle turn, it must wait on the loop before
   it asks for the next one, or the stream polls without pause; it may write a keep-alive then. Dropping the
-  generator ends the stream, and the handler sends nothing more. The Revolt and ReactPHP examples show it. Without
+  generator ends the stream, and the handler sends nothing more. The
+  [Revolt](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/revolt) and
+  [ReactPHP](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/reactphp) examples show it. Without
   `chunks()`, `StreamableHttpTransport` writes streamed responses to the PHP output and blocks the event loop while
   it waits, e.g. while a handler waits for an answer from the client.
 - When the client goes away, a handler stops at the next message it sends, not in the middle of an await.
@@ -417,15 +431,16 @@ use Mcp\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Capability\Registry\Container;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
-use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
+use Monolog\Level;
+use Monolog\Logger;
 
 // Setup dependencies
 $logger = new Logger('mcp-server');
-$logger->pushHandler(new StreamHandler('mcp.log', Logger::INFO));
+$logger->pushHandler(new StreamHandler('mcp.log', Level::Info));
 
 $cache = new FilesystemAdapter('mcp-discovery');
-$sessionStore = new FileSessionStore(__DIR__ . '/sessions');
+$sessionStore = new FileSessionStore(__DIR__.'/sessions');
 
 // Setup container with dependencies
 $container = new Container();
@@ -477,7 +492,7 @@ $server = Server::builder()
 | `setCachePolicy()` | policy | Set the `ttlMs`/`cacheScope` hints on cacheable results |
 | `setNotificationBus()` | bus | Delivery for `subscriptions/listen` streams |
 | `setSubscriptionLifetime()` | seconds | How long a subscription stream is held open over HTTP (`0` = unbounded) |
-| `setResourceSubscriptionManager()` | subscriptionManager | Store `resources/subscribe` subscriptions somewhere other than the session |
+| `setResourceSubscriptionManager()` | subscriptionManager | Store `resources/subscribe` subscriptions somewhere other than the session, with your own `SubscriptionManagerInterface` |
 | `setHeaderValidator()` | headerValidation? | Toggle the SEP-2243 standard-header check on the modern leg of `build()` and on `buildStateless()` |
 | `setDiscovery()` | basePath, scanDirs?, excludeDirs?, cache?, namePatterns? | Configure attribute discovery |
 | `setDiscoverer()` | discoverer | Replace the class that scans for attributes (the discovery `cache` is then not used) |

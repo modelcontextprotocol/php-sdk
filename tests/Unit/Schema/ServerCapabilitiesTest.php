@@ -473,4 +473,13 @@ class ServerCapabilitiesTest extends TestCase
             'tools' => new \stdClass(),
         ], $capabilities->jsonSerialize());
     }
+
+    public function testWithoutResourcesSubscribeKeepsTheRest(): void
+    {
+        $capabilities = (new ServerCapabilities(resources: false, resourcesSubscribe: true, logging: true))->withoutResourcesSubscribe();
+
+        $this->assertTrue($capabilities->resources);
+        $this->assertFalse($capabilities->resourcesSubscribe);
+        $this->assertTrue($capabilities->logging);
+    }
 }

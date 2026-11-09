@@ -168,6 +168,29 @@ class ServerCapabilities implements \JsonSerializable
     }
 
     /**
+     * Returns a copy that does not announce resource subscriptions.
+     *
+     * Resources announced only through the `subscribe` flag stay announced.
+     */
+    public function withoutResourcesSubscribe(): self
+    {
+        return new self(
+            $this->tools,
+            $this->toolsListChanged,
+            $this->resources || $this->resourcesSubscribe,
+            false,
+            $this->resourcesListChanged,
+            $this->prompts,
+            $this->promptsListChanged,
+            $this->logging,
+            $this->completions,
+            $this->experimental,
+            $this->extensions,
+            $this->tasks,
+        );
+    }
+
+    /**
      * Returns a copy without what a server cannot offer without sessions: resource subscriptions and logging.
      *
      * Resources announced only through the `subscribe` flag stay announced.

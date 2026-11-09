@@ -16,11 +16,19 @@ use Mcp\Client;
 
 $client = Client::builder()
     ->setClientInfo('My Application', '1.0.0', 'Description of my client')
-    ->setInitTimeout(30)      // seconds to wait while connecting (default: 30)
-    ->setRequestTimeout(120)  // seconds to wait for each response (default: 120)
+    ->setInitTimeout(30)      // seconds to wait for each message while connecting (default: 30)
+    ->setRequestTimeout(120)  // seconds one call may take, including your callbacks (default: 120)
     ->setMaxRetries(3)        // retries for a failed connection (default: 3)
     ->build();
 ```
+
+A server that doesn't answer uses up the initialization timeout twice per attempt: once for
+`server/discover` and once for `initialize`. With the default values, `connect()` can wait about
+4 minutes before it fails.
+
+The request timeout covers the whole call, including the time your elicitation or sampling callback
+takes. To give a user more time to answer, pass `timeoutSeconds` to `callTool()`. See
+[Cancellation and deadlines](transports.md#cancellation-and-deadlines).
 
 ### Connection Retries
 
@@ -92,10 +100,9 @@ $client = Client::builder()
 
 The handshake is an offer, not a demand. A server that does not support the requested revision counter-offers one it
 does, as described in the specification's
-[protocol version negotiation](https://modelcontextprotocol.io/specification/latest/basic/versioning#protocol-version-negotiation)
-section. The client accepts any counter-offer it knows about and continues on that revision; a counter-offer the SDK
-cannot speak fails the handshake with a `ConnectionException` rather than continuing on a revision neither side agreed
-on.
+[version negotiation](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation)
+section. The client accepts any handshake revision it knows about and continues on that revision. Any other counter-offer
+fails the handshake with a `ConnectionException`.
 
 See [Protocol versions](../protocol-versions.md#how-the-client-settles-on-an-era) for how the probe is read, and
 [the handshake era](../protocol-versions.md#negotiating-in-the-handshake-era) for the server side of the exchange.
@@ -152,7 +159,8 @@ $client = Client::builder()
 ```
 
 !!! note
-    `LoggingNotificationHandler` is deprecated, together with MCP logging. See
+    `LoggingNotificationHandler` is deprecated, together with MCP logging. On revision `2026-07-28`,
+    the server sends log messages only after you call `setLoggingLevel()`. See
     [Logging notifications](server-requests.md#logging-notifications).
 
 ### Request Handlers
@@ -187,14 +195,16 @@ $client = Client::builder()
 
 ### Logger
 
-Configure PSR-3 logging for debugging:
+Configure PSR-3 logging for debugging. This example uses Monolog, which you install with
+`composer require monolog/monolog`:
 
 ```php
-use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
+use Monolog\Level;
+use Monolog\Logger;
 
 $logger = new Logger('mcp-client');
-$logger->pushHandler(new StreamHandler('client.log', Logger::DEBUG));
+$logger->pushHandler(new StreamHandler('client.log', Level::Debug));
 
 $client = Client::builder()
     ->setLogger($logger)

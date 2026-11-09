@@ -1,4 +1,4 @@
-# Schema Generation and Validation
+# Schema generation
 
 The SDK automatically generates JSON schemas for **tool parameters** using a sophisticated priority system. Schema
 generation applies to both attribute-discovered and manually registered tools.
@@ -16,6 +16,8 @@ The server follows this order of precedence:
 ## Automatic Schema from PHP Types
 
 ```php
+use Mcp\Capability\Attribute\McpTool;
+
 #[McpTool]
 public function processUser(
     string $email,           // Required string
@@ -31,6 +33,7 @@ public function processUser(
 The generator also reads these parts of the signature:
 
 ```php
+use Mcp\Capability\Attribute\McpTool;
 use Mcp\Server\RequestContext;
 
 enum Unit: string
@@ -64,6 +67,7 @@ In this example:
 Add validation rules to specific parameters:
 
 ```php
+use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 
 #[McpTool]
@@ -91,6 +95,9 @@ public function validateUser(
 Add validation for complex object structures:
 
 ```php
+use Mcp\Capability\Attribute\McpTool;
+use Mcp\Capability\Attribute\Schema;
+
 #[McpTool]
 #[Schema(
     properties: [
@@ -118,6 +125,9 @@ public function createUser(array $userData): array
 **Use sparingly** - bypasses all automatic inference:
 
 ```php
+use Mcp\Capability\Attribute\McpTool;
+use Mcp\Capability\Attribute\Schema;
+
 #[McpTool]
 #[Schema(definition: [
     'type' => 'object',
@@ -133,7 +143,7 @@ public function createUser(array $userData): array
     ],
     'required' => ['endpoint', 'method']
 ])]
-public function makeApiRequest(string $endpoint, string $method, array $headers): array
+public function makeApiRequest(string $endpoint, string $method, array $headers = []): array
 {
     // Complete definition override - PHP types ignored
 }
@@ -146,6 +156,9 @@ To replace the schema of one parameter only, put `definition` on the parameter. 
 still added:
 
 ```php
+use Mcp\Capability\Attribute\McpTool;
+use Mcp\Capability\Attribute\Schema;
+
 #[McpTool]
 public function getForecast(
     #[Schema(definition: ['type' => 'string', 'format' => 'date'])]
@@ -196,6 +209,9 @@ schema, so this is the only check for them. If a value can't be cast, your metho
 }
 ```
 
+A required argument with no default that is missing also gets `-32602`, with the message
+``Missing required argument `quantity`.``.
+
 An `int` parameter refuses numbers beyond the range of a PHP integer (e.g. `9300000000000000000`). A number with a
 fraction part of zero is accepted (e.g. `5.0`). JSON decoding turns a number written this way into a float, so above
 `9007199254740992` it can lose precision before it reaches your method.
@@ -208,6 +224,11 @@ The SDK also validates structured tool output against the tool's `outputSchema`,
 The type of a parameter decides how your method receives a JSON object:
 
 ```php
+use Mcp\Capability\Attribute\McpTool;
+
+/**
+ * @param array<string, mixed> $filters
+ */
 #[McpTool]
 public function searchOrders(
     array $filters,     // JSON objects arrive as arrays, at every level
@@ -219,11 +240,13 @@ public function searchOrders(
 }
 ```
 
-The `array` type has no distinction between `{}` and `[]`, because both arrive as an empty array. Use `\stdClass` or
-`object` if your method needs to tell them apart. The `execute()` method of `ToolHandlerInterface` receives the arguments
+An `array` parameter can't tell `{}` and `[]` apart, because both arrive as an empty array. This applies to nested
+values and to a parameter that accepts both JSON types, see below. Use `\stdClass` or `object` if your method needs to
+tell them apart. The `execute()` method of `ToolHandlerInterface` receives the arguments
 as an array, and the nested values follow the same rule as a `\stdClass` parameter.
 
-The docblock decides which JSON type the client can send to an `array` parameter:
+The docblock decides which JSON type the client can send to an `array` parameter. The client gets a `-32602` error for
+any other JSON type:
 
 ```php
 /**
@@ -241,6 +264,7 @@ external `$ref` schemas, pass your own `SchemaValidator` to `Builder::setSchemaV
 
 ```php
 use Mcp\Capability\Discovery\SchemaValidator;
+use Mcp\Server;
 use Opis\JsonSchema\Validator;
 
 $validator = new Validator();

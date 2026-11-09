@@ -2,7 +2,8 @@
 
 `Server::builder()->build()` produces a server carrying a dispatcher for each
 [protocol era](../protocol-versions.md), and `StreamableHttpTransport` decides per request
-which of them answers. There is nothing to configure:
+which of them answers. You don't need to configure this. Handshake-era clients run
+[without sessions](sessions.md#serving-without-sessions) until you call `setSession()`:
 
 ```php
 use Http\Discovery\Psr17Factory;
@@ -26,7 +27,7 @@ one.
 
 A full example lives in
 [`examples/server/stateless-lifecycle/server.php`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/stateless-lifecycle),
-described in [Examples](../examples.md#the-2026-07-28-lifecycle).
+described in [Examples](../examples.md#the-modern-era).
 
 ## What a modern request carries
 
@@ -47,6 +48,8 @@ Plus `Mcp-Method` on every request, and `Mcp-Name` on `tools/call`, `prompts/get
 `resources/read`, `tasks/get`, `tasks/update` and `tasks/cancel`. A header that disagrees
 with the body is refused with `-32020`; a missing required `_meta` member with `-32602`; an
 unsupported version with `-32022`, carrying the supported set for the client to retry from.
+
+The SDK only checks the `Mcp-Name` header of the `tasks/*` methods. It doesn't implement these methods.
 
 What a handler can read off all this is
 [Talking back to the client](../handlers/client-communication.md#request-metadata).
@@ -95,10 +98,10 @@ Every request is classified once, before anything else looks at it. The decision
 | `GET` / `DELETE` | handshake era |
 | a JSON array (a batch) | refused with `-32600` |
 
-The `MCP-Protocol-Version` header never decides. It is cross-checked against the body, and a
-request whose header contradicts its `_meta` is refused with `-32020` before either leg sees
-it — the check has to happen at the edge, because a body claiming a handshake revision routes
-to a leg that has no such check of its own. A modern header on a request carrying no envelope
+A leg is the dispatcher of one era. The `MCP-Protocol-Version` header never decides. It is cross-checked
+against the body, and a request whose header contradicts its `_meta` is refused with `-32020` before either leg
+sees it. The check has to happen at the edge, because a body claiming a
+handshake revision routes to a leg that has no such check of its own. A modern header on a request carrying no envelope
 is refused with `-32602` naming the member it wants.
 
 An unrecognised revision goes to whichever leg can answer it best: claimed in the envelope,
@@ -116,9 +119,10 @@ made through one is visible to the other.
 and the instructions set with `setInstructions()`, which `initialize` reports too.
 
 A server that needs a different answer per era, say instructions that leave out tools a
-stateless client cannot use, listens for the `ResponseEvent` of a `DiscoverRequest` and replaces
+modern-era client cannot use, listens for the `ResponseEvent` of a `DiscoverRequest` and replaces
 the member it wants to change. `server/discover` dispatches the same `RequestEvent`,
-`ResponseEvent` and `ErrorEvent` as every other request:
+`ResponseEvent` and `ErrorEvent` as every other request. This example needs a PSR-14 dispatcher
+(`composer require symfony/event-dispatcher`):
 
 ```php
 use Mcp\Event\ResponseEvent;

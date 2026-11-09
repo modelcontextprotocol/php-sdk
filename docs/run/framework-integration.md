@@ -6,7 +6,7 @@ covers how it fits into an application you already have.
 ## Architecture
 
 The HTTP transport doesn't run its own web server. Instead, it processes PSR-7 requests and returns PSR-7 responses that
-your application can handle however it needs to:
+your application sends to the client:
 
 ```
 Your Web App → PSR-7 Request → StreamableHttpTransport → PSR-7 Response → Your Web App
@@ -14,9 +14,19 @@ Your Web App → PSR-7 Request → StreamableHttpTransport → PSR-7 Response �
 
 This design allows integration with any PHP framework or application that supports PSR-7.
 
+!!! warning
+    A streamed response writes its events to the PHP output when your application reads the body. If a framework casts
+    the body to a string before it sends the response headers, the client gets the events as `text/html` and without
+    `Mcp-Session-Id`. Send the headers before you read the body, as the examples below do. If your server writes the body
+    itself, see [Limits under an event loop](server-builder.md#limits-under-an-event-loop).
+
 ## Basic Usage (Standalone)
 
-Here's a simplified example using PSR-17 discovery and Laminas emitter:
+Here's a simplified example using PSR-17 discovery and Laminas emitter. It needs these packages:
+
+```bash
+composer require nyholm/psr7 laminas/laminas-httphandlerrunner symfony/finder
+```
 
 ```php
 use Http\Discovery\Psr17Factory;
@@ -31,7 +41,7 @@ $request = $psr17Factory->createServerRequestFromGlobals();
 $server = Server::builder()
     ->setServerInfo('HTTP Server', '1.0.0')
     ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])
-    ->setSession(new FileSessionStore(__DIR__ . '/sessions')) // needed for elicitation, sampling and subscriptions
+    ->setSession(new FileSessionStore(__DIR__.'/sessions')) // see Session Management below
     ->build();
 
 $transport = new StreamableHttpTransport($request);
@@ -81,8 +91,8 @@ class McpController
         $transport = new StreamableHttpTransport($psrRequest);
         $psrResponse = $server->run($transport);
 
-        // Convert PSR-7 response back to Symfony
-        return $httpFoundationFactory->createResponse($psrResponse);
+        // Convert PSR-7 response back to Symfony, without casting the body to a string
+        return $httpFoundationFactory->createResponse($psrResponse, streamed: true);
     }
 }
 ```
@@ -102,20 +112,20 @@ Then create a controller that type-hints `ServerRequestInterface`:
 ```php
 // In a Laravel controller
 use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Message\ResponseInterface;
+use Symfony\Bridge\PsrHttpMessage\Factory\HttpFoundationFactory;
+use Symfony\Component\HttpFoundation\Response;
 use Mcp\Server;
 use Mcp\Server\Transport\StreamableHttpTransport;
 
 class McpController
 {
-    public function handle(ServerRequestInterface $request, Server $server): ResponseInterface
+    public function handle(ServerRequestInterface $request, Server $server): Response
     {
         // Create the MCP HTTP transport
         $transport = new StreamableHttpTransport($request);
 
-        // Process MCP request and return PSR-7 response
-        // Laravel automatically handles PSR-7 responses
-        return $server->run($transport);
+        // Laravel would cast the body of a returned PSR-7 response to a string
+        return (new HttpFoundationFactory())->createResponse($server->run($transport), streamed: true);
     }
 }
 
@@ -123,9 +133,22 @@ class McpController
 Route::any('/mcp', [McpController::class, 'handle']);
 ```
 
+Routes in `routes/web.php` run Laravel's CSRF check, which answers an MCP `POST` with `419` and
+`CSRF token mismatch.`. Exclude the path in `bootstrap/app.php`:
+
+```php
+->withMiddleware(function (Middleware $middleware): void {
+    $middleware->validateCsrfTokens(except: ['mcp']);
+})
+```
+
 ### Slim Framework Integration
 
-Slim Framework works natively with PSR-7.
+Slim Framework works natively with PSR-7. First install Slim, a PSR-7 implementation and the package that discovery needs:
+
+```bash
+composer require slim/slim slim/psr7 symfony/finder
+```
 
 Create a route handler using Slim's built-in factories and container:
 
@@ -141,13 +164,15 @@ $app->any('/mcp', function ($request, $response) {
     $server = Server::builder()
         ->setServerInfo('My MCP Server', '1.0.0')
         ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])
-        ->setSession(new FileSessionStore(__DIR__ . '/sessions')) // needed for elicitation, sampling and subscriptions
+        ->setSession(new FileSessionStore(__DIR__.'/sessions')) // see Session Management below
         ->build();
 
     $transport = new StreamableHttpTransport($request);
 
     return $server->run($transport);
 });
+
+$app->run();
 ```
 
 ## HTTP Method Handling
@@ -163,7 +188,8 @@ You should route **all methods** to your MCP endpoint, not just POST.
 
 ## Session Management
 
-Over HTTP, a server has sessions only when you call `setSession()` with a store that keeps them between requests. See
+Over HTTP, a server has sessions only when you call `setSession()`. Without a store, it keeps them in the memory of one
+process, so pass a store that keeps them between requests. See
 [Sessions over HTTP](sessions.md#sessions-over-http). A server without sessions has
 [limits](sessions.md#serving-without-sessions).
 
@@ -180,6 +206,8 @@ Route::any('/', [McpController::class, 'handle']);
 Route::any('/api/mcp', [McpController::class, 'handle']);
 ```
 
+In Laravel's `routes/web.php`, add the path you choose to the CSRF exceptions.
+
 ## Testing HTTP Transport
 
 Use the MCP Inspector to test HTTP servers:
@@ -189,5 +217,5 @@ Use the MCP Inspector to test HTTP servers:
 php -S localhost:8000 server.php
 
 # Connect with MCP Inspector
-npx @modelcontextprotocol/inspector http://localhost:8000
+npx @modelcontextprotocol/inspector --transport http --server-url http://localhost:8000
 ```

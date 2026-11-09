@@ -1,8 +1,10 @@
-# STDIO Transport
+# STDIO transport
 
 The STDIO transport communicates via standard input/output streams, ideal for command-line tools and MCP client integrations.
 
 ```php
+use Mcp\Server\Transport\StdioTransport;
+
 $transport = new StdioTransport(
     input: STDIN,           // Input stream (default: STDIN)
     output: STDOUT,         // Output stream (default: STDOUT)
@@ -16,9 +18,9 @@ $transport = new StdioTransport(
 - **`output`** (optional): Output stream resource. Defaults to `STDOUT`.
 - **`logger`** (optional): `LoggerInterface` - PSR-3 logger for debugging. Defaults to `NullLogger`.
 - **`runnerControl`** (optional): `RunnerControlInterface` - controls the read loop. Defaults to a `RunnerControl`, which runs until the input stream closes.
-- **`maxLineBytes`** (optional): Maximum accepted line length in bytes. Defaults to 4 MiB (`StdioTransport::DEFAULT_MAX_LINE_BYTES`). The transport discards a longer line and logs a warning. It writes nothing back to the client. A value below `1` throws `InvalidArgumentException`.
+- **`maxLineBytes`** (optional): Maximum accepted line length in bytes, including the newline. Defaults to 4 MiB (`StdioTransport::DEFAULT_MAX_LINE_BYTES`). The transport discards a longer line and logs a warning. It writes nothing back to the client. A value below `1` throws `InvalidArgumentException`.
 
-The STDIO transport serves both protocol versions. The client's first request decides which one the
+The STDIO transport serves both eras. The client's first request decides which one the
 connection uses, see [Serving both eras](protocol-eras.md#over-stdio).
 
 !!! warning
@@ -28,12 +30,9 @@ connection uses, see [Serving both eras](protocol-eras.md#over-stdio).
 ## Example Server Script
 
 ```php-file
-#!/usr/bin/env php
 <?php
 
-declare(strict_types=1);
-
-require_once __DIR__ . '/vendor/autoload.php';
+require __DIR__.'/vendor/autoload.php';
 
 use Mcp\Server;
 use Mcp\Server\Transport\StdioTransport;
@@ -41,7 +40,6 @@ use Mcp\Server\Transport\StdioTransport;
 $server = Server::builder()
     ->setServerInfo('STDIO Calculator', '1.0.0')
     ->addTool(function(int $a, int $b): int { return $a + $b; }, 'add_numbers')
-    ->addTool(InvokableCalculator::class)
     ->build();
 
 $transport = new StdioTransport();

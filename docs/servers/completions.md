@@ -1,6 +1,6 @@
-# Completion Providers
+# Completions
 
-Completion providers help MCP clients offer auto-completion suggestions for Resource Templates and Prompts. Unlike Tools and static Resources (which can be listed via `tools/list` and `resources/list`), Resource Templates and Prompts have dynamic parameters that benefit from completion hints.
+Completion providers help MCP clients offer auto-completion suggestions. The protocol defines completion for prompt arguments and resource template variables.
 
 ## Completion Provider Types
 
@@ -10,6 +10,7 @@ Provide a static list of possible values:
 
 ```php
 use Mcp\Capability\Attribute\CompletionProvider;
+use Mcp\Capability\Attribute\McpPrompt;
 
 #[McpPrompt]
 public function generateContent(
@@ -31,6 +32,9 @@ public function generateContent(
 Use enum values for completion:
 
 ```php
+use Mcp\Capability\Attribute\CompletionProvider;
+use Mcp\Capability\Attribute\McpResourceTemplate;
+
 enum Priority: string
 {
     case LOW = 'low';
@@ -58,16 +62,25 @@ public function getTask(
 }
 ```
 
-A string-backed enum suggests its backing values. Unit enums and int-backed enums suggest their case names.
+A string-backed enum suggests its backing values. Unit enums and int-backed enums suggest their case names, so type
+those parameters as `string`. An `int` parameter rejects a case name with a `-32602` error. To suggest numbers for an
+`int` parameter, use `values: [1, 2, 3]`.
 
 The SDK ignores `#[CompletionProvider]` on a parameter typed with a single class or enum (e.g. `Priority $priority`).
-Type the parameter as `string` or `int` instead.
+Type the parameter as `string` instead.
+
+!!! note
+    Discovery reads one class from each file and skips enums. A provider class before the handler class hides the
+    handler, so put each provider class in its own file. See
+    [Attribute-Based Discovery](registration.md#attribute-based-discovery).
 
 ### 3. Custom Provider Classes
 
 For dynamic completion logic:
 
 ```php
+use Mcp\Capability\Attribute\CompletionProvider;
+use Mcp\Capability\Attribute\McpResourceTemplate;
 use Mcp\Capability\Completion\ProviderInterface;
 
 class UserIdCompletionProvider implements ProviderInterface

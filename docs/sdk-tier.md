@@ -1,4 +1,4 @@
-# SDK Tier Target (SEP-1730)
+# SDK tier target (SEP-1730)
 
 The MCP spec defines three SDK tiers: Tier 1 (Fully Supported), Tier 2
 (Commitment to Full Support), and Tier 3 (Experimental). This document tracks
@@ -12,8 +12,8 @@ where the PHP SDK stands and what's still missing to move up a tier.
 block Tier 2:
 
 - **Client conformance was 20% (10/50) in that audit**, against the ≥80% bar.
-  Almost entirely OAuth: 38 of 39 scored auth scenarios failed. The failing
-  scenarios are listed as expected failures in
+  Almost entirely OAuth: 38 of 39 scored auth scenarios failed. The scenarios
+  that still fail are listed as expected failures in
   [`conformance-baseline-2025-11-25.yml`](https://github.com/modelcontextprotocol/php-sdk/blob/main/tests/Conformance/conformance-baseline-2025-11-25.yml)
   and
   [`conformance-baseline-2026-07-28.yml`](https://github.com/modelcontextprotocol/php-sdk/blob/main/tests/Conformance/conformance-baseline-2026-07-28.yml).
@@ -23,10 +23,9 @@ block Tier 2:
   requires at least one.
 
 Tier 1 needs both of those plus full (not ≥80%) client conformance and
-closing 10 documentation gaps the audit lists by name (mostly small
-per-feature additions — legacy SSE transport and the elicitation
-complete-notification need either an implementation or an explicit
-"intentionally not implemented" note).
+closing the 10 documentation gaps the audit lists by name. Most are small
+per-feature additions. Two of them are covered by
+[Intentionally not implemented](#intentionally-not-implemented).
 
 ## Target
 
@@ -48,9 +47,20 @@ Roughly in priority order, per the audit's own recommendation:
    methods, scope handling, `offline_access`, issuer validation and
    authorization server migration. See also the `2026-07-28`-labeled auth
    issues.
-2. **Fix the two non-auth client failures** (`sse-retry`,
-   `elicitation-sep1034-client-defaults`, both scored at 2025-11-25).
+2. **Fix the two non-auth client failures in the baselines**:
+   `elicitation-sep1034-client-defaults` on `2025-11-25` and
+   `http-invalid-tool-headers:sep-2243-invalid-tool-tools-list-gate` on
+   `2026-07-28`.
 3. **Ship a stable 1.0.0+ release.**
+
+## Intentionally not implemented
+
+- **The HTTP+SSE transport** of revision `2024-11-05`. The specification
+  deprecates it in favor of Streamable HTTP, the only HTTP transport of the
+  SDK's server and client.
+- **`notifications/elicitation/complete`**. On revision `2025-11-25`, a server
+  may send this optional notification when a URL-mode elicitation finishes.
+  The SDK neither sends nor handles it.
 
 ## Versioning
 

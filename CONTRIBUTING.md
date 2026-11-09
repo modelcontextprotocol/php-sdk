@@ -44,7 +44,8 @@ npm ci --include=dev --prefix tests/Interop
 If your change touches protocol-observable behavior, also run:
 
 ```bash
-make conformance-tests   # requires Docker and Node (npx)
+make conformance-tests   # revision 2025-11-25, requires Docker and Node (npx)
+make conformance-draft   # revision 2026-07-28, same requirements
 ```
 
 ## Coding standards
@@ -77,7 +78,8 @@ reachable over the wire — end-to-end coverage. The suites are split by what th
 - **Conformance** (`tests/Conformance/`, `make conformance-tests`): each half passes the
   specification's scripted scenarios.
 
-Snapshots are written on the first run; delete one to re-record it. If you're adding a documented
+A missing snapshot is written on the first run, which marks the test incomplete and fails the suite. Run the suite
+again to compare against it. Delete a snapshot to re-record it. If you're adding a documented
 pattern, consider adding or updating an example under `examples/` along with its test class.
 
 ## Documentation
@@ -104,8 +106,9 @@ lines up with Symfony's backward compatibility promise.
 
 ## Licensing
 
-New contributions are licensed under Apache License, Version 2.0. Existing code predating this
-policy remains under the MIT License — see [LICENSE](LICENSE) for the details. By opening a pull
+New code contributions are licensed under Apache License, Version 2.0, and documentation
+contributions under CC-BY-4.0. Existing code predating this policy remains under the MIT License.
+See [LICENSE](LICENSE) for the details. By opening a pull
 request, you agree your contribution is provided under those terms.
 
 ## Getting help

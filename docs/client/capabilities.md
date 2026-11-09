@@ -39,6 +39,9 @@ foreach ($result->content as $content) {
 }
 ```
 
+If the tool reports a failure, `$result->isError` is `true` and the content describes the error. See
+[Tool errors](errors.md#tool-errors).
+
 ### Progress Notifications
 
 Hook into tool execution progress (if server supports it):

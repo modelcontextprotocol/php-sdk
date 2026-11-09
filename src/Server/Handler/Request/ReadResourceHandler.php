@@ -77,17 +77,25 @@ final class ReadResourceHandler implements RequestHandlerInterface
 
                 // An ask is a result in its own right, not resource contents;
                 // and a handler that built the whole result keeps what it
-                // decided, caching hints included.
-                if ($result instanceof InputRequiredResult || $result instanceof ReadResourceResult) {
+                // decided, caching hints included on the modern era.
+                if ($result instanceof InputRequiredResult) {
                     return new Response($request->getId(), $result);
+                }
+
+                if ($result instanceof ReadResourceResult) {
+                    return new Response($request->getId(), $this->forRevision($result, $session, $request));
                 }
 
                 $formatted = $reference->formatResult($result, $uri, $reference->resourceTemplate->mimeType);
             } else {
                 $result = $this->referenceHandler->handle($reference, $arguments);
 
-                if ($result instanceof InputRequiredResult || $result instanceof ReadResourceResult) {
+                if ($result instanceof InputRequiredResult) {
                     return new Response($request->getId(), $result);
+                }
+
+                if ($result instanceof ReadResourceResult) {
+                    return new Response($request->getId(), $this->forRevision($result, $session, $request));
                 }
 
                 $formatted = $reference->formatResult($result, $uri, $reference->resource->mimeType);
@@ -124,5 +132,13 @@ final class ReadResourceHandler implements RequestHandlerInterface
 
             return Error::forInternalError('Error while reading resource', $request->getId());
         }
+    }
+
+    /**
+     * Caching hints belong to the modern era.
+     */
+    private function forRevision(ReadResourceResult $result, SessionInterface $session, Request $request): ReadResourceResult
+    {
+        return (new RequestContext($session, $request))->getProtocolVersion()->isModern() ? $result : new ReadResourceResult($result->contents);
     }
 }

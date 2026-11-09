@@ -13,13 +13,16 @@ namespace Mcp\Tests\Unit\Client\Transport;
 
 use Mcp\Client;
 use Mcp\Client\Auth\AuthenticatorInterface;
+use Mcp\Client\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Client\Handler\Request\ListRootsRequestHandler;
 use Mcp\Client\Handler\Request\RootsCallbackInterface;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\Request\ListRootsRequest;
+use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Schema\Root;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -31,6 +34,8 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\StreamFactoryInterface;
+use Psr\Http\Message\StreamInterface;
 
 /**
  * The standalone GET stream a 2025-era server sends unprompted messages on.
@@ -143,6 +148,38 @@ final class HttpTransportListenTest extends TestCase
         $client->disconnect();
     }
 
+    #[TestDox('a message on the listening stream arrives during a request answered with plain JSON')]
+    public function testListenStreamIsReadDuringPlainJsonRequest(): void
+    {
+        $received = [];
+        $server = new FakeListeningServer(rootsOnGet: false);
+        $client = $this->client($server, listen: true, onNotification: static function (string $method) use (&$received): void {
+            $received[] = $method;
+        });
+
+        fwrite($server->getStream(), "data: {\"jsonrpc\":\"2.0\",\"method\":\"notifications/tools/list_changed\"}\n\n");
+
+        $client->callTool('echo-json');
+        $this->assertSame(['notifications/tools/list_changed'], $received);
+
+        $client->disconnect();
+    }
+
+    #[TestDox('a listening stream failing to read is closed, without losing the result of a request answered with plain JSON')]
+    public function testListenStreamReadFailureKeepsTheResult(): void
+    {
+        $factory = new FailingReadStreamFactory();
+        $client = $this->client(new FakeListeningServer(rootsOnGet: false), listen: true, streamFactory: $factory);
+
+        $factory->failReads = true;
+        $first = $this->firstText($client->callTool('echo-json'));
+        $second = $this->firstText($client->callTool('echo-json'));
+
+        $this->assertSame(['json', 'json'], [$first, $second]);
+
+        $client->disconnect();
+    }
+
     #[TestDox('a listening stream the server ends leaves the connection usable')]
     public function testListenStreamEndedByServer(): void
     {
@@ -175,6 +212,13 @@ final class HttpTransportListenTest extends TestCase
         $client->disconnect();
     }
 
+    private function firstText(CallToolResult $result): ?string
+    {
+        $content = $result->content[0] ?? null;
+
+        return $content instanceof TextContent ? $content->text : null;
+    }
+
     private function echo(Client $client, string $text): ?string
     {
         $content = $client->callTool('echo', ['text' => $text])->content[0] ?? null;
@@ -191,10 +235,12 @@ final class HttpTransportListenTest extends TestCase
         ProtocolVersion $version = ProtocolVersion::V2025_11_25,
         array $headers = [],
         int $maxSseBufferBytes = 1_048_576,
+        ?callable $onNotification = null,
+        ?StreamFactoryInterface $streamFactory = null,
     ): Client {
         $factory = new Psr17Factory();
 
-        $client = Client::builder()
+        $builder = Client::builder()
             ->setClientInfo('test-client', '1.0.0')
             ->setProtocolVersion($version)
             ->setInitTimeout(2)
@@ -205,12 +251,149 @@ final class HttpTransportListenTest extends TestCase
                 {
                     return new ListRootsResult([new Root('file:///workspace/app', 'Application')]);
                 }
-            }))
-            ->build();
+            }));
 
-        $client->connect(new HttpTransport('http://localhost/mcp', $headers, $server, $factory, $factory, maxSseBufferBytes: $maxSseBufferBytes, listen: $listen));
+        if (null !== $onNotification) {
+            $builder->addNotificationHandler(new class($onNotification) implements NotificationHandlerInterface {
+                public function __construct(private readonly mixed $callback)
+                {
+                }
+
+                public function supports(Notification $notification): bool
+                {
+                    return true;
+                }
+
+                public function handle(Notification $notification): void
+                {
+                    ($this->callback)($notification::getMethod());
+                }
+            });
+        }
+
+        $client = $builder->build();
+
+        $client->connect(new HttpTransport('http://localhost/mcp', $headers, $server, $factory, $streamFactory ?? $factory, maxSseBufferBytes: $maxSseBufferBytes, listen: $listen));
 
         return $client;
+    }
+}
+
+/**
+ * Hands out streams whose reads fail once `failReads` is set, like a connection reset.
+ */
+final class FailingReadStreamFactory implements StreamFactoryInterface
+{
+    public bool $failReads = false;
+
+    private readonly Psr17Factory $inner;
+
+    public function __construct()
+    {
+        $this->inner = new Psr17Factory();
+    }
+
+    public function createStream(string $content = ''): StreamInterface
+    {
+        return $this->inner->createStream($content);
+    }
+
+    public function createStreamFromFile(string $filename, string $mode = 'r'): StreamInterface
+    {
+        return $this->inner->createStreamFromFile($filename, $mode);
+    }
+
+    public function createStreamFromResource($resource): StreamInterface
+    {
+        return new FailingReadStream($this->inner->createStreamFromResource($resource), $this);
+    }
+}
+
+final class FailingReadStream implements StreamInterface
+{
+    public function __construct(
+        private readonly StreamInterface $inner,
+        private readonly FailingReadStreamFactory $factory,
+    ) {
+    }
+
+    public function __toString(): string
+    {
+        return (string) $this->inner;
+    }
+
+    public function close(): void
+    {
+        $this->inner->close();
+    }
+
+    public function detach()
+    {
+        return $this->inner->detach();
+    }
+
+    public function getSize(): ?int
+    {
+        return $this->inner->getSize();
+    }
+
+    public function tell(): int
+    {
+        return $this->inner->tell();
+    }
+
+    public function eof(): bool
+    {
+        return $this->inner->eof();
+    }
+
+    public function isSeekable(): bool
+    {
+        return $this->inner->isSeekable();
+    }
+
+    public function seek(int $offset, int $whence = \SEEK_SET): void
+    {
+        $this->inner->seek($offset, $whence);
+    }
+
+    public function rewind(): void
+    {
+        $this->inner->rewind();
+    }
+
+    public function isWritable(): bool
+    {
+        return $this->inner->isWritable();
+    }
+
+    public function write(string $string): int
+    {
+        return $this->inner->write($string);
+    }
+
+    public function isReadable(): bool
+    {
+        return $this->inner->isReadable();
+    }
+
+    public function read(int $length): string
+    {
+        if ($this->factory->failReads) {
+            throw new \RuntimeException('Unable to read from stream: connection reset by peer');
+        }
+
+        return $this->inner->read($length);
+    }
+
+    public function getContents(): string
+    {
+        return $this->inner->getContents();
+    }
+
+    public function getMetadata(?string $key = null)
+    {
+        return $this->inner->getMetadata($key);
     }
 }
 
@@ -303,8 +486,14 @@ final class FakeListeningServer implements ClientInterface
             ], \JSON_THROW_ON_ERROR));
         }
 
-        // Streamed, so the client reads its streams in the meantime: a JSON
-        // answer completes the call before the listening stream is looked at.
+        if ('tools/call' === ($message['method'] ?? null) && 'echo-json' === ($message['params']['name'] ?? null)) {
+            return new Response(200, ['Content-Type' => 'application/json'], json_encode([
+                'jsonrpc' => '2.0',
+                'id' => $message['id'],
+                'result' => ['content' => [['type' => 'text', 'text' => 'json']]],
+            ], \JSON_THROW_ON_ERROR));
+        }
+
         if ('tools/call' === ($message['method'] ?? null) && 'echo' === ($message['params']['name'] ?? null)) {
             return new Response(200, ['Content-Type' => 'text/event-stream'], self::event([
                 'jsonrpc' => '2.0',

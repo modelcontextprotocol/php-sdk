@@ -35,9 +35,13 @@ composer require mcp/sdk
 
 ## Build a server
 
-A server is a plain PHP class plus three lines of wiring:
+A server is a plain PHP class plus a few lines of wiring:
 
 ```php
+<?php
+
+require __DIR__.'/vendor/autoload.php';
+
 use Mcp\Capability\Attribute\McpResource;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Server;
@@ -118,7 +122,7 @@ The full documentation is published at **[php.sdk.modelcontextprotocol.io](https
 ## External Resources
 
 - **[Model Context Protocol Documentation](https://modelcontextprotocol.io)** — Official MCP documentation
-- **[Model Context Protocol Specification](https://spec.modelcontextprotocol.io)** — Protocol specification
+- **[Model Context Protocol Specification](https://modelcontextprotocol.io/specification)** — Protocol specification
 - **[Officially Supported Servers](https://github.com/modelcontextprotocol/servers)** — Reference server implementations
 
 ## PHP Libraries Using the MCP SDK
@@ -128,7 +132,6 @@ The full documentation is published at **[php.sdk.modelcontextprotocol.io](https
 - [drupal/mcp_server](https://www.drupal.org/project/mcp_server) — MCP server for Drupal exposing configuration and entities as MCP elements
 - [josbeir/cakephp-synapse](https://github.com/josbeir/cakephp-synapse) — CakePHP plugin exposing application functionality over MCP
 - [nette/mcp-inspector](https://github.com/nette/mcp-inspector) — MCP server for introspecting Nette applications
-- [symfony/ai-mate](https://github.com/symfony/ai-mate) — AI development assistant MCP server for Symfony projects
 - [symfony/mcp-bundle](https://github.com/symfony/mcp-bundle) — Symfony integration bundle
 
 Building something on top of the SDK? Open a pull request to add it to this list.

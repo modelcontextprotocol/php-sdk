@@ -155,7 +155,10 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
             return AuthorizationResult::unavailable(OidcDiscovery::FAILURE_TTL);
         } catch (\OutOfBoundsException) {
             $key = null;
-        } catch (\UnexpectedValueException|\InvalidArgumentException|\DomainException|RuntimeException) {
+        } catch (\DomainException) {
+            // php-jwt reports a single key of an unsupported curve or a malformed key this way.
+            $key = null;
+        } catch (\UnexpectedValueException|\InvalidArgumentException|RuntimeException) {
             if ($keys instanceof CachedKeySet) {
                 return AuthorizationResult::unavailable(OidcDiscovery::FAILURE_TTL);
             }

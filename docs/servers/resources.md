@@ -98,6 +98,8 @@ public function getExplicitBlob(): BlobResourceContents
 **Special Array Formats**
 
 ```php
+use Mcp\Schema\Content\TextResourceContents;
+
 // Array with 'text' key - used as text content
 public function getTextArray(): array
 {
@@ -126,33 +128,33 @@ Resource handlers can throw any exception, but the type determines how it's hand
 
 - **`ResourceReadException`**: Converted to JSON-RPC error response with the actual exception message
 - **`ResourceNotFoundException`**: Converted to a "resource not found" JSON-RPC error. The code is `-32602` from
-  protocol version `2026-07-28` on, and `-32002` before
-- **Any other exception**: Converted to JSON-RPC error response, but with a generic error message
+  revision `2026-07-28` on, and `-32002` before
+- **Any other exception you throw from your handler**: Converted to JSON-RPC error response, but with a generic error message
 
 ```php
 use Mcp\Capability\Attribute\McpResourceTemplate;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ResourceReadException;
 
-// A URI with variables is a resource *template*; `#[McpResource]` registers a
-// fixed URI and would never receive `$path`. Note a variable matches a single
-// segment, so `$path` here cannot contain `/`.
-#[McpResourceTemplate(uriTemplate: 'file://{path}')]
-public function getFile(string $path): string
+// A URI with variables needs a template, and a variable matches one path segment
+#[McpResourceTemplate(uriTemplate: 'docs://{name}')]
+public function getDocument(string $name): string
 {
+    $path = __DIR__.'/docs/'.basename($name);
+
     if (!file_exists($path)) {
-        throw new ResourceNotFoundException("file://{$path}");
+        throw new ResourceNotFoundException("docs://{$name}");
     }
 
     if (!is_readable($path)) {
-        throw new ResourceReadException("File not readable: {$path}");
+        throw new ResourceReadException("Document not readable: {$name}");
     }
 
     return file_get_contents($path);
 }
 ```
 
-**Recommendation**: Use `ResourceReadException` when you want to communicate specific errors to clients. Any other exception will still be converted to JSON-RPC compliant errors but with generic error messages.
+**Recommendation**: Use `ResourceReadException` when you want to communicate specific errors to clients. Any other exception you throw will still be converted to JSON-RPC compliant errors but with generic error messages.
 
 Throw `ResourceNotFoundException` when nothing exists at the requested URI, for example an unknown ID in a
 [resource template](resource-templates.md). Its constructor takes that URI. Throw `ResourceReadException` when the

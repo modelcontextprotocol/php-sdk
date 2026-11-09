@@ -1,7 +1,9 @@
 # Registering elements
 
 Every tool, resource, resource template, and prompt has to reach the server's
-registry somehow. There are three ways to get it there, and they mix freely.
+registry somehow. There are three ways to get it there, and they mix freely: attribute
+discovery, manual registration with `addTool()` and its siblings, and explicit element
+registration with `Builder::add()`.
 
 ## Attribute-Based Discovery
 
@@ -15,15 +17,21 @@ registry somehow. There are three ways to get it there, and they mix freely.
 
 **Example:**
 ```php
+use Mcp\Server;
+
 $server = Server::builder()
     ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])  // Automatic discovery
     ->build();
 ```
 
+!!! warning
+    Discovery registers only the first class in a file and ignores the others. Put each class with MCP attributes in
+    its own file.
+
 ## Manual Registration
 
-Register MCP elements programmatically without using attributes. The handler is the most important parameter and can be
-any PHP callable.
+Register MCP elements programmatically without using attributes. The handler is the most important parameter. See
+[Handler Types](#handler-types) for the accepted forms.
 
 **Advantages:**
 
@@ -44,15 +52,18 @@ $server = Server::builder()
 
 ### Handler Types
 
-**Handler** can be any PHP callable:
+**Handler** can be one of the following forms. Other callables, such as a function name, a `'Class::method'` string or
+an invokable object, fail when the elements load:
 
-1. **Closure**: `function(int $a, int $b): int { return $a + $b; }`
+1. **Closure**: `function(int $a, int $b): int { return $a + $b; }`, or a first-class callable such as `$service->add(...)`
 2. **Class and method name pair**: `[ClassName::class, 'methodName']` - the class is instantiated lazily on first call, so it must be constructable through the container (or have a no-arg constructor)
 3. **Class instance and method name**: `[$instance, 'methodName']` - the given, already-constructed object is invoked as-is. Use this for handlers the container cannot build, e.g. those with scalar constructor arguments or dependencies wired at runtime
 4. **Invokable class name**: `InvokableClass::class` - class must be constructable through the container and have `__invoke` method
 
 !!! note
-    A [custom loader](../run/server-builder.md) can also pass the id of a callable service from your container (e.g. `app.weather_handler`) as the handler. `addTool()`, `addResource()`, `addResourceTemplate()` and `addPrompt()` don't accept service ids. They cause a `ConfigurationException` when the elements load, by default on the first registry read.
+    A custom loader implements `Mcp\Capability\Registry\Loader\LoaderInterface` and is added with `Builder::addLoader()`. It can register an element with the id of a callable service from your container as the handler (e.g. `app.weather_handler`).
+
+    `addTool()`, `addResource()`, `addResourceTemplate()` and `addPrompt()` don't accept service ids. A bad handler fails when the elements load, by default on the first registry read. The SDK logs a `ConfigurationException` and answers that request with `-32603` `Internal server error.`. With `setLazyLoading(false)`, `build()` throws the exception.
 
 ### Manual Tool Registration
 
@@ -80,12 +91,13 @@ $server = Server::builder()
     // Using invokable class
     ->addTool(
         handler: InvokableCalculator::class
-    );
+    )
+    ->build();
 ```
 
 #### Parameters
 
-- `handler` (callable|array|string): The tool handler
+- `handler` (\Closure|array|string): The tool handler
 - `name` (string|null): Optional tool name
 - `title` (string|null): Optional human-readable title for display in UI
 - `description` (string|null): Optional tool description
@@ -107,7 +119,8 @@ $server = Server::builder()
         name: 'app_config',
         description: 'Application configuration',
         mimeType: 'application/json'
-    );
+    )
+    ->build();
 ```
 
 #### Parameters
@@ -135,7 +148,8 @@ $server = Server::builder()
         name: 'user_profile',
         description: 'User profile by ID',
         mimeType: 'application/json'
-    );
+    )
+    ->build();
 ```
 
 #### Parameters
@@ -159,7 +173,8 @@ $server = Server::builder()
         handler: [PromptService::class, 'generatePrompt'],
         name: 'custom_prompt',
         description: 'A custom prompt generator'
-    );
+    )
+    ->build();
 ```
 
 #### Parameters
@@ -179,7 +194,7 @@ A **closure** handler gets a generated name (`closure_tool_<id>`, `closure_resou
 
 For more details on the elements themselves, see [Tools](tools.md), [Resources](resources.md), [Resource templates](resource-templates.md), and [Prompts](prompts.md).
 
-### Explicit element registration
+## Explicit element registration
 
 When an element's name, schema, or description is only known at runtime, pair an `Mcp\Schema\*` value object with one of
 the four handler interfaces below and register it through `Builder::add()`.
@@ -191,9 +206,9 @@ the four handler interfaces below and register it through `Builder::add()`.
 | Resource template | `Mcp\Server\Handler\ResourceTemplateHandlerInterface` |
 | Prompt            | `Mcp\Server\Handler\PromptHandlerInterface`           |
 
-Each handler interface declares a single execution method. Tool and prompt handlers receive an arguments map and a
-`ClientGateway`. Resource handlers receive the requested URI; resource template handlers additionally receive the parsed
-template variables.
+Each handler interface declares a single execution method, and each method receives a `ClientGateway` as its last
+argument. Before it, tool and prompt handlers receive an arguments map. Resource handlers receive the requested URI, and
+resource template handlers receive the URI and the parsed template variables.
 
 ```php
 use Mcp\Schema\Tool;
@@ -243,7 +258,7 @@ docblock.
 
 ## Hybrid Approach
 
-Combine both methods for maximum flexibility:
+Combine discovery with manual registration for maximum flexibility:
 
 ```php
 $server = Server::builder()
@@ -252,8 +267,8 @@ $server = Server::builder()
     ->build();
 ```
 
-Manual registrations always take precedence over discovered elements with the same identifier — same `name` for tools
-and prompts, same `uri` for resources, same `uriTemplate` for resource templates.
+Manual registrations and explicit elements always take precedence over discovered elements with the same identifier:
+the same `name` for tools and prompts, the same `uri` for resources, the same `uriTemplate` for resource templates.
 
 For runtime, config-driven elements whose shape is not known at compile time, see
 [Explicit element registration](#explicit-element-registration).

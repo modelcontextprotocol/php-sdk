@@ -71,10 +71,18 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix a stdio server on Windows ending by itself after about 13.5 hours without input, when `fgets()` on the idle pipe reported a false EOF: `StdioTransport` now reads only once `stream_select()` reports input, which also keeps the run loop going while idle. Requires PHP 8.5, as `stream_select()` on Windows reports an idle pipe as readable before that.
 * Fix `StdioTransport` throwing a `ValueError` on an input that cannot be selected, like `php://memory`.
 * Fix `StandardHeaderValidator` accepting an `Mcp-Param-*` header that does not match the body: a fraction that rounds to an integer argument and object or array arguments are refused with `-32020`, and so is a mirrored argument outside the safe integer range of ±(2^53-1).
-* Fix `JwtTokenValidator` throwing a `TypeError` on a token naming a JWKS key whose type or curve `firebase/php-jwt` does not support, e.g. `AKP`, or `P-521` since its v7.1. The token is rejected with `401` now.
+* Fix `JwtTokenValidator` throwing a `TypeError` on a token naming a JWKS key whose type or curve `firebase/php-jwt` does not support, e.g. `AKP`, or `P-521` since its v7.1, and answering `503` when `firebase/php-jwt` throws for such a curve instead, e.g. X25519. The token is rejected with `401` now.
 * Fix a `2026-07-28` request with `"id": null` being taken for a notification and left unanswered: it is refused with `-32600`, as MCP forbids a null id.
 * Fix messages with a `jsonrpc` other than `"2.0"` being served: a `2026-07-28` request that does not go through `MessageFactory`, like `subscriptions/listen`, is refused with `-32600`, and `Notification::fromArray()` throws for such a notification, as `Request::fromArray()` already did.
 * Fix a stdio server answering a notification it refuses, e.g. one sent before `initialize`, although a notification must never be answered: the refusal is only logged now.
+* Fix a scalar `structuredContent` on `2026-07-28` going out as raw text in `content`: a tool returning `'sunny'` with an `outputSchema` now sends the serialized JSON `"sunny"`, as SEP-2106 requires.
+* Fix a missing required argument of a prompt, or of a tool that gets past schema validation, being answered with `-32603`: it gets `-32602`, as the spec requires.
+* Fix a manually registered element with a bad handler answering every list and call with `-32602` and the internal registration message: the client gets `-32603` `Internal server error.`, also on a `2026-07-28` `tools/call` over HTTP, and the `ConfigurationException` is logged.
+* Fix `maxLineBytes` of `StdioTransport` discarding lines two bytes shorter than the limit: the limit now counts a line with its newline.
+* Fix a `ReadResourceResult` sending its own `ttlMs` and `cacheScope` to handshake-era clients.
+* Fix `subscriptions/listen` without a notification bus agreeing to resource subscriptions and holding the stream open until its lifetime ends with nothing to deliver: it acknowledges nothing and closes at once. `server/discover` no longer announces `resources.subscribe` without a bus, unless `setCapabilities()` sets it.
+* [BC Break] Remove `Rev2025Codec`, which nothing used.
+* Fix discovery skipping a class whose file declares an enum before it, once that file has been loaded.
 
 ### Client
 
@@ -91,6 +99,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add `LoopbackAuthorizationHandler` and `HeadlessAuthorizationHandler` behind `AuthorizationHandlerInterface`, and `InMemoryCredentialStorage` and `FileCredentialStorage` behind `CredentialStorageInterface`.
 * [BC Break] A `401` or `403` answer to a request, a notification or the resumption of an event stream fails with an `AuthorizationException` that contains the `WWW-Authenticate` header, instead of a `RequestException`. `Client::connect()` wraps it in a `ConnectionException`, without a retry.
 * Fix `Client::connect()` leaving the previous transport open when called again: it closes the current transport first, so no stdio process or HTTP session is left behind.
+* Fix `HttpTransport` not reading the listening stream during a request answered with plain JSON, which left server messages waiting for the next SSE-answered request.
 
 ### JSON-RPC
 

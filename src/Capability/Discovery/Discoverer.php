@@ -423,6 +423,12 @@ final class Discoverer implements DiscovererInterface
         }
 
         foreach ($potentialClasses as $potentialClass) {
+            if (class_exists($potentialClass, true) && !enum_exists($potentialClass, false)) {
+                return $potentialClass;
+            }
+        }
+
+        foreach ($potentialClasses as $potentialClass) {
             if (class_exists($potentialClass, true) || interface_exists($potentialClass, true) || trait_exists($potentialClass, true)) {
                 return $potentialClass;
             }

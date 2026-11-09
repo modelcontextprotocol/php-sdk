@@ -4,7 +4,8 @@ The MCP SDK provides a PSR-14 compatible event system that allows you to hook in
 
 ## Setup
 
-Configure an event dispatcher when building your server:
+Configure an event dispatcher when building your server. This example uses `symfony/event-dispatcher`, one PSR-14
+implementation you can install with `composer require symfony/event-dispatcher`:
 
 ```php
 use Mcp\Event\RequestEvent;
@@ -28,11 +29,16 @@ $server = Server::builder()
 
 ## Protocol Events
 
-The SDK dispatches 6 broad event types at the protocol level. `RequestEvent`, `ResponseEvent`, `ErrorEvent` and `NotificationEvent` allow you to modify the message, while `ServerRequestEvent` and `ClientResponseEvent` are read-only and only let you observe it:
+The SDK dispatches 6 broad event types at the protocol level. `RequestEvent`, `ResponseEvent`, `ErrorEvent` and `NotificationEvent` allow you to modify the message, while `ServerRequestEvent` and `ClientResponseEvent` are read-only and only let you observe it.
+
+Over HTTP without `setSession()`, handshake-era requests get a new session each, see
+[Serving without sessions](../run/sessions.md#serving-without-sessions). Anything a listener stores on it is gone by
+the next request.
 
 ### RequestEvent
 
-**Dispatched**: When any request is received from the client, before it's processed by handlers.
+**Dispatched**: When a request is received from the client, before it's processed by handlers. A request the SDK
+rejects first dispatches no event, for example one with an unknown method or a missing session.
 
 **Properties**:
 
@@ -100,11 +106,11 @@ The SDK dispatches 6 broad event types at the protocol level. `RequestEvent`, `R
 
 ### Protocol `2026-07-28`
 
-Requests on protocol version `2026-07-28` dispatch the same request, response and error events, with a few differences:
+Requests on revision `2026-07-28` dispatch the same request, response and error events, with a few differences:
 
 - `ResponseEvent` fires on every `InputRequiredResult` round, not only on the final result. Listeners that only care about completed calls need to check the result type.
 - `getSession()` returns a new in-memory session for each request. Anything a listener stores there is gone by the next request.
-- `NotificationEvent` is not dispatched, since this protocol version runs no notification handlers. This includes `notifications/cancelled` on stdio.
+- `NotificationEvent` is not dispatched, since this revision runs no notification handlers. This includes `notifications/cancelled` on stdio.
 - `subscriptions/listen` dispatches no events. `server/discover` dispatches `RequestEvent`, `ResponseEvent` and `ErrorEvent` like every other request.
 - `ServerRequestEvent` and `ClientResponseEvent` are not dispatched: the server asks for input with an `InputRequiredResult`, which `ResponseEvent` carries, and the client answers with `inputResponses` on the retried request.
 - Requests the SDK rejects before a handler runs dispatch no events. Examples are parse errors, a missing `_meta`, a protocol version mismatch, a removed method or a `requestState` that fails verification.
@@ -127,11 +133,13 @@ The SDK does not send these changes to handshake-era clients. To send them to cl
 bus: the SDK then publishes each change to clients listening with `subscriptions/listen`. See
 [Subscriptions](../run/subscriptions.md).
 
-To react to a change yourself, add a listener. This example uses `symfony/event-dispatcher`, one PSR-14
-implementation you can install with `composer require symfony/event-dispatcher`:
+To change the lists at runtime and react to it, create the registry yourself and pass it the dispatcher.
+`setEventDispatcher()` doesn't reach a registry you pass with `setRegistry()`:
 
 ```php
+use Mcp\Capability\Registry;
 use Mcp\Event\ToolListChangedEvent;
+use Mcp\Server;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
@@ -140,4 +148,17 @@ $dispatcher = new EventDispatcher();
 $dispatcher->addListener(ToolListChangedEvent::class, function (ToolListChangedEvent $event) use ($logger) {
     $logger->info('The tool list has changed.');
 });
+
+$registry = new Registry($dispatcher);
+
+$server = Server::builder()
+    ->setRegistry($registry)
+    ->setEventDispatcher($dispatcher)
+    ->addTool(fn (string $city): string => "Sunny in $city", 'get_weather')
+    ->build();
+
+// at runtime, this dispatches ToolListChangedEvent
+$registry->unregisterTool('get_weather');
 ```
+
+To also send the changes to clients, wrap the dispatcher: `new Registry(new PublishingEventDispatcher($bus, $dispatcher))`.
