@@ -155,6 +155,9 @@ The client treats the MCP server and its metadata as untrusted input. It stops w
 
 If you run the client on a server, block requests to private networks in your HTTP client or proxy (e.g. with Symfony's `NoPrivateNetworkHttpClient`) and pass that client to `setHttpClient()`.
 
+!!! warning
+    A client that you pass to `setHttpClient()` *must not* follow redirects. The client only turns them off on a `Psr18Client` of `symfony/http-client` 6.2 or later. With redirects on, an authorization server can send the authorization code and the client credentials to any address.
+
 The client ignores a `resource_metadata` URL on another origin than the MCP server and looks at the well-known URLs instead. It only sends a token to the resource it was issued for.
 
 A `resource` can name a parent path of the MCP server. All paths below it then belong to the resource, and the client can send the token to them. If several servers share a host, give each one its own host (e.g. `tenant-a.example.com`).
