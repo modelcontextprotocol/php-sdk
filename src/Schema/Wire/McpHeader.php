@@ -34,6 +34,9 @@ final class McpHeader
     private const BASE64_PREFIX = '=?base64?';
     private const BASE64_SUFFIX = '?=';
 
+    /** Keywords whose values are instance data, so a key named `x-mcp-header` in them is no annotation. */
+    private const DATA_KEYWORDS = ['const', 'default', 'enum', 'examples'];
+
     /**
      * The subject of a request, per method. Anything unlisted is exempt.
      *
@@ -118,6 +121,10 @@ final class McpHeader
      */
     public static function checkAnnotations(array $schema): ?string
     {
+        if (null !== $path = self::findUnreachable($schema, '', false)) {
+            return \sprintf('the annotation at "%s" is not reachable through "properties" alone', $path);
+        }
+
         $seen = [];
 
         foreach (self::annotations($schema) as [$name, $type, $path]) {
@@ -186,6 +193,43 @@ final class McpHeader
         }
 
         return $found;
+    }
+
+    /**
+     * The path of the first annotation that does not sit on a property reached
+     * through a chain of `properties`, e.g. one under `items`, `anyOf` or `$defs`.
+     *
+     * @param array<mixed> $node
+     */
+    private static function findUnreachable(array $node, string $path, bool $isProperty, bool $chainIntact = true): ?string
+    {
+        foreach ($node as $key => $value) {
+            if ('x-mcp-header' === $key && !\is_array($value) && !$isProperty) {
+                return '' === $path ? '/' : $path;
+            }
+
+            if (!\is_array($value) || \in_array($key, self::DATA_KEYWORDS, true)) {
+                continue;
+            }
+
+            $here = '' === $path ? (string) $key : $path.'.'.$key;
+
+            if ('properties' === $key && $chainIntact) {
+                foreach ($value as $property => $definition) {
+                    if (\is_array($definition) && null !== $found = self::findUnreachable($definition, $here.'.'.$property, true)) {
+                        return $found;
+                    }
+                }
+
+                continue;
+            }
+
+            if (null !== $found = self::findUnreachable($value, $here, false, false)) {
+                return $found;
+            }
+        }
+
+        return null;
     }
 
     private static function wrap(string $value): string

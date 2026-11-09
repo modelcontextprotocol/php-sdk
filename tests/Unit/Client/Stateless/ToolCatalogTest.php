@@ -83,6 +83,23 @@ final class ToolCatalogTest extends TestCase
         $this->assertStringContainsString('only string, integer and boolean', (string) $catalog->reasonFor('broken'));
     }
 
+    #[TestDox('an annotation under items drops the tool')]
+    public function testAnnotationUnderItemsDropsTheTool(): void
+    {
+        $catalog = new ToolCatalog();
+
+        $usable = $catalog->record([[
+            'name' => 'deploy',
+            'inputSchema' => [
+                'type' => 'object',
+                'properties' => ['regions' => ['type' => 'array', 'items' => ['type' => 'string', 'x-mcp-header' => 'Region']]],
+            ],
+        ]]);
+
+        $this->assertSame([], $usable);
+        $this->assertTrue($catalog->isRejected('deploy'));
+    }
+
     #[TestDox('a later listing replaces what was known about a tool')]
     public function testRelistingReplacesTheVerdict(): void
     {

@@ -142,17 +142,45 @@ class ToolHeaderAnnotationTest extends TestCase
         self::tool($properties);
     }
 
-    #[TestDox('an annotation the walk cannot reach statically is simply not seen')]
-    public function testUnreachableAnnotationIsIgnored(): void
+    /**
+     * @return iterable<string, array{array<string, mixed>}>
+     */
+    public static function unreachableAnnotations(): iterable
     {
-        // Under `items`, so it is not reachable through `properties` alone.
-        // The spec calls such a definition invalid; this SDK does not mirror
-        // what it cannot reach, and does not pretend the annotation exists.
+        $annotated = ['type' => 'string', 'x-mcp-header' => 'Region'];
+
+        yield 'under items' => [['properties' => ['tags' => ['type' => 'array', 'items' => $annotated]]]];
+        yield 'under anyOf' => [['anyOf' => [['properties' => ['region' => $annotated]]]]];
+        yield 'under oneOf of a property' => [['properties' => ['region' => ['oneOf' => [$annotated]]]]];
+        yield 'under not' => [['not' => ['properties' => ['region' => $annotated]]]];
+        yield 'under if' => [['if' => ['properties' => ['region' => $annotated]]]];
+        yield 'under $defs, through $ref' => [[
+            '$defs' => ['target' => ['type' => 'object', 'properties' => ['region' => $annotated]]],
+            'properties' => ['target' => ['$ref' => '#/$defs/target']],
+        ]];
+        yield 'under additionalProperties' => [['additionalProperties' => $annotated]];
+        yield 'on the root' => [['x-mcp-header' => 'Region']];
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     */
+    #[DataProvider('unreachableAnnotations')]
+    #[TestDox('an annotation not reachable through properties alone makes the tool definition invalid')]
+    public function testUnreachableAnnotationIsRefused(array $schema): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('is not reachable through "properties" alone');
+
+        new Tool(name: 'a_tool', title: null, inputSchema: ['type' => 'object', ...$schema], description: 'x', annotations: null);
+    }
+
+    #[TestDox('a property named x-mcp-header or one in instance data is no annotation')]
+    public function testLookalikeIsNotAnAnnotation(): void
+    {
         $tool = self::tool([
-            'tags' => [
-                'type' => 'array',
-                'items' => ['type' => 'string', 'x-mcp-header' => 'Bad Name With Spaces'],
-            ],
+            'x-mcp-header' => ['type' => 'string'],
+            'target' => ['type' => 'object', 'default' => ['x-mcp-header' => 'Region']],
         ]);
 
         $this->assertSame('a_tool', $tool->name);
