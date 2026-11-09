@@ -1511,6 +1511,34 @@ class StatelessProtocolTest extends TestCase
         $this->assertArrayNotHasKey('id', $answer);
     }
 
+    /**
+     * @return iterable<string, array{string, array<string, mixed>}>
+     */
+    public static function provideRequests(): iterable
+    {
+        yield 'server/discover' => ['server/discover', []];
+        yield 'subscriptions/listen' => ['subscriptions/listen', ['notifications' => ['toolsListChanged' => true]]];
+        yield 'tools/call' => ['tools/call', ['name' => 'plain_tool', 'arguments' => new \stdClass()]];
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     */
+    #[DataProvider('provideRequests')]
+    #[TestDox('a request whose "jsonrpc" is not "2.0" is refused')]
+    public function testOtherJsonRpcVersionIsRefused(string $method, array $params): void
+    {
+        $message = json_decode(self::inlineRequest($method, $params), true);
+        $message['jsonrpc'] = '1.0';
+
+        $result = self::protocol()->handleInline(json_encode($message, \JSON_THROW_ON_ERROR));
+
+        $this->assertSame(400, $result->httpStatus);
+        $answer = json_decode($result->toJson(), true);
+        $this->assertSame(Error::INVALID_REQUEST, $answer['error']['code']);
+        $this->assertSame(9, $answer['id']);
+    }
+
     #[TestDox('a message off a transport without headers is answered without them')]
     public function testInlineMessageNeedsNoHeaders(): void
     {

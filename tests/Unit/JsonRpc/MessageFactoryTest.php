@@ -267,6 +267,16 @@ final class MessageFactoryTest extends TestCase
         $this->factory->create($json);
     }
 
+    public function testInvalidJsonRpcVersionOfANotification(): void
+    {
+        $json = '{"jsonrpc": "1.0", "method": "notifications/initialized"}';
+
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('jsonrpc');
+
+        $this->factory->create($json);
+    }
+
     public function testMissingAllIdentifyingFields(): void
     {
         $json = '{"jsonrpc": "2.0", "params": {}}';
