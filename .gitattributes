@@ -4,6 +4,7 @@
 /examples export-ignore
 /tests export-ignore
 /.php-cs-fixer.dist.php export-ignore
+/deptrac.yaml export-ignore
 /Makefile export-ignore
 /mkdocs.yml export-ignore
 /requirements-docs.txt export-ignore

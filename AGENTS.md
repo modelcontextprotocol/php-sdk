@@ -11,9 +11,10 @@ It is a PHP Foundation × Symfony collaboration and follows Symfony's coding sta
 composer install
 npm ci --include=dev --prefix tests/Interop   # once; without it the interop suite fails with setup noise
 
-make ci                  # composer update --prefer-stable, cs, phpstan, all PHPUnit suites
+make ci                  # composer update --prefer-stable, cs, phpstan, deptrac, all PHPUnit suites
 make cs                  # php-cs-fixer (auto-fixes; @Symfony + @Symfony:risky + file header)
 make phpstan             # static analysis (phpstan.dist.neon + phpstan-baseline.neon)
+make deptrac             # package boundaries: Schema depends on nothing, Client and Server on Schema only
 make unit-tests          # tests/Unit
 make integration-tests   # tests/Integration — our client against our server
 make interop-tests       # tests/Interop — needs Node; MCP Inspector + TS reference server

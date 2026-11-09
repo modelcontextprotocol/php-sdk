@@ -24,9 +24,4 @@ abstract class AbstractExtension implements ExtensionInterface
     {
         return [];
     }
-
-    public function getRequestHandlers(): iterable
-    {
-        return [];
-    }
 }

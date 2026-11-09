@@ -44,6 +44,7 @@ use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Server\Capability\RegistryInterface;
 use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Exception\LogicException;
+use Mcp\Server\Extension\ServerExtensionInterface;
 use Mcp\Server\Fiber\FiberContextInterface;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\Handler\ElementHandlerInterface;
@@ -486,8 +487,8 @@ final class Builder
      * `capabilities.extensions` during the initialize handshake.
      *
      * An extension also contributes the message classes its methods decode
-     * into and the handlers serving them, if any — see {@see AbstractExtension}
-     * for extensions that only announce a capability.
+     * into, and a {@see ServerExtensionInterface} the handlers serving them — see
+     * {@see AbstractExtension} for extensions that only announce a capability.
      *
      * @throws InvalidArgumentException if the identifier is not a valid `_meta` prefix
      * @throws LogicException           if the same extension is enabled more than once, or
@@ -522,8 +523,10 @@ final class Builder
                 $this->extensionMethods[$method] = $id;
             }
 
-            foreach ($extension->getRequestHandlers() as $handler) {
-                $this->requestHandlers[] = $handler;
+            if ($extension instanceof ServerExtensionInterface) {
+                foreach ($extension->getRequestHandlers() as $handler) {
+                    $this->requestHandlers[] = $handler;
+                }
             }
         }
 

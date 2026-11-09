@@ -12,13 +12,13 @@
 namespace Mcp\Tests\Unit\Server\Extension;
 
 use Mcp\Schema\Extension\ExtensionIdentifier;
-use Mcp\Schema\Extension\ExtensionInterface;
+use Mcp\Server\Extension\ServerExtensionInterface;
 
 /**
  * A minimal extension: an identifier, a capability payload, and one method it
  * defines and serves.
  */
-final class ThingExtension implements ExtensionInterface
+final class ThingExtension implements ServerExtensionInterface
 {
     public function __construct(
         private readonly string $id = 'com.example/things',

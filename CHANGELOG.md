@@ -26,6 +26,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
   * `Mcp\Server\Exception\ExceptionInterface` and `Mcp\Client\Exception\ExceptionInterface` extend `Mcp\Schema\Exception\ExceptionInterface`, so catching the latter still catches any SDK exception.
   * The named exceptions now extend their package's `RuntimeException`/`InvalidArgumentException` instead of the global ones, so `catch (Mcp\Server\Exception\RuntimeException)` reaches `ToolCallException`, `PromptGetException` and friends.
 
+* [BC Break] Move `ExtensionInterface::getRequestHandlers()` to the new `Mcp\Server\Extension\ServerExtensionInterface`, so `Mcp\Schema` does not reference `Mcp\Server`. `AbstractExtension` no longer defines it. An extension that serves its methods must implement the new interface, or `Builder::enableExtension()` does not register its handlers.
+
 ### Server
 
 * [BC Break] Refuse an OAuth URL whose host is `0.0.0.0`, `::`, an IPv4 address within IPv6 or an IPv4 address in a non-standard form (e.g. `127.1`), or that holds percent-encoding or non-ASCII characters (an internationalized name must be given in punycode), for the issuer, the `jwks_uri` and the resource.

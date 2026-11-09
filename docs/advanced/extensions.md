@@ -82,10 +82,11 @@ Enable it with `Builder::enableExtension(new AuditExtension())`.
     A prefix whose second label is `modelcontextprotocol` or `mcp` (e.g. `io.modelcontextprotocol/`) is reserved for
     official extensions. The SDK doesn't refuse such an identifier, so choose a prefix of your own.
 
-An extension that adds JSON-RPC methods also implements `getMessages()` and
-`getRequestHandlers()`. `getMessages()` returns the request and notification classes of the
-new methods, so the SDK can parse them. `getRequestHandlers()` returns the
-[request handlers](custom-handlers.md) that answer them. If two enabled extensions define
+An extension that adds JSON-RPC methods also implements `getMessages()`, which returns the
+request and notification classes of the new methods, so the SDK can parse them. To answer
+those methods on a server, it implements `Mcp\Server\Extension\ServerExtensionInterface`,
+whose `getRequestHandlers()` returns the [request handlers](custom-handlers.md) that answer
+them. If two enabled extensions define
 the same method, `enableExtension()` throws a `LogicException`. Extensions bring no
 notification handlers: add those with `Builder::addNotificationHandler()`. They
 [don't run on revision `2026-07-28`](custom-handlers.md#protocol-2026-07-28).

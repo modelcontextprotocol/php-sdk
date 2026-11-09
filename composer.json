@@ -39,6 +39,7 @@
     "amphp/amp": "^3.0",
     "amphp/http-server": "^3.3",
     "composer/semver": "^3.0",
+    "deptrac/deptrac": "^3.0",
     "firebase/php-jwt": "^6.10 || ^7.0",
     "laminas/laminas-httphandlerrunner": "^2.12",
     "nyholm/psr7": "^1.8",
