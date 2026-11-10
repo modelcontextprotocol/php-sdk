@@ -792,6 +792,40 @@ final class OAuthAuthenticatorTest extends TestCase
         }
     }
 
+    #[TestDox('a pending authorization is finished with its client after another flow registered a new one')]
+    public function testDeferredAuthorizationKeepsItsClientAfterAReRegistration(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $callback = $this->startPending($server, $storage);
+        $storage->saveClientRegistration('https://auth.example.com', new ClientRegistration('newer-client', 'newer-secret', TokenEndpointAuthMethod::ClientSecretPost, true, scopes: ['mcp:read', 'mcp:write']));
+
+        $authenticator = $this->authenticator($server, storage: $storage);
+        $authenticator->finishAuthorization($callback);
+
+        $this->assertSame('registered-client', $server->token['client_id'] ?? null);
+        $this->assertSame('newer-client', $storage->getClientRegistration('https://auth.example.com')?->clientId);
+    }
+
+    #[TestDox('a refused callback keeps the registration of another flow')]
+    public function testDeferredAuthorizationKeepsANewerRegistrationOnInvalidClient(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $callback = $this->startPending($server, $storage);
+        $storage->saveClientRegistration('https://auth.example.com', new ClientRegistration('newer-client', 'newer-secret', TokenEndpointAuthMethod::ClientSecretPost, true));
+        $server->unknownClient = 'registered-client';
+
+        try {
+            $this->authenticator($server, storage: $storage)->finishAuthorization($callback);
+            $this->fail('Expected invalid_client.');
+        } catch (OAuthErrorException $e) {
+            $this->assertSame('invalid_client', $e->error);
+        }
+
+        $this->assertSame('newer-client', $storage->getClientRegistration('https://auth.example.com')?->clientId);
+    }
+
     #[TestDox('a registration the authorization server forgot is dropped when the callback is refused')]
     public function testDeferredAuthorizationForgetsARefusedRegistration(): void
     {

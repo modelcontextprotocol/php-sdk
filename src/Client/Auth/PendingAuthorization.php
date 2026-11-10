@@ -31,6 +31,7 @@ final class PendingAuthorization implements \JsonSerializable
         public readonly string $clientId,
         public readonly int $expiresAt,
         public readonly bool $offlineAccessRefused = false,
+        public readonly ?ClientRegistration $registration = null,
     ) {
     }
 
@@ -49,6 +50,7 @@ final class PendingAuthorization implements \JsonSerializable
             'client_id' => $this->clientId,
             'expires_at' => $this->expiresAt,
             'offline_access_refused' => $this->offlineAccessRefused,
+            'registration' => $this->registration?->jsonSerialize(),
         ];
     }
 
@@ -67,6 +69,10 @@ final class PendingAuthorization implements \JsonSerializable
 
         if (!\is_int($data['expires_at'] ?? null) || !\is_array($data['scopes'] ?? null) || !\is_array($data['metadata'] ?? null)) {
             throw new InvalidArgumentException('Invalid pending authorization.');
+        }
+
+        if (null !== ($data['registration'] ?? null) && !\is_array($data['registration'])) {
+            throw new InvalidArgumentException('Invalid pending authorization registration.');
         }
 
         $scopes = [];
@@ -89,6 +95,7 @@ final class PendingAuthorization implements \JsonSerializable
             clientId: $data['client_id'],
             expiresAt: $data['expires_at'],
             offlineAccessRefused: true === ($data['offline_access_refused'] ?? false),
+            registration: \is_array($data['registration'] ?? null) ? ClientRegistration::fromArray($data['registration']) : null,
         );
     }
 }

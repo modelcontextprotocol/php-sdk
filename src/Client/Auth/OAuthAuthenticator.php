@@ -203,8 +203,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             throw new AuthorizationException(\sprintf('The pending authorization belongs to the authorization server "%s", but only "%s" is expected.', $metadata->issuer, $this->configuration->expectedIssuer));
         }
 
-        // The secret of a configured client stays out of the storage, so the client is resolved again.
-        $client = $this->resolveClient($metadata, $pending->scopes, null);
+        // Another flow may have replaced the registration of the issuer; a configured client is resolved again.
+        $client = $pending->registration ?? $this->resolveClient($metadata, $pending->scopes, null);
 
         if ($client->clientId !== $pending->clientId) {
             throw new AuthorizationException(\sprintf('The client "%s" of the pending authorization is no longer the client for "%s"; start the authorization again.', $pending->clientId, $metadata->issuer));
@@ -229,7 +229,9 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             ]));
         } catch (AuthorizationException $e) {
             if (self::isForgottenClient($e, $client)) {
-                $this->storage->forget($metadata->issuer);
+                if ($client->clientId === $this->storage->getClientRegistration($metadata->issuer)?->clientId) {
+                    $this->storage->forget($metadata->issuer);
+                }
 
                 throw $e;
             }
@@ -620,6 +622,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
                 clientId: $client->clientId,
                 expiresAt: time() + 600,
                 offlineAccessRefused: $this->offlineAccessRefused,
+                registration: $client->dynamic ? $client : null,
             ));
 
             throw $e;
