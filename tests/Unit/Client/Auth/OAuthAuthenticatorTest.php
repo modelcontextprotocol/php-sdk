@@ -1502,6 +1502,67 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('Bearer access-token-1', $request->getHeaderLine('Authorization'));
     }
 
+    #[TestDox('a storage failure while looking up the client of a stored token keeps the token until it expires')]
+    public function testRegistrationLookupFailureBeforeSendingKeepsTheToken(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $storage = new class implements CredentialStorageInterface {
+            public bool $broken = false;
+
+            private readonly InMemoryCredentialStorage $storage;
+
+            public function __construct()
+            {
+                $this->storage = new InMemoryCredentialStorage();
+            }
+
+            public function getClientRegistration(string $issuer): ?ClientRegistration
+            {
+                if ($this->broken) {
+                    throw new RuntimeException('Could not read the keychain.');
+                }
+
+                return $this->storage->getClientRegistration($issuer);
+            }
+
+            public function saveClientRegistration(string $issuer, ClientRegistration $registration): void
+            {
+                $this->storage->saveClientRegistration($issuer, $registration);
+            }
+
+            public function getToken(string $issuer, string $resource): ?AccessToken
+            {
+                return $this->storage->getToken($issuer, $resource);
+            }
+
+            public function saveToken(string $issuer, string $resource, AccessToken $token): void
+            {
+                $this->storage->saveToken($issuer, $resource, $token);
+            }
+
+            public function forget(?string $issuer = null): void
+            {
+                $this->storage->forget($issuer);
+            }
+
+            public function synchronize(callable $operation): mixed
+            {
+                return $this->storage->synchronize($operation);
+            }
+        };
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('stored', 'Bearer', time() + 3600, 'a-refresh-token'));
+        $authenticator = $this->authenticator($server, storage: $storage);
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        // The stored token was reused without resolving a client; let it come close to its expiry.
+        (new \ReflectionProperty($authenticator, 'token'))->setValue($authenticator, new AccessToken('stored', 'Bearer', time() + 10, 'a-refresh-token'));
+        $storage->broken = true;
+
+        $request = $authenticator->authenticate($this->request());
+
+        $this->assertSame('Bearer stored', $request->getHeaderLine('Authorization'));
+    }
+
     #[TestDox('a token without a refresh token is sent until it expires, without a token request')]
     public function testNoRefreshBeforeSendingWithoutARefreshToken(): void
     {

@@ -481,13 +481,13 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return $token;
         }
 
-        $client = $this->client ?? $this->knownClient($this->metadata);
-
-        if (null === $client) {
-            return $token;
-        }
-
         try {
+            $client = $this->client ?? $this->knownClient($this->metadata);
+
+            if (null === $client) {
+                return $token;
+            }
+
             $refreshed = $this->refresh($token, $this->metadata, $client, array_values(array_diff($token->scopes, ['offline_access'])), $resource, $request);
         } catch (AuthorizationException|RuntimeException $e) {
             $this->logger->info('Refreshing the access token before sending failed; leaving it to the server\'s challenge.', ['exception' => $e]);
