@@ -18,8 +18,8 @@ use PHPUnit\Framework\TestCase;
 
 class AbstractExtensionTest extends TestCase
 {
-    #[TestDox('An extension that only announces a capability need not declare messages or handlers')]
-    public function testDefaultsToNoMessagesOrHandlers(): void
+    #[TestDox('An extension that only announces a capability need not declare messages')]
+    public function testDefaultsToNoMessages(): void
     {
         $extension = new class extends AbstractExtension {
             public function getId(): ExtensionIdentifier
@@ -34,6 +34,5 @@ class AbstractExtensionTest extends TestCase
         };
 
         $this->assertSame([], $extension->getMessages());
-        $this->assertSame([], $extension->getRequestHandlers());
     }
 }

@@ -1,0 +1,366 @@
+<?php
+
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Mcp\Server\Capability\Registry;
+
+use Mcp\Schema\Json;
+use Mcp\Server\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\RegistryException;
+use Mcp\Server\Session\SessionInterface;
+use Psr\Container\ContainerInterface;
+
+/**
+ * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ */
+final class ReferenceHandler implements ReferenceHandlerInterface
+{
+    public function __construct(
+        private readonly ?ContainerInterface $container = null,
+    ) {
+    }
+
+    /**
+     * @param array<string, mixed> $arguments
+     */
+    public function handle(ElementReference $reference, array $arguments): mixed
+    {
+        // Closures bound to this class as their scope consume the raw argument bag
+        // directly. Used by ExplicitElementLoader so reflection + name-based parameter
+        // mapping is bypassed for explicitly registered handler interfaces.
+        if ($reference->handler instanceof \Closure
+            && self::class === (new \ReflectionFunction($reference->handler))->getClosureScopeClass()?->getName()
+        ) {
+            return ($reference->handler)($arguments);
+        }
+
+        $session = $arguments['_session'];
+
+        if (\is_string($reference->handler)) {
+            if (class_exists($reference->handler) && method_exists($reference->handler, '__invoke')) {
+                $reflection = new \ReflectionMethod($reference->handler, '__invoke');
+                $instance = $this->getClassInstance($reference->handler);
+                $arguments = $this->prepareArguments($reflection, $arguments);
+
+                if (!\is_callable($instance)) {
+                    throw new InvalidArgumentException(\sprintf('Handler "%s" is not invokable.', $reference->handler));
+                }
+
+                return $instance(...$arguments);
+            }
+
+            if (null !== $this->container && $this->container->has($reference->handler)) {
+                $service = $this->container->get($reference->handler);
+
+                if (!\is_callable($service)) {
+                    throw new InvalidArgumentException(\sprintf('Handler "%s" is not invokable.', $reference->handler));
+                }
+
+                $service = $service(...);
+
+                return $service(...$this->prepareArguments(new \ReflectionFunction($service), $arguments, $reference->handler));
+            }
+
+            if (\function_exists($reference->handler)) {
+                $reflection = new \ReflectionFunction($reference->handler);
+                $arguments = $this->prepareArguments($reflection, $arguments);
+
+                return \call_user_func($reference->handler, ...$arguments);
+            }
+        }
+
+        if (\is_callable($reference->handler)) {
+            $reflection = $this->getReflectionForCallable($reference->handler, $session);
+            $arguments = $this->prepareArguments($reflection, $arguments);
+
+            return \call_user_func($reference->handler, ...$arguments);
+        }
+
+        if (\is_array($reference->handler)) {
+            [$classOrObject, $methodName] = $reference->handler;
+            $reflection = new \ReflectionMethod($classOrObject, $methodName);
+            $instance = \is_object($classOrObject) ? $classOrObject : $this->getClassInstance($classOrObject);
+            $arguments = $this->prepareArguments($reflection, $arguments);
+
+            $callable = [$instance, $methodName];
+            if (!\is_callable($callable)) {
+                throw new InvalidArgumentException(\sprintf('Handler "%s::%s" is not callable.', $instance::class, $methodName));
+            }
+
+            return $callable(...$arguments);
+        }
+
+        throw new InvalidArgumentException('Invalid handler type');
+    }
+
+    private function getClassInstance(string $className): object
+    {
+        if (null !== $this->container && $this->container->has($className)) {
+            return $this->container->get($className);
+        }
+
+        return new $className();
+    }
+
+    /**
+     * @param array<string, mixed> $arguments
+     *
+     * @return array<int, mixed>
+     */
+    private function prepareArguments(\ReflectionFunctionAbstract $reflection, array $arguments, ?string $handlerName = null): array
+    {
+        $finalArgs = [];
+
+        foreach ($reflection->getParameters() as $parameter) {
+            $paramName = $parameter->getName();
+            $paramPosition = $parameter->getPosition();
+
+            if ($parameter->isVariadic()) {
+                // Each element is cast individually below; a non-array value is
+                // wrapped as a single element, since prompt arguments arrive as
+                // plain strings (Record<string,string> per the protocol) even
+                // though tool arguments follow the advertised "array" schema.
+                $values = $arguments[$paramName] ?? [];
+                if (!\is_array($values)) {
+                    $values = [$values];
+                } elseif (!array_is_list($values)) {
+                    throw RegistryException::invalidParams(\sprintf('Parameter `%s` must be a list of values, not an object.', $paramName));
+                }
+                foreach ($values as $index => $value) {
+                    try {
+                        $finalArgs[] = $this->castArgumentType($value, $parameter);
+                    } catch (InvalidArgumentException $e) {
+                        throw RegistryException::invalidParams(\sprintf('Parameter `%s[%d]`: %s', $paramName, $index, $e->getMessage()), $e);
+                    } catch (\Throwable $e) {
+                        throw RegistryException::internalError(\sprintf('Error processing parameter `%s[%d]`: %s', $paramName, $index, $e->getMessage()), $e);
+                    }
+                }
+                continue;
+            }
+
+            // Check if parameter is a special injectable type
+            $type = $parameter->getType();
+            if ($type instanceof \ReflectionNamedType && !$type->isBuiltin()) {
+                $injected = InjectableParameters::resolve($type->getName(), $arguments);
+                if (null !== $injected) {
+                    $finalArgs[$paramPosition] = $injected;
+                    continue;
+                }
+            }
+
+            if (isset($arguments[$paramName]) || (\array_key_exists($paramName, $arguments) && $parameter->allowsNull())) {
+                $argument = $arguments[$paramName];
+                try {
+                    $finalArgs[$paramPosition] = $this->castArgumentType($argument, $parameter);
+                } catch (InvalidArgumentException $e) {
+                    throw RegistryException::invalidParams(\sprintf('Parameter `%s`: %s', $paramName, $e->getMessage()), $e);
+                } catch (\Throwable $e) {
+                    throw RegistryException::internalError("Error processing parameter `{$paramName}`: {$e->getMessage()}", $e);
+                }
+            } elseif ($parameter->isDefaultValueAvailable()) {
+                $finalArgs[$paramPosition] = $parameter->getDefaultValue();
+            } elseif ($parameter->allowsNull()) {
+                $finalArgs[$paramPosition] = null;
+            } elseif ($parameter->isOptional()) {
+                continue;
+            } else {
+                $reflectionName = $handlerName ?? ($reflection instanceof \ReflectionMethod
+                    ? $reflection->class.'::'.$reflection->name
+                    : 'Closure');
+                // The handler's name only reaches the log.
+                throw RegistryException::invalidParams("Missing required argument `{$paramName}`.", RegistryException::internalError("Missing required argument `{$paramName}` for {$reflectionName}."));
+            }
+        }
+
+        return array_values($finalArgs);
+    }
+
+    /**
+     * Gets a ReflectionMethod or ReflectionFunction for a callable.
+     */
+    private function getReflectionForCallable(callable $handler, SessionInterface $session): \ReflectionMethod|\ReflectionFunction
+    {
+        if (\is_string($handler)) {
+            return new \ReflectionFunction($handler);
+        }
+
+        if ($handler instanceof \Closure) {
+            return new \ReflectionFunction($handler);
+        }
+
+        if (\is_array($handler) && 2 === \count($handler)) {
+            [$class, $method] = $handler;
+
+            return new \ReflectionMethod($class, $method);
+        }
+
+        throw new InvalidArgumentException('Cannot create reflection for this callable type');
+    }
+
+    /**
+     * Attempts type casting based on ReflectionParameter type hints.
+     *
+     * @throws InvalidArgumentException if casting is impossible for the required type
+     */
+    private function castArgumentType(mixed $argument, \ReflectionParameter $parameter): mixed
+    {
+        $type = $parameter->getType();
+
+        if (null === $argument) {
+            if ($type && $type->allowsNull()) {
+                return null;
+            }
+        }
+
+        if ($type instanceof \ReflectionUnionType) {
+            return self::acceptsOnlyArrays($type) ? Json::objectsToArrays($argument) : $argument;
+        }
+
+        if (!$type instanceof \ReflectionNamedType) {
+            return $argument;
+        }
+
+        $typeName = $type->getName();
+
+        if (enum_exists($typeName)) {
+            if (\is_object($argument) && $argument instanceof $typeName) {
+                return $argument;
+            }
+
+            if (is_subclass_of($typeName, \BackedEnum::class)) {
+                $backingType = (string) (new \ReflectionEnum($typeName))->getBackingType();
+                $value = $typeName::tryFrom('int' === $backingType ? $this->castToInt($argument) : $this->castToString($argument));
+                if (null === $value) {
+                    throw new InvalidArgumentException('Invalid value. Expected one of the backing values of the enum.');
+                }
+
+                return $value;
+            }
+            if (\is_string($argument)) {
+                foreach ($typeName::cases() as $case) {
+                    if ($case->name === $argument) {
+                        return $case;
+                    }
+                }
+                $validNames = array_map(static fn ($c) => $c->name, $typeName::cases());
+                throw new InvalidArgumentException('Invalid value. Expected one of: '.implode(', ', $validNames).'.');
+            }
+            throw new InvalidArgumentException('Invalid value type. Expected a string matching an enum case name.');
+        }
+
+        try {
+            return match (strtolower($typeName)) {
+                'int', 'integer' => $this->castToInt($argument),
+                'string' => $this->castToString($argument),
+                'bool', 'boolean' => $this->castToBoolean($argument),
+                'float', 'double' => $this->castToFloat($argument),
+                'array' => $this->castToArray($argument),
+                'iterable' => $argument instanceof \Traversable ? $argument : $this->castToArray($argument),
+                default => $argument,
+            };
+        } catch (\TypeError $e) {
+            throw new InvalidArgumentException("Value cannot be cast to required type `{$typeName}`.", 0, $e);
+        }
+    }
+
+    private static function acceptsOnlyArrays(\ReflectionUnionType $type): bool
+    {
+        $names = array_map(
+            static fn (\ReflectionType $branch): string => $branch instanceof \ReflectionNamedType ? strtolower($branch->getName()) : '',
+            $type->getTypes(),
+        );
+
+        return [] !== array_intersect($names, ['array', 'iterable']) && [] === array_intersect($names, ['object', 'stdclass']);
+    }
+
+    private function castToString(mixed $argument): string
+    {
+        if (\is_scalar($argument) || $argument instanceof \Stringable) {
+            return (string) $argument;
+        }
+
+        throw new InvalidArgumentException('Cannot cast value to string. Expected a scalar value.');
+    }
+
+    /**
+     * Helper to cast strictly to boolean.
+     */
+    private function castToBoolean(mixed $argument): bool
+    {
+        if (\is_bool($argument)) {
+            return $argument;
+        }
+        if (1 === $argument || '1' === $argument || (\is_string($argument) && 'true' === strtolower($argument))) {
+            return true;
+        }
+        if (0 === $argument || '0' === $argument || (\is_string($argument) && 'false' === strtolower($argument))) {
+            return false;
+        }
+
+        throw new InvalidArgumentException('Cannot cast value to boolean. Use true/false/1/0.');
+    }
+
+    /**
+     * Helper to cast strictly to integer.
+     */
+    private function castToInt(mixed $argument): int
+    {
+        if (\is_int($argument)) {
+            return $argument;
+        }
+        // PHP_INT_MAX is not representable as float: the upper bound is the first float that would wrap.
+        if (\is_float($argument) && floor($argument) === $argument && $argument >= (float) \PHP_INT_MIN && $argument < -(float) \PHP_INT_MIN) {
+            return (int) $argument;
+        }
+        if (\is_string($argument) && is_numeric($argument) && 1 === preg_match('/^-?\d+$/D', $argument)) {
+            // Unlike FILTER_VALIDATE_INT this keeps leading zeros valid, while an overflow turns into a float.
+            $number = $argument + 0;
+            if (\is_int($number)) {
+                return $number;
+            }
+        }
+
+        throw new InvalidArgumentException('Cannot cast value to integer. Expected integer representation.');
+    }
+
+    /**
+     * Helper to cast strictly to float.
+     */
+    private function castToFloat(mixed $argument): float
+    {
+        if (\is_float($argument)) {
+            return $argument;
+        }
+        if (\is_int($argument)) {
+            return (float) $argument;
+        }
+        if (is_numeric($argument)) {
+            return (float) $argument;
+        }
+
+        throw new InvalidArgumentException('Cannot cast value to float. Expected numeric representation.');
+    }
+
+    /**
+     * Helper to cast strictly to array.
+     *
+     * @return array<int|string, mixed>
+     */
+    private function castToArray(mixed $argument): array
+    {
+        $argument = Json::objectsToArrays($argument);
+
+        if (\is_array($argument)) {
+            return $argument;
+        }
+
+        throw new InvalidArgumentException('Cannot cast value to array. Expected array.');
+    }
+}

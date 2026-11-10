@@ -12,9 +12,9 @@
 namespace Mcp\Tests\Integration;
 
 use Mcp\Client\Builder as ClientBuilder;
+use Mcp\Client\Exception\RequestException;
 use Mcp\Client\Handler\Request\SamplingCallbackInterface;
 use Mcp\Client\Handler\Request\SamplingRequestHandler;
-use Mcp\Exception\RequestException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ProtocolVersion;

@@ -1,0 +1,22 @@
+deptrac:
+  paths:
+    - ./src
+  layers:
+    - name: Schema
+      collectors:
+        - type: classLike
+          value: ^Mcp\\Schema\\.*
+    - name: Client
+      collectors:
+        - type: classLike
+          value: ^Mcp\\Client\\.*
+    - name: Server
+      collectors:
+        - type: classLike
+          value: ^Mcp\\Server\\.*
+  ruleset:
+    Schema: ~
+    Client:
+      - Schema
+    Server:
+      - Schema

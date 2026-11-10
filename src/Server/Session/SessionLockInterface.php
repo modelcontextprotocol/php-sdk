@@ -11,8 +11,8 @@
 
 namespace Mcp\Server\Session;
 
-use Mcp\Exception\SessionLockException;
-use Mcp\Exception\SessionLockTimeoutException;
+use Mcp\Server\Exception\SessionLockException;
+use Mcp\Server\Exception\SessionLockTimeoutException;
 use Symfony\Component\Uid\Uuid;
 
 /**

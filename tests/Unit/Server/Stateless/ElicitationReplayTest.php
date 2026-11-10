@@ -11,11 +11,11 @@
 
 namespace Mcp\Tests\Unit\Server\Stateless;
 
-use Mcp\Exception\LogicException;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\ElicitationMode;
 use Mcp\Schema\Request\ElicitRequest;
+use Mcp\Server\Exception\LogicException;
 use Mcp\Server\Stateless\ElicitationReplay;
 use Mcp\Server\Stateless\InputContext;
 use Mcp\Server\Stateless\RequestStateCodec;

@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Integration\Fixture\Completion;
 
-use Mcp\Capability\Completion\ProviderInterface;
+use Mcp\Server\Capability\Completion\ProviderInterface;
 
 /**
  * A provider that cannot be built without its seat map.

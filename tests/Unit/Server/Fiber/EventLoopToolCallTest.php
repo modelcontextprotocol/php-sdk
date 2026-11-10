@@ -11,19 +11,19 @@
 
 namespace Mcp\Tests\Unit\Server\Fiber;
 
-use Mcp\Event\ErrorEvent;
-use Mcp\Event\ResponseEvent;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Schema\Request\CallToolRequest;
-use Mcp\Server;
+use Mcp\Schema\RequestMeta;
+use Mcp\Server\Event\ErrorEvent;
+use Mcp\Server\Event\ResponseEvent;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Server;
 use Mcp\Server\Session\SessionInterface;
-use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Transport\StdioTransport;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Nyholm\Psr7\Factory\Psr17Factory;

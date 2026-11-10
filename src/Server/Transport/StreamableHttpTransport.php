@@ -12,11 +12,11 @@
 namespace Mcp\Server\Transport;
 
 use Http\Discovery\Psr17FactoryDiscovery;
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\SessionStoreException;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\SessionStoreException;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;

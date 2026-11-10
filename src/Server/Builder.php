@@ -11,32 +11,13 @@
 
 namespace Mcp\Server;
 
-use Mcp\Capability\Completion\ProviderInterface;
-use Mcp\Capability\Discovery\CachedDiscoverer;
-use Mcp\Capability\Discovery\Discoverer;
-use Mcp\Capability\Discovery\DiscovererInterface;
-use Mcp\Capability\Discovery\SchemaGeneratorInterface;
-use Mcp\Capability\Discovery\SchemaValidator;
-use Mcp\Capability\Registry;
-use Mcp\Capability\Registry\Container;
-use Mcp\Capability\Registry\ElementReference;
-use Mcp\Capability\Registry\Loader\ChainLoader;
-use Mcp\Capability\Registry\Loader\DiscoveryLoader;
-use Mcp\Capability\Registry\Loader\ExplicitElementLoader;
-use Mcp\Capability\Registry\Loader\LoaderInterface;
-use Mcp\Capability\Registry\Loader\ReflectedElementLoader;
-use Mcp\Capability\Registry\ReferenceHandler;
-use Mcp\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Capability\RegistryInterface;
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\LogicException;
-use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Extension\AbstractExtension;
 use Mcp\Schema\Extension\ExtensionInterface;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
+use Mcp\Schema\MessageFactory;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\ResourceDefinition;
@@ -44,7 +25,26 @@ use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
-use Mcp\Server;
+use Mcp\Server\Capability\Completion\ProviderInterface;
+use Mcp\Server\Capability\Discovery\CachedDiscoverer;
+use Mcp\Server\Capability\Discovery\Discoverer;
+use Mcp\Server\Capability\Discovery\DiscovererInterface;
+use Mcp\Server\Capability\Discovery\SchemaGeneratorInterface;
+use Mcp\Server\Capability\Discovery\SchemaValidator;
+use Mcp\Server\Capability\Registry;
+use Mcp\Server\Capability\Registry\Container;
+use Mcp\Server\Capability\Registry\ElementReference;
+use Mcp\Server\Capability\Registry\Loader\ChainLoader;
+use Mcp\Server\Capability\Registry\Loader\DiscoveryLoader;
+use Mcp\Server\Capability\Registry\Loader\ExplicitElementLoader;
+use Mcp\Server\Capability\Registry\Loader\LoaderInterface;
+use Mcp\Server\Capability\Registry\Loader\ReflectedElementLoader;
+use Mcp\Server\Capability\Registry\ReferenceHandler;
+use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\LogicException;
+use Mcp\Server\Extension\ServerExtensionInterface;
 use Mcp\Server\Fiber\FiberContextInterface;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\Handler\ElementHandlerInterface;
@@ -487,8 +487,8 @@ final class Builder
      * `capabilities.extensions` during the initialize handshake.
      *
      * An extension also contributes the message classes its methods decode
-     * into and the handlers serving them, if any — see {@see AbstractExtension}
-     * for extensions that only announce a capability.
+     * into, and a {@see ServerExtensionInterface} the handlers serving them — see
+     * {@see AbstractExtension} for extensions that only announce a capability.
      *
      * @throws InvalidArgumentException if the identifier is not a valid `_meta` prefix
      * @throws LogicException           if the same extension is enabled more than once, or
@@ -523,8 +523,10 @@ final class Builder
                 $this->extensionMethods[$method] = $id;
             }
 
-            foreach ($extension->getRequestHandlers() as $handler) {
-                $this->requestHandlers[] = $handler;
+            if ($extension instanceof ServerExtensionInterface) {
+                foreach ($extension->getRequestHandlers() as $handler) {
+                    $this->requestHandlers[] = $handler;
+                }
             }
         }
 
@@ -886,7 +888,7 @@ final class Builder
      * reflection of the handler.
      *
      * Mismatched pairings (e.g. a `Tool` with a `PromptHandlerInterface`) raise
-     * `Mcp\Exception\InvalidArgumentException`. Completion providers are only supported on
+     * `Mcp\Server\Exception\InvalidArgumentException`. Completion providers are only supported on
      * `Prompt` and `ResourceTemplate` definitions; supplying them with `Tool` or
      * `ResourceDefinition` raises the same exception.
      *

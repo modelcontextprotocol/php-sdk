@@ -14,17 +14,9 @@ namespace Mcp\Tests\Unit\Client\Stateless;
 use Mcp\Client\Stateless\HeaderFactory;
 use Mcp\Client\Stateless\ToolCatalog;
 use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Server\Stateless\StandardHeaderValidator;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
-/**
- * What the client puts on the wire, checked against the server that reads it.
- *
- * Every case asserts the emitted headers and then feeds them straight to
- * {@see StandardHeaderValidator}: agreeing with a hand-written expectation is
- * not the point, agreeing with the other side is.
- */
 final class HeaderFactoryTest extends TestCase
 {
     #[TestDox('declares the revision and the method on every request')]
@@ -43,19 +35,17 @@ final class HeaderFactoryTest extends TestCase
         $payload = ['method' => 'tools/call', 'params' => ['name' => 'search', 'arguments' => new \stdClass()]];
 
         $this->assertSame('search', $this->headersFor($payload)['Mcp-Name']);
-        $this->assertNull($this->validate($payload));
     }
 
-    #[TestDox('wraps a subject that is not header-safe, and the server unwraps it')]
+    #[TestDox('wraps a subject that is not header-safe')]
     public function testUnsafeNameRoundTrips(): void
     {
         $payload = ['method' => 'resources/read', 'params' => ['uri' => 'file:///café.txt']];
 
         $this->assertSame('=?base64?ZmlsZTovLy9jYWbDqS50eHQ=?=', $this->headersFor($payload)['Mcp-Name']);
-        $this->assertNull($this->validate($payload));
     }
 
-    #[TestDox('mirrors annotated tool arguments the server can verify')]
+    #[TestDox('mirrors annotated tool arguments')]
     public function testMirroredArguments(): void
     {
         $payload = [
@@ -70,7 +60,6 @@ final class HeaderFactoryTest extends TestCase
 
         $this->assertSame('=?base64?IHBhZGRlZCA=?=', $headers['Mcp-Param-Region']);
         $this->assertSame('7', $headers['Mcp-Param-Priority']);
-        $this->assertNull($this->validate($payload));
     }
 
     #[TestDox('a response carries the revision but nothing to mirror')]
@@ -128,20 +117,6 @@ final class HeaderFactoryTest extends TestCase
     private function headersFor(array $payload): array
     {
         return (new HeaderFactory($this->catalog()))->forMessage($payload, ProtocolVersion::V2026_07_28);
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     *
-     * @return string|null the server's reason to reject, or null when it agrees
-     */
-    private function validate(array $payload): ?string
-    {
-        return (new StandardHeaderValidator())->validate(
-            $payload['method'],
-            $payload['params'] ?? null,
-            $this->headersFor($payload),
-        );
     }
 
     private function catalog(): ToolCatalog

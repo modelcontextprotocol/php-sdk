@@ -11,7 +11,7 @@
 
 namespace Mcp\Client\Transport;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\InvalidArgumentException;
 
 /**
  * How HttpTransport resumes an SSE stream that closed before its response arrived.

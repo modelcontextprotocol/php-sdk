@@ -11,12 +11,12 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
-use Mcp\Capability\RegistryInterface;
-use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ResourceUnsubscribeRequest;
 use Mcp\Schema\Result\EmptyResult;
+use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Exception\ResourceNotFoundException;
 use Mcp\Server\Handler\Request\ResourceUnsubscribeHandler;
 use Mcp\Server\Resource\SubscriptionManagerInterface;
 use Mcp\Server\Session\SessionInterface;
@@ -58,7 +58,7 @@ class ResourceUnsubscribeHandlerTest extends TestCase
             ->expects($this->once())
             ->method('getResource')
             ->with($uri)
-            ->willReturn($this->createMock(\Mcp\Capability\Registry\ResourceReference::class));
+            ->willReturn($this->createMock(\Mcp\Server\Capability\Registry\ResourceReference::class));
 
         $this->subscriptionManager
             ->expects($this->once())

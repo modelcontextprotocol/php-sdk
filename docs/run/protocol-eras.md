@@ -8,7 +8,7 @@ which of them answers. You don't need to configure this. Handshake-era clients r
 ```php
 use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StreamableHttpTransport;
 
 $request = (new Psr17Factory())->createServerRequestFromGlobals();
@@ -125,11 +125,11 @@ the member it wants to change. `server/discover` dispatches the same `RequestEve
 (`composer require symfony/event-dispatcher`):
 
 ```php
-use Mcp\Event\ResponseEvent;
+use Mcp\Server\Event\ResponseEvent;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Result\DiscoverResult;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
 $dispatcher = new EventDispatcher();
@@ -215,7 +215,7 @@ dispatcher on its own and mount it on `StatelessHttpTransport`:
 use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StatelessHttpTransport;
 
 $request = (new Psr17Factory())->createServerRequestFromGlobals();

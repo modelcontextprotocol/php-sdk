@@ -11,8 +11,8 @@
 
 namespace Mcp\Client\Auth;
 
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\RuntimeException;
+use Mcp\Client\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\RuntimeException;
 
 /**
  * Persists credentials unencrypted in a JSON file with the mode 0600, in a directory with the mode 0700.

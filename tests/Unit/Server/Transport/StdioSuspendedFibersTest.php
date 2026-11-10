@@ -11,14 +11,14 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
-use Mcp\Event\ServerRequestEvent;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Notification\LoggingMessageNotification;
-use Mcp\Server;
+use Mcp\Server\Event\ServerRequestEvent;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StdioTransport;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;

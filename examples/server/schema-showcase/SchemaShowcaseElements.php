@@ -11,8 +11,8 @@
 
 namespace Mcp\Example\Server\SchemaShowcase;
 
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Capability\Attribute\Schema;
+use Mcp\Server\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\Schema;
 use Psr\Log\LoggerInterface;
 
 final class SchemaShowcaseElements

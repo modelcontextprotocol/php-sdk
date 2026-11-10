@@ -12,7 +12,7 @@
 namespace Mcp\Tests\Unit\Client\Auth;
 
 use Mcp\Client\Auth\MetadataDiscovery;
-use Mcp\Exception\AuthorizationException;
+use Mcp\Client\Exception\AuthorizationException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;

@@ -29,7 +29,7 @@ so it fails under `php -S`:
 
 ```php title="server.php (HTTP variant)"
 use Http\Discovery\Psr17Factory;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;

@@ -11,16 +11,16 @@
 
 namespace Mcp\Example\Server\DiscoveryUserProfile;
 
-use Mcp\Capability\Attribute\CompletionProvider;
-use Mcp\Capability\Attribute\McpPrompt;
-use Mcp\Capability\Attribute\McpResource;
-use Mcp\Capability\Attribute\McpResourceTemplate;
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Exception\PromptGetException;
-use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\Content\Content;
 use Mcp\Schema\Content\ResourceLink;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Server\Capability\Attribute\CompletionProvider;
+use Mcp\Server\Capability\Attribute\McpPrompt;
+use Mcp\Server\Capability\Attribute\McpResource;
+use Mcp\Server\Capability\Attribute\McpResourceTemplate;
+use Mcp\Server\Capability\Attribute\McpTool;
+use Mcp\Server\Exception\PromptGetException;
+use Mcp\Server\Exception\ResourceReadException;
 use Psr\Log\LoggerInterface;
 
 /**

@@ -11,8 +11,8 @@
 
 namespace Mcp\Schema\Request;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Request;
 

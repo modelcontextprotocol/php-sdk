@@ -17,7 +17,7 @@ use Mcp\Example\Server\McpApps\WeatherApp;
 use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Schema\Extension\Apps\ToolVisibility;
 use Mcp\Schema\Extension\Apps\UiToolMeta;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionStore;
 
 logger()->info('Starting MCP Apps Example Server...');

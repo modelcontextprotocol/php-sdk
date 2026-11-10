@@ -7,7 +7,7 @@ A server opts in with `Builder::enableExtension()`. The SDK announces the extens
 
 ```php
 use Mcp\Schema\Extension\Apps\McpApps;
-use Mcp\Server;
+use Mcp\Server\Server;
 
 $server = Server::builder()
     ->setServerInfo('My Server', '1.0.0')
@@ -82,10 +82,11 @@ Enable it with `Builder::enableExtension(new AuditExtension())`.
     A prefix whose second label is `modelcontextprotocol` or `mcp` (e.g. `io.modelcontextprotocol/`) is reserved for
     official extensions. The SDK doesn't refuse such an identifier, so choose a prefix of your own.
 
-An extension that adds JSON-RPC methods also implements `getMessages()` and
-`getRequestHandlers()`. `getMessages()` returns the request and notification classes of the
-new methods, so the SDK can parse them. `getRequestHandlers()` returns the
-[request handlers](custom-handlers.md) that answer them. If two enabled extensions define
+An extension that adds JSON-RPC methods also implements `getMessages()`, which returns the
+request and notification classes of the new methods, so the SDK can parse them. To answer
+those methods on a server, it implements `Mcp\Server\Extension\ServerExtensionInterface`,
+whose `getRequestHandlers()` returns the [request handlers](custom-handlers.md) that answer
+them. If two enabled extensions define
 the same method, `enableExtension()` throws a `LogicException`. Extensions bring no
 notification handlers: add those with `Builder::addNotificationHandler()`. They
 [don't run on revision `2026-07-28`](custom-handlers.md#protocol-2026-07-28).
@@ -111,7 +112,7 @@ use Mcp\Schema\Extension\Apps\UiResourceContentMeta;
 use Mcp\Schema\Extension\Apps\UiResourceCsp;
 use Mcp\Schema\Extension\Apps\UiResourcePermissions;
 use Mcp\Schema\Extension\Apps\UiToolMeta;
-use Mcp\Server;
+use Mcp\Server\Server;
 
 $server = Server::builder()
     ->enableExtension(new McpApps())
@@ -157,12 +158,12 @@ descriptor marker: `McpApps::resourceMarker()` is a method call and cannot appea
 in an attribute, so spell it as `new \stdClass()` there.
 
 ```php
-use Mcp\Capability\Attribute\McpResource;
-use Mcp\Capability\Attribute\McpTool;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Schema\Extension\Apps\ToolVisibility;
 use Mcp\Schema\Extension\Apps\UiToolMeta;
+use Mcp\Server\Capability\Attribute\McpResource;
+use Mcp\Server\Capability\Attribute\McpTool;
 
 final class WeatherApp
 {

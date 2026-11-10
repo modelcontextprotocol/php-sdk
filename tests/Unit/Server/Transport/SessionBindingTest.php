@@ -11,15 +11,15 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
-use Mcp\Exception\SessionStoreException;
-use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\MessageFactory;
 use Mcp\Schema\Notification\ResourceUpdatedNotification;
-use Mcp\Server;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\Exception\SessionStoreException;
 use Mcp\Server\Handler\Request\PingHandler;
 use Mcp\Server\Protocol;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;

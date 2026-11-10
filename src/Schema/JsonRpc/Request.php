@@ -11,9 +11,9 @@
 
 namespace Mcp\Schema\JsonRpc;
 
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\InvalidParamsException;
-use Mcp\JsonRpc\Json;
+use Mcp\Schema\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidParamsException;
+use Mcp\Schema\Json;
 
 /**
  * @phpstan-type RequestData array{

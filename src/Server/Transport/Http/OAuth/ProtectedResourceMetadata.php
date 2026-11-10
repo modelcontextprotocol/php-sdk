@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Transport\Http\OAuth;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\InvalidArgumentException;
 
 /**
  * OAuth 2.0 Protected Resource Metadata (RFC 9728).

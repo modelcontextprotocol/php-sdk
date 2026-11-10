@@ -11,7 +11,7 @@
 
 namespace Mcp\Client\Auth;
 
-use Mcp\Exception\AuthorizationPendingException;
+use Mcp\Client\Exception\AuthorizationPendingException;
 
 /**
  * @author bbdu3 <ergouyang854@gmail.com>

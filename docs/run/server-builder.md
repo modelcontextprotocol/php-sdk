@@ -11,7 +11,7 @@ There are two ways to obtain a server builder instance:
 ### Method 1: Static Builder Method (Recommended)
 
 ```php
-use Mcp\Server;
+use Mcp\Server\Server;
 
 $server = Server::builder()
     ->setServerInfo('My MCP Server', '1.0.0')
@@ -41,7 +41,7 @@ Set the server's identity with name, version, and optional description:
 
 ```php
 use Mcp\Schema\Icon;
-use Mcp\Server;
+use Mcp\Server\Server;
 
 $server = Server::builder()
     ->setServerInfo(
@@ -112,7 +112,7 @@ required to serve either one. Each knob is covered in depth elsewhere:
 ```php
 use Mcp\Schema\Enum\CacheScope;
 use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Stateless\OriginatingRequestBinder;
 use Mcp\Server\Subscription\Psr16NotificationBus;
 use Mcp\Server\Wire\CachePolicy;
@@ -162,7 +162,7 @@ it. See
 **Required when using MCP attributes.** If you're using PHP attributes (`#[McpTool]`, `#[McpResource]`, `#[McpResourceTemplate]`, `#[McpPrompt]`) to define your MCP elements, you **MUST** configure discovery to tell the server where to look for these attributes.
 
 ```php
-use Mcp\Server;
+use Mcp\Server\Server;
 
 $server = Server::builder()
     ->setDiscovery(
@@ -202,7 +202,7 @@ $server = Server::builder()
 
 **Production Setup with Caching:**
 ```php
-use Mcp\Server;
+use Mcp\Server\Server;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 
 // Cache discovered elements to avoid filesystem scanning on every server start
@@ -235,7 +235,7 @@ The container is used to resolve handlers and their dependencies when handlers i
 The SDK includes a basic container with simple auto-wiring capabilities.
 
 ```php
-use Mcp\Capability\Registry\Container;
+use Mcp\Server\Capability\Registry\Container;
 
 // Use the default basic container
 $container = new Container();
@@ -372,7 +372,7 @@ Some libraries keep their context per fiber. For example, OpenTelemetry raises a
 in a fiber it doesn't know. Set a fiber context to carry the context of the caller into the fiber of the handler:
 
 ```php
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Fiber\FiberContextInterface;
 use OpenTelemetry\Context\Context;
 
@@ -427,13 +427,13 @@ Fibers that a handler starts itself (e.g. with `Amp\async()`) don't get the cont
 Here's a comprehensive example showing all major configuration options:
 
 ```php
-use Mcp\Server;
+use Mcp\Server\Capability\Registry\Container;
+use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionStore;
-use Mcp\Capability\Registry\Container;
-use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
 use Monolog\Logger;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 
 // Setup dependencies
 $logger = new Logger('mcp-server');

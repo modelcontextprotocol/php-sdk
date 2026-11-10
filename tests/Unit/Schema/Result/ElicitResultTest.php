@@ -11,9 +11,9 @@
 
 namespace Mcp\Tests\Unit\Schema\Result;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\ElicitAction;
 use Mcp\Schema\Enum\ElicitationMode;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\Result\ElicitResult;
 use PHPUnit\Framework\TestCase;
 

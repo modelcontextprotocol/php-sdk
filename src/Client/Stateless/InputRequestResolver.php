@@ -11,8 +11,8 @@
 
 namespace Mcp\Client\Stateless;
 
+use Mcp\Client\Exception\RuntimeException;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
-use Mcp\Exception\RuntimeException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;

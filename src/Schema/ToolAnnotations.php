@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Additional properties describing a Tool to clients.

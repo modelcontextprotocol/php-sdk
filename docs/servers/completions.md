@@ -9,8 +9,8 @@ Completion providers help MCP clients offer auto-completion suggestions. The pro
 Provide a static list of possible values:
 
 ```php
-use Mcp\Capability\Attribute\CompletionProvider;
-use Mcp\Capability\Attribute\McpPrompt;
+use Mcp\Server\Capability\Attribute\CompletionProvider;
+use Mcp\Server\Capability\Attribute\McpPrompt;
 
 #[McpPrompt]
 public function generateContent(
@@ -32,8 +32,8 @@ public function generateContent(
 Use enum values for completion:
 
 ```php
-use Mcp\Capability\Attribute\CompletionProvider;
-use Mcp\Capability\Attribute\McpResourceTemplate;
+use Mcp\Server\Capability\Attribute\CompletionProvider;
+use Mcp\Server\Capability\Attribute\McpResourceTemplate;
 
 enum Priority: string
 {
@@ -79,9 +79,9 @@ Type the parameter as `string` instead.
 For dynamic completion logic:
 
 ```php
-use Mcp\Capability\Attribute\CompletionProvider;
-use Mcp\Capability\Attribute\McpResourceTemplate;
-use Mcp\Capability\Completion\ProviderInterface;
+use Mcp\Server\Capability\Attribute\CompletionProvider;
+use Mcp\Server\Capability\Attribute\McpResourceTemplate;
+use Mcp\Server\Capability\Completion\ProviderInterface;
 
 class UserIdCompletionProvider implements ProviderInterface
 {
@@ -124,7 +124,7 @@ For a `Prompt` or `ResourceTemplate` registered with `Builder::add()`, pass the 
 keys are the argument or variable names:
 
 ```php
-use Mcp\Capability\Completion\ListCompletionProvider;
+use Mcp\Server\Capability\Completion\ListCompletionProvider;
 
 // $prompt is an Mcp\Schema\Prompt, ContentPromptHandler implements PromptHandlerInterface
 $builder->add($prompt, new ContentPromptHandler(), [
@@ -132,5 +132,5 @@ $builder->add($prompt, new ContentPromptHandler(), [
 ]);
 ```
 
-`Builder::add()` throws an `Mcp\Exception\InvalidArgumentException` if you pass providers with a `Tool` or a
+`Builder::add()` throws an `Mcp\Server\Exception\InvalidArgumentException` if you pass providers with a `Tool` or a
 `ResourceDefinition`. See [Explicit element registration](registration.md#explicit-element-registration).

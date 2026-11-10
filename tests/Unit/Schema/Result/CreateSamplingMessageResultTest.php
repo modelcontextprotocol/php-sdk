@@ -11,10 +11,10 @@
 
 namespace Mcp\Tests\Unit\Schema\Result;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\ToolUseContent;
 use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
 use PHPUnit\Framework\TestCase;
 

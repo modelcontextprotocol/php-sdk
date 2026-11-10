@@ -3,8 +3,8 @@
 Tools are callable functions that perform actions and return results.
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Exception\ToolCallException;
+use Mcp\Server\Capability\Attribute\McpTool;
+use Mcp\Server\Exception\ToolCallException;
 
 class Calculator
 {
@@ -135,7 +135,7 @@ Besides the human-readable `content`, a tool result can carry a machine-readable
 shape with `outputSchema`, a JSON Schema. This example uses an object schema, which works with every revision:
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\McpTool;
 
 #[McpTool(
     name: 'get_weather',
@@ -181,7 +181,7 @@ conforming to it. The SDK picks the rule from the revision negotiated for the ca
 object shape to produce structured output everywhere. Wrap the list in a key for that:
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\McpTool;
 
 // Structured content only from 2026-07-28 on: a bare list is not a JSON object
 public function listUsersFlat(): array
@@ -261,7 +261,7 @@ By default, the SDK also JSON-encodes structured content into `content`. To send
 `CallToolResult` with an empty `content` list:
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\McpTool;
 use Mcp\Schema\Result\CallToolResult;
 
 #[McpTool(outputSchema: [/* ... */])]
@@ -291,8 +291,8 @@ Tool handlers can throw any exception, but the type determines how it's handled:
 - **Any other exception you throw from your handler**: Converted to JSON-RPC error response, but with a generic error message
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Exception\ToolCallException;
+use Mcp\Server\Capability\Attribute\McpTool;
+use Mcp\Server\Exception\ToolCallException;
 
 #[McpTool]
 public function divideNumbers(float $a, float $b): float

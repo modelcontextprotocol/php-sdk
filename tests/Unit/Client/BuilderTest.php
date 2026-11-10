@@ -11,9 +11,9 @@
 
 namespace Mcp\Tests\Unit\Client;
 
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Configuration;
-use Mcp\Exception\LogicException;
+use Mcp\Client\Exception\LogicException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Extension\Apps\McpApps;
 use PHPUnit\Framework\Attributes\TestDox;

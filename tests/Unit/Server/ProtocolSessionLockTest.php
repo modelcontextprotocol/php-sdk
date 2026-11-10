@@ -11,12 +11,12 @@
 
 namespace Mcp\Tests\Unit\Server;
 
-use Mcp\Exception\SessionLockException;
-use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\MessageFactory;
 use Mcp\Schema\Request\PingRequest;
+use Mcp\Server\Exception\SessionLockException;
 use Mcp\Server\Handler\Request\PingHandler;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;

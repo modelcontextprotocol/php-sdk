@@ -11,8 +11,8 @@
 
 namespace Mcp\Schema;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Optional annotations for the client. The client can use annotations

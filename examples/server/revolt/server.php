@@ -21,7 +21,7 @@ use Amp\Http\Server\SocketHttpServer;
 use Http\Discovery\Psr17Factory;
 use Mcp\Example\Server\Revolt\RevoltFiberScheduler;
 use Mcp\Example\Server\Revolt\SlowTools;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Transport\CallbackStream;
 use Mcp\Server\Transport\StreamableHttpTransport;

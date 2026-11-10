@@ -19,7 +19,7 @@ use Mcp\Client\Auth\MetadataDiscovery;
 use Mcp\Client\Auth\ResponseBody;
 use Mcp\Client\Auth\TokenEndpoint;
 use Mcp\Client\Auth\TokenEndpointAuthMethod;
-use Mcp\Exception\AuthorizationException;
+use Mcp\Client\Exception\AuthorizationException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\TestDox;

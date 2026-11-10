@@ -12,8 +12,8 @@
 namespace Mcp\Client\Auth;
 
 use Http\Discovery\Psr17FactoryDiscovery;
+use Mcp\Client\Exception\AuthorizationException;
 use Mcp\Client\Transport\NoRedirects;
-use Mcp\Exception\AuthorizationException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;

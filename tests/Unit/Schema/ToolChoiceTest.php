@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Unit\Schema;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\ToolChoiceMode;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\ToolChoice;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;

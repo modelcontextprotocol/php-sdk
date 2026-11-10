@@ -17,7 +17,7 @@ use Mcp\Client\Auth\AuthorizationServerMetadata;
 use Mcp\Client\Auth\ClientRegistration;
 use Mcp\Client\Auth\TokenEndpoint;
 use Mcp\Client\Auth\TokenEndpointAuthMethod;
-use Mcp\Exception\AuthorizationException;
+use Mcp\Client\Exception\AuthorizationException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;

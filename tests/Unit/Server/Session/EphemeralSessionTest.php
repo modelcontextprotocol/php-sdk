@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Session;
 
-use Mcp\Exception\SessionRequiredException;
+use Mcp\Server\Exception\SessionRequiredException;
 use Mcp\Server\Session\EphemeralSession;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;

@@ -15,7 +15,7 @@ use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
-use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Schema\RequestMeta;
 
 /**
  * Stamps the per-request `_meta` that replaces the `initialize` handshake

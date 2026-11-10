@@ -27,13 +27,13 @@
 
 require_once dirname(__DIR__, 2).'/vendor/autoload.php';
 
-use Mcp\Client;
 use Mcp\Client\Auth\FileCredentialStorage;
 use Mcp\Client\Auth\OAuth;
+use Mcp\Client\Client;
+use Mcp\Client\Exception\AuthorizationException;
+use Mcp\Client\Exception\ConnectionException;
 use Mcp\Client\Transport\HttpTransport;
-use Mcp\Exception\AuthorizationException;
-use Mcp\Exception\ConnectionException;
-use Mcp\Exception\RuntimeException;
+use Mcp\Server\Exception\RuntimeException;
 use Mcp\Tests\E2E\BrowserAuthorizationHandler;
 use Mcp\Tests\E2E\KeycloakAdmin;
 

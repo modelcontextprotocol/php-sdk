@@ -13,8 +13,8 @@ namespace Mcp\Server\Transport\Http\OAuth;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\RuntimeException;
+use Mcp\Server\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\RuntimeException;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;

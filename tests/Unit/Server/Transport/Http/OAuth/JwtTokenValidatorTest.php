@@ -14,7 +14,7 @@ namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 use Firebase\JWT\CachedKeySet;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;

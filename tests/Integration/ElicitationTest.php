@@ -12,9 +12,9 @@
 namespace Mcp\Tests\Integration;
 
 use Mcp\Client\Builder as ClientBuilder;
+use Mcp\Client\Exception\RuntimeException;
 use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
 use Mcp\Client\Handler\Request\ElicitationRequestHandler;
-use Mcp\Exception\RuntimeException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ElicitAction;

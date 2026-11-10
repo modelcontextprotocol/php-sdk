@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Elicitation;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Schema definition for number/integer fields in elicitation requests.

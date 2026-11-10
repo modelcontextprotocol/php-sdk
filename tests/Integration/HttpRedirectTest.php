@@ -12,9 +12,9 @@
 namespace Mcp\Tests\Integration;
 
 use Http\Discovery\Psr18ClientDiscovery;
-use Mcp\Client;
+use Mcp\Client\Client;
+use Mcp\Client\Exception\RequestException;
 use Mcp\Client\Transport\HttpTransport;
-use Mcp\Exception\RequestException;
 use Mcp\Tests\Support\ServerProcess;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;

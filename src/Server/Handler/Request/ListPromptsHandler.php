@@ -11,12 +11,12 @@
 
 namespace Mcp\Server\Handler\Request;
 
-use Mcp\Capability\RegistryInterface;
-use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListPromptsRequest;
 use Mcp\Schema\Result\ListPromptsResult;
+use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Exception\InvalidCursorException;
 use Mcp\Server\Session\SessionInterface;
 
 /**

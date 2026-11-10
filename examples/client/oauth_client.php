@@ -29,12 +29,12 @@
 
 require_once __DIR__.'/../../vendor/autoload.php';
 
-use Mcp\Client;
 use Mcp\Client\Auth\FileCredentialStorage;
 use Mcp\Client\Auth\OAuth;
+use Mcp\Client\Client;
+use Mcp\Client\Exception\AuthorizationException;
+use Mcp\Client\Exception\ConnectionException;
 use Mcp\Client\Transport\HttpTransport;
-use Mcp\Exception\AuthorizationException;
-use Mcp\Exception\ConnectionException;
 
 $endpoint = 'http://localhost:8000/mcp';
 

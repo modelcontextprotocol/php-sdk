@@ -13,8 +13,6 @@ namespace Mcp\Schema\Extension;
 
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
-use Mcp\Schema\JsonRpc\ResultInterface;
-use Mcp\Server\Handler\Request\RequestHandlerInterface;
 
 /**
  * An MCP protocol extension advertised during capability negotiation.
@@ -25,8 +23,7 @@ use Mcp\Server\Handler\Request\RequestHandlerInterface;
  * (initialize request); the side that enables it decides which.
  *
  * An extension that only announces a capability, without adding RPC methods of its
- * own, can extend {@see AbstractExtension} and skip {@see self::getMessages()} and
- * {@see self::getRequestHandlers()} entirely.
+ * own, can extend {@see AbstractExtension} and skip {@see self::getMessages()}.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -51,7 +48,7 @@ interface ExtensionInterface
     /**
      * Every message class this extension defines.
      *
-     * These are registered with the {@see \Mcp\JsonRpc\MessageFactory}, without
+     * These are registered with the {@see \Mcp\Schema\MessageFactory}, without
      * which an extension's method cannot be decoded off the wire at all, and
      * their method names are what let a server distinguish an extension it does
      * not serve from a method that does not exist. An extension with no methods
@@ -60,11 +57,4 @@ interface ExtensionInterface
      * @return list<class-string<Request>|class-string<Notification>>
      */
     public function getMessages(): array;
-
-    /**
-     * The handlers serving those methods.
-     *
-     * @return iterable<RequestHandlerInterface<ResultInterface>>
-     */
-    public function getRequestHandlers(): iterable;
 }

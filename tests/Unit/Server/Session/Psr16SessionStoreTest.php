@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Session;
 
-use Mcp\Exception\SessionStoreException;
+use Mcp\Server\Exception\SessionStoreException;
 use Mcp\Server\Session\Psr16SessionStore;
 use PHPUnit\Framework\TestCase;
 use Psr\SimpleCache\CacheInterface;

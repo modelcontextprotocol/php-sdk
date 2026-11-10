@@ -3,7 +3,7 @@
 Resources provide access to static data that clients can read.
 
 ```php
-use Mcp\Capability\Attribute\McpResource;
+use Mcp\Server\Capability\Attribute\McpResource;
 
 class ConfigProvider
 {
@@ -132,9 +132,9 @@ Resource handlers can throw any exception, but the type determines how it's hand
 - **Any other exception you throw from your handler**: Converted to JSON-RPC error response, but with a generic error message
 
 ```php
-use Mcp\Capability\Attribute\McpResourceTemplate;
-use Mcp\Exception\ResourceNotFoundException;
-use Mcp\Exception\ResourceReadException;
+use Mcp\Server\Capability\Attribute\McpResourceTemplate;
+use Mcp\Server\Exception\ResourceNotFoundException;
+use Mcp\Server\Exception\ResourceReadException;
 
 // A URI with variables needs a template, and a variable matches one path segment
 #[McpResourceTemplate(uriTemplate: 'docs://{name}')]

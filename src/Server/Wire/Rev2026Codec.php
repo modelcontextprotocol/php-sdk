@@ -14,7 +14,7 @@ namespace Mcp\Server\Wire;
 use Mcp\Schema\Enum\CacheScope;
 use Mcp\Schema\Enum\ResultType;
 use Mcp\Schema\Implementation;
-use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Schema\RequestMeta;
 
 /**
  * The wire codec for 2026-07-28: stamps `resultType`, then the SEP-2549 caching

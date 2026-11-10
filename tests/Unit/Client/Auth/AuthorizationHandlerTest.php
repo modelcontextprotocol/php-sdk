@@ -14,7 +14,7 @@ namespace Mcp\Tests\Unit\Client\Auth;
 use Mcp\Client\Auth\ConsoleAuthorizationHandler;
 use Mcp\Client\Auth\HeadlessAuthorizationHandler;
 use Mcp\Client\Auth\LoopbackAuthorizationHandler;
-use Mcp\Exception\AuthorizationException;
+use Mcp\Client\Exception\AuthorizationException;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\Attributes\TestWith;

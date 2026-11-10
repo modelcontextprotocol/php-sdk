@@ -7,6 +7,27 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 * [BC Break] Require PHP 8.2 or higher, as PHP 8.1 reached its end of life.
 
+### Namespaces
+
+* [BC Break] Split the root namespace into `Mcp\Schema`, `Mcp\Client` and `Mcp\Server` to prepare package slicing. `Mcp\Schema` depends on nothing, `Mcp\Client` and `Mcp\Server` depend on `Mcp\Schema` only — enforced by Deptrac (`make deptrac`).
+  * `Mcp\Server` => `Mcp\Server\Server`
+  * `Mcp\Client` => `Mcp\Client\Client`
+  * `Mcp\Capability\*` => `Mcp\Server\Capability\*` (`Attribute`, `Completion`, `Discovery`, `Formatter`, `Logger`, `Registry`, `Tool`, plus `Registry` and `RegistryInterface`)
+  * `Mcp\Event\*` => `Mcp\Server\Event\*`
+  * `Mcp\JsonRpc\MessageFactory` => `Mcp\Schema\MessageFactory`
+  * `Mcp\Server\Stateless\RequestMeta` => `Mcp\Schema\RequestMeta`
+* [BC Break] Distribute `Mcp\Exception\*` across the three namespaces.
+  * `Mcp\Exception\{ExceptionInterface,InvalidArgumentException,LogicException,RuntimeException}` => the same names under `Mcp\Schema\Exception\`, `Mcp\Client\Exception\` and `Mcp\Server\Exception\` — pick the one matching the package you catch around
+  * `Mcp\Exception\Exception` => `Mcp\Client\Exception\Exception` and `Mcp\Server\Exception\Exception`
+  * `Mcp\Exception\{InvalidInputMessageException,MissingRequestMetaException}` => `Mcp\Schema\Exception\*`
+  * `Mcp\Exception\{ConnectionException,ElicitationException,RequestCancelledException,RequestException,RootsException,SamplingException,TimeoutException}` => `Mcp\Client\Exception\*`
+  * `Mcp\Exception\{BadMethodCallException,ClientException,ConfigurationException,ContainerException,InvalidCursorException,MissingRequiredClientCapabilityException,NotFoundExceptionInterface,PromptGetException,PromptNotFoundException,RegistryException,RequestStateException,ResourceNotFoundException,ResourceReadException,ServiceNotFoundException,SessionLockException,SessionLockTimeoutException,SessionStoreException,ToolCallException,ToolNotFoundException}` => `Mcp\Server\Exception\*`
+  * `Mcp\Exception\HandlerNotFoundException` is removed; it was unused.
+  * `Mcp\Server\Exception\ExceptionInterface` and `Mcp\Client\Exception\ExceptionInterface` extend `Mcp\Schema\Exception\ExceptionInterface`, so catching the latter still catches any SDK exception.
+  * The named exceptions now extend their package's `RuntimeException`/`InvalidArgumentException` instead of the global ones, so `catch (Mcp\Server\Exception\RuntimeException)` reaches `ToolCallException`, `PromptGetException` and friends.
+
+* [BC Break] Move `ExtensionInterface::getRequestHandlers()` to the new `Mcp\Server\Extension\ServerExtensionInterface`, so `Mcp\Schema` does not reference `Mcp\Server`. `AbstractExtension` no longer defines it. An extension that serves its methods must implement the new interface, or `Builder::enableExtension()` does not register its handlers.
+
 ### Server
 
 * [BC Break] Refuse an OAuth URL whose host is `0.0.0.0`, `::`, an IPv4 address within IPv6 or an IPv4 address in a non-standard form (e.g. `127.1`), or that holds percent-encoding or non-ASCII characters (an internationalized name must be given in punycode), for the issuer, the `jwks_uri` and the resource.

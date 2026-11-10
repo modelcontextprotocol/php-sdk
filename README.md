@@ -42,9 +42,9 @@ A server is a plain PHP class plus a few lines of wiring:
 
 require __DIR__.'/vendor/autoload.php';
 
-use Mcp\Capability\Attribute\McpResource;
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Server;
+use Mcp\Server\Capability\Attribute\McpResource;
+use Mcp\Server\Capability\Attribute\McpTool;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StdioTransport;
 
 class Calculator
@@ -84,7 +84,7 @@ The walkthrough in [First server](docs/get-started/first-server.md) explains eac
 ## Build a client
 
 ```php
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Transport\StdioTransport;
 
 $client = Client::builder()

@@ -12,8 +12,8 @@
 namespace Mcp\Tests\Integration;
 
 use Mcp\Client\CancellationTokenInterface;
-use Mcp\Exception\RequestCancelledException;
-use Mcp\Exception\TimeoutException;
+use Mcp\Client\Exception\RequestCancelledException;
+use Mcp\Client\Exception\TimeoutException;
 use PHPUnit\Framework\Attributes\TestDox;
 
 final class CancellationTest extends IntegrationTestCase

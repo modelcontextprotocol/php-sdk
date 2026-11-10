@@ -11,8 +11,8 @@
 
 namespace Mcp\Schema\Notification;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\LoggingLevel;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Notification;
 
 /**

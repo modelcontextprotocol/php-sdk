@@ -17,7 +17,7 @@ registration with `Builder::add()`.
 
 **Example:**
 ```php
-use Mcp\Server;
+use Mcp\Server\Server;
 
 $server = Server::builder()
     ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])  // Automatic discovery
@@ -61,7 +61,7 @@ an invokable object, fail when the elements load:
 4. **Invokable class name**: `InvokableClass::class` - class must be constructable through the container and have `__invoke` method
 
 !!! note
-    A custom loader implements `Mcp\Capability\Registry\Loader\LoaderInterface` and is added with `Builder::addLoader()`. It can register an element with the id of a callable service from your container as the handler (e.g. `app.weather_handler`).
+    A custom loader implements `Mcp\Server\Capability\Registry\Loader\LoaderInterface` and is added with `Builder::addLoader()`. It can register an element with the id of a callable service from your container as the handler (e.g. `app.weather_handler`).
 
     `addTool()`, `addResource()`, `addResourceTemplate()` and `addPrompt()` don't accept service ids. A bad handler fails when the elements load, by default on the first registry read. The SDK logs a `ConfigurationException` and answers that request with `-32603` `Internal server error.`. With `setLazyLoading(false)`, `build()` throws the exception.
 
@@ -212,9 +212,9 @@ resource template handlers receive the URI and the parsed template variables.
 
 ```php
 use Mcp\Schema\Tool;
-use Mcp\Server;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\ToolHandlerInterface;
+use Mcp\Server\Server;
 
 final class WeatherHandler implements ToolHandlerInterface
 {
@@ -242,7 +242,7 @@ $server = Server::builder()
 ```
 
 `Builder::add()` validates the pairing at registration time. Pairing a `Tool` definition with, for example, a
-`PromptHandlerInterface` raises `Mcp\Exception\InvalidArgumentException`.
+`PromptHandlerInterface` raises `Mcp\Server\Exception\InvalidArgumentException`.
 
 The schema value objects validate some of their own input as well. `Tool` requires an object-typed input schema.
 `ResourceDefinition` and `ResourceTemplate` check the URI.

@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Unit\Server\Stateless;
 
-use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Request;
+use Mcp\Schema\MessageFactory;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Request\ListToolsRequest;

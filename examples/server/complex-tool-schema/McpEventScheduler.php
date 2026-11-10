@@ -11,9 +11,9 @@
 
 namespace Mcp\Example\Server\ComplexToolSchema;
 
-use Mcp\Capability\Attribute\McpTool;
 use Mcp\Example\Server\ComplexToolSchema\Model\EventPriority;
 use Mcp\Example\Server\ComplexToolSchema\Model\EventType;
+use Mcp\Server\Capability\Attribute\McpTool;
 use Psr\Log\LoggerInterface;
 
 final class McpEventScheduler

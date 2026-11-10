@@ -9,8 +9,8 @@
  * file that was distributed with this source code.
  */
 
-use Mcp\Capability\Attribute\Schema;
-use Mcp\Server;
+use Mcp\Server\Capability\Attribute\Schema;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StdioTransport;
 use Mcp\Tests\Unit\Fixtures\Enum\BackedIntEnum;
 

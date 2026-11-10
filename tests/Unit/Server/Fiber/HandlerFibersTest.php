@@ -11,10 +11,10 @@
 
 namespace Mcp\Tests\Unit\Server\Fiber;
 
-use Mcp\Exception\LogicException;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Schema\Request\PingRequest;
+use Mcp\Server\Exception\LogicException;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\Fiber\FiberSettlement;
 use Mcp\Server\Fiber\HandlerFibers;

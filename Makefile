@@ -1,4 +1,4 @@
-.PHONY: deps-stable deps-low cs phpstan tests unit-tests integration-tests interop-tests e2e-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client conformance-client-extensions conformance-draft conformance-draft-server conformance-draft-client docs docs-guides docs-api docs-serve
+.PHONY: deps-stable deps-low cs phpstan deptrac tests unit-tests integration-tests interop-tests e2e-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client conformance-client-extensions conformance-draft conformance-draft-server conformance-draft-client docs docs-guides docs-api docs-serve
 
 # The 2026-07-28 scenarios ship on the `alpha` dist-tag; `latest` (0.1.x) has
 # none of them. Pinned to the same version CI runs (see
@@ -22,6 +22,9 @@ cs:
 
 phpstan:
 	vendor/bin/phpstan --memory-limit=-1
+
+deptrac:
+	vendor/bin/deptrac analyse
 
 tests:
 	vendor/bin/phpunit
@@ -83,9 +86,9 @@ coverage:
 
 ci: ci-stable
 
-ci-stable: deps-stable cs phpstan tests
+ci-stable: deps-stable cs phpstan deptrac tests
 
-ci-lowest: deps-low cs phpstan tests
+ci-lowest: deps-low cs phpstan deptrac tests
 
 # The published site is the guides (Zensical) with the phpDocumentor API
 # reference mounted at /api/. `zensical build` wipes site/, so it runs first.

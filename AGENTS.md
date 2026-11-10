@@ -11,9 +11,10 @@ It is a PHP Foundation × Symfony collaboration and follows Symfony's coding sta
 composer install
 npm ci --include=dev --prefix tests/Interop   # once; without it the interop suite fails with setup noise
 
-make ci                  # composer update --prefer-stable, cs, phpstan, all PHPUnit suites
+make ci                  # composer update --prefer-stable, cs, phpstan, deptrac, all PHPUnit suites
 make cs                  # php-cs-fixer (auto-fixes; @Symfony + @Symfony:risky + file header)
 make phpstan             # static analysis (phpstan.dist.neon + phpstan-baseline.neon)
+make deptrac             # package boundaries: Schema depends on nothing, Client and Server on Schema only
 make unit-tests          # tests/Unit
 make integration-tests   # tests/Integration — our client against our server
 make interop-tests       # tests/Interop — needs Node; MCP Inspector + TS reference server
@@ -73,13 +74,13 @@ by issuing real `elicitation/create`/`sampling/createMessage` requests and re-ru
 
 ### Capabilities (tools, resources, prompts)
 
-- Elements are declared with attributes (`Capability\Attribute\McpTool`, `McpResource`, `McpPrompt`, …) or registered
+- Elements are declared with attributes (`Server\Capability\Attribute\McpTool`, `McpResource`, `McpPrompt`, …) or registered
   explicitly on the builder.
-- `Capability\Registry\Loader\*` populate the `Registry`: `DiscoveryLoader` scans directories (needs
+- `Server\Capability\Registry\Loader\*` populate the `Registry`: `DiscoveryLoader` scans directories (needs
   `symfony/finder`), `ReflectedElementLoader` handles `addTool()` & co, `ExplicitElementLoader` handles `Builder::add()`,
   chained by `ChainLoader`.
-- `Capability\Discovery\*` derives JSON schemas from signatures and docblocks; `Registry\ReferenceHandler` invokes the
-  element, injecting `RequestContext` and container services; `Capability\Formatter\*` turns return values into
+- `Server\Capability\Discovery\*` derives JSON schemas from signatures and docblocks; `Registry\ReferenceHandler` invokes the
+  element, injecting `RequestContext` and container services; `Server\Capability\Formatter\*` turns return values into
   content.
 
 ### Client
@@ -92,13 +93,14 @@ and reconnect policy).
 
 `Schema\*` holds the MCP types (requests, results, notifications, content, enums) as immutable value objects
 serialized via `jsonSerialize()`; requests and notifications extend `Schema\JsonRpc\Request`/`Notification` and
-implement `getMethod()`, `fromParams()` and `getParams()`. `JsonRpc\*` parses and builds raw messages. `Schema\Extension\*` is the generic seam
+implement `getMethod()`, `fromParams()` and `getParams()`. `Schema\MessageFactory` parses raw messages. `Schema\Extension\*` is the generic seam
 for protocol extensions (`ExtensionInterface`, e.g. `Apps`); core handlers, `RequestContext` and `Client` must not
 reference concrete extension types.
 
 ## Conventions
 
-- Throw `Mcp\Exception\*` (all implement `ExceptionInterface`), never native SPL exceptions.
+- Throw the `Exception\*` of the package you are in (`Mcp\Schema`, `Mcp\Client` or `Mcp\Server`; all implement
+  `Mcp\Schema\Exception\ExceptionInterface`), never native SPL exceptions.
 - No `suggest` in `composer.json`: code that needs an optional package or extension checks for it and throws an
   exception that names what to install.
 - Add an `@author` tag to newly introduced classes.

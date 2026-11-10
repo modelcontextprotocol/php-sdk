@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Content;
 
-use Mcp\Exception\LogicException;
+use Mcp\Schema\Exception\LogicException;
 
 /**
  * @internal

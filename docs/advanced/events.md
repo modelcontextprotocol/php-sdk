@@ -8,8 +8,8 @@ Configure an event dispatcher when building your server. This example uses `symf
 implementation you can install with `composer require symfony/event-dispatcher`:
 
 ```php
-use Mcp\Event\RequestEvent;
-use Mcp\Server;
+use Mcp\Server\Event\RequestEvent;
+use Mcp\Server\Server;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
 $dispatcher = new EventDispatcher();
@@ -137,9 +137,9 @@ To change the lists at runtime and react to it, create the registry yourself and
 `setEventDispatcher()` doesn't reach a registry you pass with `setRegistry()`:
 
 ```php
-use Mcp\Capability\Registry;
-use Mcp\Event\ToolListChangedEvent;
-use Mcp\Server;
+use Mcp\Server\Capability\Registry;
+use Mcp\Server\Event\ToolListChangedEvent;
+use Mcp\Server\Server;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 

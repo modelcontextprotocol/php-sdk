@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Extension\Apps;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Metadata for the _meta.ui field on resource content in a resources/read response.

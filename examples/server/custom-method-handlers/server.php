@@ -17,7 +17,7 @@ use Mcp\Example\Server\CustomMethodHandlers\CallToolRequestHandler;
 use Mcp\Example\Server\CustomMethodHandlers\ListToolsRequestHandler;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionStore;
 
 logger()->info('Starting MCP Custom Method Handlers Server...');

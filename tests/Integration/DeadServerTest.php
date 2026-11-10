@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Integration;
 
-use Mcp\Exception\ConnectionException;
-use Mcp\Exception\ExceptionInterface;
+use Mcp\Client\Exception\ConnectionException;
+use Mcp\Client\Exception\ExceptionInterface;
 use Mcp\Schema\Enum\ProtocolVersion;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;

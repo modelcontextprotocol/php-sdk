@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Transport\Http\OAuth;
 
-use Mcp\Exception\JwksRefreshRateLimitException;
+use Mcp\Server\Exception\JwksRefreshRateLimitException;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;

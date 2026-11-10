@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Session;
 
-use Mcp\Exception\SessionStoreException;
+use Mcp\Server\Exception\SessionStoreException;
 use Symfony\Component\Uid\Uuid;
 
 /**

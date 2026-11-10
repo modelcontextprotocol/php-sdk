@@ -14,8 +14,8 @@ chdir(__DIR__);
 
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\ServerCapabilities;
-use Mcp\Server;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionStore;
 
 $server = Server::builder()

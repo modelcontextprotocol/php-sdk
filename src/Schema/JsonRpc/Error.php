@@ -11,9 +11,9 @@
 
 namespace Mcp\Schema\JsonRpc;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * A response to a request that indicates an error occurred.

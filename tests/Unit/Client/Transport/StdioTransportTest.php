@@ -11,15 +11,15 @@
 
 namespace Mcp\Tests\Unit\Client\Transport;
 
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Configuration;
+use Mcp\Client\Exception\ConnectionException;
+use Mcp\Client\Exception\InvalidArgumentException;
 use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
 use Mcp\Client\Protocol;
 use Mcp\Client\State\ClientState;
 use Mcp\Client\Transport\StdioTransport;
 use Mcp\Client\Transport\TransportInterface;
-use Mcp\Exception\ConnectionException;
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;

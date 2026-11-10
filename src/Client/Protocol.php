@@ -11,6 +11,9 @@
 
 namespace Mcp\Client;
 
+use Mcp\Client\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\RequestCancelledException;
+use Mcp\Client\Exception\TimeoutException;
 use Mcp\Client\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Client\Handler\Notification\ProgressNotificationHandler;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
@@ -23,26 +26,23 @@ use Mcp\Client\Stateless\ToolCatalog;
 use Mcp\Client\Transport\HeaderAwareTransportInterface;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Client\Transport\TransportInterface;
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\InvalidInputMessageException;
-use Mcp\Exception\RequestCancelledException;
-use Mcp\Exception\TimeoutException;
-use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Exception\InvalidInputMessageException;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\MessageFactory;
 use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Schema\Notification\InitializedNotification;
 use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Request\InitializeRequest;
+use Mcp\Schema\RequestMeta;
 use Mcp\Schema\Result\InitializeResult;
 use Mcp\Schema\ServerCapabilities;
-use Mcp\Server\Stateless\RequestMeta;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 

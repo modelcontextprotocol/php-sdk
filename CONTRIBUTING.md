@@ -31,7 +31,7 @@ make ci
 ```
 
 This runs, in order: `make deps-stable` (`composer update --prefer-stable`), `make cs`
-(PHP CS Fixer, auto-fixes style), `make phpstan` (static analysis) and `make tests` (all PHPUnit
+(PHP CS Fixer, auto-fixes style), `make phpstan` (static analysis), `make deptrac` (package boundaries) and `make tests` (all PHPUnit
 suites). All of them must pass.
 
 The interop suite runs against Node packages. Install them once before you run `make ci` or

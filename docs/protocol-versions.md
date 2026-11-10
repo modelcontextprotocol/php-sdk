@@ -113,7 +113,7 @@ A client speaks both eras out of the box. It prefers `2026-07-28`, and finds out
 depends on the answer.
 
 ```php
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Schema\ClientCapabilities;
 

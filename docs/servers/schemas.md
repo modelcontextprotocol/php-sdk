@@ -16,7 +16,7 @@ The server follows this order of precedence:
 ## Automatic Schema from PHP Types
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\McpTool;
 
 #[McpTool]
 public function processUser(
@@ -33,7 +33,7 @@ public function processUser(
 The generator also reads these parts of the signature:
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\McpTool;
 use Mcp\Server\RequestContext;
 
 enum Unit: string
@@ -67,8 +67,8 @@ In this example:
 Add validation rules to specific parameters:
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Capability\Attribute\Schema;
+use Mcp\Server\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\Schema;
 
 #[McpTool]
 public function validateUser(
@@ -95,8 +95,8 @@ public function validateUser(
 Add validation for complex object structures:
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Capability\Attribute\Schema;
+use Mcp\Server\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\Schema;
 
 #[McpTool]
 #[Schema(
@@ -125,8 +125,8 @@ public function createUser(array $userData): array
 **Use sparingly** - bypasses all automatic inference:
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Capability\Attribute\Schema;
+use Mcp\Server\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\Schema;
 
 #[McpTool]
 #[Schema(definition: [
@@ -156,8 +156,8 @@ To replace the schema of one parameter only, put `definition` on the parameter. 
 still added:
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Capability\Attribute\Schema;
+use Mcp\Server\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\Schema;
 
 #[McpTool]
 public function getForecast(
@@ -224,7 +224,7 @@ The SDK also validates structured tool output against the tool's `outputSchema`,
 The type of a parameter decides how your method receives a JSON object:
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\McpTool;
 
 /**
  * @param array<string, mixed> $filters
@@ -263,8 +263,8 @@ The SDK validates with [opis/json-schema](https://opis.io/json-schema/). To conf
 external `$ref` schemas, pass your own `SchemaValidator` to `Builder::setSchemaValidator()`:
 
 ```php
-use Mcp\Capability\Discovery\SchemaValidator;
-use Mcp\Server;
+use Mcp\Server\Capability\Discovery\SchemaValidator;
+use Mcp\Server\Server;
 use Opis\JsonSchema\Validator;
 
 $validator = new Validator();

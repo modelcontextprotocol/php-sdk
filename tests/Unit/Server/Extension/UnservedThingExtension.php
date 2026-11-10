@@ -34,9 +34,4 @@ final class UnservedThingExtension implements ExtensionInterface
     {
         return [ThingListRequest::class];
     }
-
-    public function getRequestHandlers(): iterable
-    {
-        return [];
-    }
 }

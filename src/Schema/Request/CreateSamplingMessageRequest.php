@@ -11,12 +11,12 @@
 
 namespace Mcp\Schema\Request;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\SamplingMessage;
 use Mcp\Schema\Content\ToolResultContent;
 use Mcp\Schema\Content\ToolUseContent;
 use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Enum\SamplingContext;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\ModelPreferences;
 use Mcp\Schema\Tool;

@@ -6,7 +6,7 @@ result or throws. A tool can report its own failure in the result, see
 [Tool errors](errors.md#tool-errors).
 
 ```php
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Transport\StdioTransport;
 
 // Build and configure the client

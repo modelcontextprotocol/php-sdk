@@ -11,8 +11,7 @@
 
 namespace Mcp\Client\Auth;
 
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Server\Transport\Http\OAuth\SecureUrl;
+use Mcp\Client\Exception\InvalidArgumentException;
 
 /**
  * What an MCP server publishes about itself as a protected resource (RFC 9728).

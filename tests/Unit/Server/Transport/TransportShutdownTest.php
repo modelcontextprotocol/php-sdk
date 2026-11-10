@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
-use Mcp\Exception\SessionStoreException;
+use Mcp\Server\Exception\SessionStoreException;
 use Mcp\Server\Transport\InMemoryTransport;
 use Mcp\Server\Transport\StdioTransport;
 use Mcp\Server\Transport\TransportInterface;

@@ -12,7 +12,7 @@
 namespace Mcp\Tests\Interop\Server\Http;
 
 use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Schema\RequestMeta;
 use PHPUnit\Framework\Attributes\TestDox;
 
 final class HttpReactPhpTest extends HttpInspectorSnapshotTestCase

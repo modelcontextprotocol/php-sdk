@@ -13,15 +13,14 @@ require_once dirname(__DIR__, 2).'/vendor/autoload.php';
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
-use Mcp\Client;
 use Mcp\Client\Auth\AuthenticatorInterface;
 use Mcp\Client\Auth\CrossAppAccess;
 use Mcp\Client\Auth\HeadlessAuthorizationHandler;
 use Mcp\Client\Auth\MetadataDiscovery;
 use Mcp\Client\Auth\OAuth;
+use Mcp\Client\Client;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
 use Mcp\Client\Transport\HttpTransport;
-use Mcp\Exception\RuntimeException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ElicitAction;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -29,6 +28,7 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\ElicitResult;
+use Mcp\Server\Exception\RuntimeException;
 use Mcp\Tests\Conformance\FileLogger;
 
 $url = $argv[1] ?? null;

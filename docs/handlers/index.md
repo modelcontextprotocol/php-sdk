@@ -5,9 +5,9 @@ protocol. Type-hint a `Mcp\Server\RequestContext` argument anywhere in the signa
 the SDK passes it in — that object is the way back to the client mid-request.
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
+use Mcp\Server\Capability\Attribute\McpTool;
 use Mcp\Server\RequestContext;
 
 #[McpTool]

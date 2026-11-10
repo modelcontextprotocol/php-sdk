@@ -11,7 +11,6 @@
 
 namespace Mcp\Tests\Unit\Schema\Elicitation;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Elicitation\BooleanSchemaDefinition;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\EnumSchemaDefinition;
@@ -20,6 +19,7 @@ use Mcp\Schema\Elicitation\NumberSchemaDefinition;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Elicitation\TitledEnumSchemaDefinition;
 use Mcp\Schema\Elicitation\TitledMultiSelectEnumSchemaDefinition;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 final class ElicitationSchemaTest extends TestCase

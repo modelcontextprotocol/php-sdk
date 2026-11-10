@@ -14,14 +14,15 @@ namespace Mcp\Client\Transport;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Client\Auth\AuthenticatingHttpClient;
 use Mcp\Client\Auth\AuthenticatorInterface;
+use Mcp\Client\Exception\AuthorizationException;
+use Mcp\Client\Exception\AuthorizationPendingException;
+use Mcp\Client\Exception\ConnectionException;
+use Mcp\Client\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\RequestCancelledException;
+use Mcp\Client\Exception\RequestException;
+use Mcp\Client\Exception\TimeoutException;
 use Mcp\Client\MonotonicClock;
-use Mcp\Exception\AuthorizationException;
-use Mcp\Exception\AuthorizationPendingException;
-use Mcp\Exception\ConnectionException;
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\RequestCancelledException;
-use Mcp\Exception\RequestException;
-use Mcp\Exception\TimeoutException;
+use Mcp\Schema\Exception\InvalidArgumentException as SchemaInvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Wire\McpHeader;
@@ -531,7 +532,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     {
         try {
             \array_key_exists('error', $answer) ? Error::fromArray($answer) : Response::fromArray($answer);
-        } catch (InvalidArgumentException) {
+        } catch (SchemaInvalidArgumentException) {
             return false;
         }
 

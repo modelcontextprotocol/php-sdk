@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Wire;
 
-use Mcp\JsonRpc\Json;
+use Mcp\Schema\Json;
 
 /**
  * The HTTP header vocabulary that mirrors a request's JSON-RPC body (SEP-2243).
@@ -244,6 +244,22 @@ final class McpHeader
                 if (\is_array($subschema) && null !== $found = self::findUnreachable($subschema, $subpath, false)) {
                     return $found;
                 }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Case-insensitive header lookup, since PSR-7 preserves the sender's casing.
+     *
+     * @param array<string, string> $headers
+     */
+    public static function lookup(array $headers, string $name): ?string
+    {
+        foreach ($headers as $key => $value) {
+            if (0 === strcasecmp($key, $name)) {
+                return '' === $value ? null : $value;
             }
         }
 

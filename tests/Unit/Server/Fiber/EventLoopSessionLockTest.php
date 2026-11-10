@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Fiber;
 
-use Mcp\Exception\SessionLockException;
+use Mcp\Server\Exception\SessionLockException;
 use Mcp\Server\Fiber\EventLoopSessionLock;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\Fiber\FiberSettlement;

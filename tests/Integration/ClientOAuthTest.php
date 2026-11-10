@@ -11,16 +11,16 @@
 
 namespace Mcp\Tests\Integration;
 
-use Mcp\Client;
 use Mcp\Client\Auth\FileCredentialStorage;
 use Mcp\Client\Auth\HeadlessAuthorizationHandler;
 use Mcp\Client\Auth\InMemoryCredentialStorage;
 use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Auth\RedirectAuthorizationHandler;
+use Mcp\Client\Client;
+use Mcp\Client\Exception\AuthorizationException;
+use Mcp\Client\Exception\AuthorizationPendingException;
+use Mcp\Client\Exception\ConnectionException;
 use Mcp\Client\Transport\HttpTransport;
-use Mcp\Exception\AuthorizationException;
-use Mcp\Exception\AuthorizationPendingException;
-use Mcp\Exception\ConnectionException;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;

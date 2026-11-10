@@ -11,12 +11,12 @@
 
 namespace Mcp\Tests\Unit\Schema\Content;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\SamplingMessage;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\ToolResultContent;
 use Mcp\Schema\Content\ToolUseContent;
 use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 final class SamplingMessageTest extends TestCase

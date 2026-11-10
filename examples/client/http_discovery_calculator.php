@@ -23,7 +23,7 @@
 
 require_once __DIR__.'/../../vendor/autoload.php';
 
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Transport\HttpTransport;
 
 $endpoint = getenv('MCP_SERVER_URL') ?: 'http://localhost:8000';
