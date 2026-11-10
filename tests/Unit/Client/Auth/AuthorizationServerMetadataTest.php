@@ -42,6 +42,26 @@ final class AuthorizationServerMetadataTest extends TestCase
         $this->assertFalse($metadata->supportsScope('mcp:write'));
     }
 
+    #[TestDox('the metadata survives being stored and read back')]
+    public function testRoundTrip(): void
+    {
+        $document = [
+            'issuer' => 'https://auth.example.com',
+            'authorization_endpoint' => 'https://login.example.com/authorize',
+            'token_endpoint' => 'https://auth.example.com/token',
+            'registration_endpoint' => 'https://auth.example.com/register',
+            'scopes_supported' => ['mcp:read', 'offline_access'],
+            'grant_types_supported' => ['authorization_code', 'refresh_token'],
+            'token_endpoint_auth_methods_supported' => ['private_key_jwt'],
+            'code_challenge_methods_supported' => ['S256'],
+            'client_id_metadata_document_supported' => true,
+            'authorization_response_iss_parameter_supported' => true,
+        ];
+
+        $this->assertSame($document, AuthorizationServerMetadata::fromArray($document)->jsonSerialize());
+        $this->assertEquals(AuthorizationServerMetadata::forLegacyServer('https://auth.example.com'), AuthorizationServerMetadata::fromArray(AuthorizationServerMetadata::forLegacyServer('https://auth.example.com')->jsonSerialize()));
+    }
+
     #[TestDox('a document missing an endpoint the client needs is rejected')]
     public function testRequiresEndpoints(): void
     {
