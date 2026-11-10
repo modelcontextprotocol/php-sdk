@@ -88,6 +88,11 @@ final class AuthorizationServerMetadata implements \JsonSerializable
                 throw new InvalidArgumentException(\sprintf('The authorization server metadata of "%s" declares "%s" as "%s", which is a loopback address.', $data['issuer'], $endpoint, $data[$endpoint]));
             }
 
+            // Nor may a server outside a private network send the client into one.
+            if (SecureUrl::isPrivateNetwork($data[$endpoint]) && \is_string($data['issuer'] ?? null) && !SecureUrl::isPrivateNetwork($data['issuer']) && !SecureUrl::isLoopback($data['issuer'])) {
+                throw new InvalidArgumentException(\sprintf('The authorization server metadata of "%s" declares "%s" as "%s", which is an address of a private network.', $data['issuer'], $endpoint, $data[$endpoint]));
+            }
+
             $parts = SecureUrl::parse($data[$endpoint], $endpoint);
 
             // RFC 6749 sections 3.1 and 3.2 rule out fragments; RFC 9110 section 4.2.4 treats untrusted userinfo as an error.

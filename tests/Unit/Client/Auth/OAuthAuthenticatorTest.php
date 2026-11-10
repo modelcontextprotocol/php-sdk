@@ -980,6 +980,40 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame([], array_filter($server->requested, static fn (string $url): bool => str_starts_with($url, $issuer)));
     }
 
+    #[TestWith(['https://169.254.169.254'])]
+    #[TestWith(['https://10.0.0.5'])]
+    #[TestWith(['https://[fd00::1]'])]
+    #[TestDox('a remote server can not make the client request an address of a private network')]
+    public function testRefusesAPrivateNetworkIssuerOfARemoteServer(string $issuer): void
+    {
+        $server = new FakeOAuthServer(authorizationServer: $issuer);
+
+        try {
+            $this->authenticator($server)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The authorization server in a private network was not refused.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('private network', $e->getMessage());
+        }
+
+        $this->assertSame([], array_filter($server->requested, static fn (string $url): bool => str_starts_with($url, $issuer)));
+    }
+
+    #[TestDox('an application can allow an authorization server in a private network with the expected issuer')]
+    public function testExpectedIssuerAllowsAPrivateNetworkIssuer(): void
+    {
+        $server = new FakeOAuthServer(authorizationServer: 'https://10.0.0.5');
+        $configuration = OAuth::forApplication('test')->setExpectedIssuer('https://10.0.0.5');
+
+        try {
+            $this->authenticator($server, configuration: $configuration)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The fake server has no metadata for this issuer.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('No usable metadata', $e->getMessage());
+        }
+
+        $this->assertNotSame([], array_filter($server->requested, static fn (string $url): bool => str_contains($url, '10.0.0.5')));
+    }
+
     #[TestDox('another type of token from the identity provider is not presented as a grant')]
     public function testCrossAppAccessRefusesAnotherTokenType(): void
     {

@@ -129,4 +129,30 @@ final class SecureUrlTest extends TestCase
     {
         $this->assertSame($loopback, SecureUrl::isLoopback($url));
     }
+
+    /**
+     * @return iterable<string, array{string, bool}>
+     */
+    public static function providePrivateNetworkUrls(): iterable
+    {
+        yield '10/8' => ['https://10.0.0.5/x', true];
+        yield 'upper end of 172.16/12' => ['https://172.31.255.1/x', true];
+        yield 'above 172.16/12' => ['https://172.32.0.1/x', false];
+        yield '192.168/16' => ['https://192.168.1.1/x', true];
+        yield 'link-local metadata service' => ['https://169.254.169.254/x', true];
+        yield 'shared address space' => ['https://100.100.100.200/x', true];
+        yield 'above the shared address space' => ['https://100.128.0.1/x', false];
+        yield 'unique local IPv6' => ['https://[fd00::1]/x', true];
+        yield 'link-local IPv6' => ['https://[fe80::1]/x', true];
+        yield 'public IPv4' => ['https://8.8.8.8/x', false];
+        yield 'public IPv6' => ['https://[2001:db8::1]/x', false];
+        yield 'loopback' => ['https://127.0.0.1/x', false];
+        yield 'a name, which is not resolved' => ['https://internal.corp/x', false];
+    }
+
+    #[DataProvider('providePrivateNetworkUrls')]
+    public function testDetectsPrivateNetworkUrls(string $url, bool $private): void
+    {
+        $this->assertSame($private, SecureUrl::isPrivateNetwork($url));
+    }
 }

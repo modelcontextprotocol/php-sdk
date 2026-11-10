@@ -156,6 +156,35 @@ final class AuthorizationServerMetadataTest extends TestCase
         $this->assertSame('http://localhost:9000/token', $metadata->tokenEndpoint);
     }
 
+    #[TestWith(['token_endpoint'])]
+    #[TestWith(['authorization_endpoint'])]
+    #[TestWith(['registration_endpoint'])]
+    #[TestDox('a remote authorization server can not name an endpoint in a private network')]
+    public function testRejectsAPrivateNetworkEndpointOfARemoteServer(string $endpoint): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('private network');
+
+        AuthorizationServerMetadata::fromArray([
+            'issuer' => 'https://auth.example.com',
+            'authorization_endpoint' => 'https://auth.example.com/authorize',
+            'token_endpoint' => 'https://auth.example.com/token',
+            $endpoint => 'https://169.254.169.254/x',
+        ]);
+    }
+
+    #[TestDox('an authorization server in a private network can name endpoints there')]
+    public function testAcceptsPrivateNetworkEndpointsOfAPrivateServer(): void
+    {
+        $metadata = AuthorizationServerMetadata::fromArray([
+            'issuer' => 'https://10.0.0.5',
+            'authorization_endpoint' => 'https://10.0.0.5/authorize',
+            'token_endpoint' => 'https://10.0.0.6/token',
+        ]);
+
+        $this->assertSame('https://10.0.0.6/token', $metadata->tokenEndpoint);
+    }
+
     #[TestDox('an unstated grant list means the authorization code grant, and nothing else')]
     public function testDefaultGrantTypes(): void
     {

@@ -66,6 +66,36 @@ final class SecureUrl
         return \is_string($host) && self::isLoopbackHost($host);
     }
 
+    /**
+     * Whether a URL names an address of a private or link-local network as an IP literal; a name is not resolved.
+     */
+    public static function isPrivateNetwork(string $url): bool
+    {
+        $host = parse_url($url, \PHP_URL_HOST);
+        $host = \is_string($host) ? trim($host, '[]') : '';
+
+        if (false === filter_var($host, \FILTER_VALIDATE_IP)) {
+            return false;
+        }
+
+        $address = (string) inet_pton($host);
+        $ranges = 4 === \strlen($address)
+            ? [['10.0.0.0', 8], ['172.16.0.0', 12], ['192.168.0.0', 16], ['169.254.0.0', 16], ['100.64.0.0', 10]]
+            : [['fc00::', 7], ['fe80::', 10]];
+
+        foreach ($ranges as [$network, $bits]) {
+            $prefix = (string) inet_pton($network);
+            $bytes = intdiv($bits, 8);
+            $mask = 0xFF << (8 - $bits % 8) & 0xFF;
+
+            if (0 === substr_compare($address, $prefix, 0, $bytes) && (0 === $bits % 8 || (\ord($address[$bytes]) & $mask) === \ord($prefix[$bytes]))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // Each of these can reach this machine or a private network without looking like it.
     private static function hidesItsAddress(string $host): bool
     {

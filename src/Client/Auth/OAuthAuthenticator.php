@@ -274,6 +274,10 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             throw new AuthorizationException(\sprintf('The protected resource metadata for "%s" names "%s" as its authorization server, which is a loopback address. Call OAuth::setExpectedIssuer() if that is intended.', $endpoint, $issuer));
         }
 
+        if (SecureUrl::isPrivateNetwork($issuer) && !SecureUrl::isPrivateNetwork($endpoint) && !SecureUrl::isLoopback($endpoint) && $issuer !== $this->configuration->expectedIssuer) {
+            throw new AuthorizationException(\sprintf('The protected resource metadata for "%s" names "%s" as its authorization server, which is an address of a private network. Call OAuth::setExpectedIssuer() if that is intended.', $endpoint, $issuer));
+        }
+
         $server = $this->discovery->discoverAuthorizationServer($issuer);
 
         if (null === $server) {
