@@ -1465,10 +1465,10 @@ final class OAuthAuthenticatorTest extends TestCase
     public function testRefreshesBeforeSending(): void
     {
         $server = new FakeOAuthServer(refreshTokens: true);
-        $server->expiresIn = 10;
-        $authenticator = $this->authenticator($server);
+        $storage = new InMemoryCredentialStorage();
+        $authenticator = $this->authenticator($server, storage: $storage);
         $authenticator->handleChallenge($this->request(), $server->challenge());
-        $server->expiresIn = 3600;
+        self::ageToken($authenticator, $storage);
 
         $request = $authenticator->authenticate($this->request());
 
@@ -1480,9 +1480,10 @@ final class OAuthAuthenticatorTest extends TestCase
     public function testRefusedRefreshBeforeSendingKeepsTheToken(): void
     {
         $server = new FakeOAuthServer(refreshTokens: true);
-        $server->expiresIn = 10;
-        $authenticator = $this->authenticator($server);
+        $storage = new InMemoryCredentialStorage();
+        $authenticator = $this->authenticator($server, storage: $storage);
         $authenticator->handleChallenge($this->request(), $server->challenge());
+        self::ageToken($authenticator, $storage);
         $server->refreshAnswer = new Response(400, [], (string) json_encode(['error' => 'invalid_client']));
 
         $request = $authenticator->authenticate($this->request());
@@ -1497,9 +1498,10 @@ final class OAuthAuthenticatorTest extends TestCase
     public function testFailedRefreshBeforeSendingIsNotRepeated(int $status, string $error): void
     {
         $server = new FakeOAuthServer(refreshTokens: true);
-        $server->expiresIn = 10;
-        $authenticator = $this->authenticator($server);
+        $storage = new InMemoryCredentialStorage();
+        $authenticator = $this->authenticator($server, storage: $storage);
         $authenticator->handleChallenge($this->request(), $server->challenge());
+        self::ageToken($authenticator, $storage);
         $server->refreshAnswer = new Response($status, [], (string) json_encode(['error' => $error]));
         $tokenRequests = \count(array_filter($server->requested, static fn (string $url): bool => str_ends_with($url, '/token')));
 
@@ -1510,11 +1512,27 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('Bearer access-token-1', $request->getHeaderLine('Authorization'));
     }
 
+    #[TestDox('a token that lives shorter than the leeway is refreshed before sending at most once')]
+    public function testShortLivedTokensAreNotRefreshedBeforeEveryRequest(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $server->expiresIn = 20;
+        $authenticator = $this->authenticator($server);
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+        $tokenRequests = \count(array_filter($server->requested, static fn (string $url): bool => str_ends_with($url, '/token')));
+
+        for ($i = 0; $i < 3; ++$i) {
+            $request = $authenticator->authenticate($this->request());
+        }
+
+        $this->assertCount($tokenRequests, array_filter($server->requested, static fn (string $url): bool => str_ends_with($url, '/token')));
+        $this->assertSame('Bearer access-token-1', $request->getHeaderLine('Authorization'));
+    }
+
     #[TestDox('a storage failure during the refresh before sending keeps the token until it expires')]
     public function testStorageFailureBeforeSendingKeepsTheToken(): void
     {
         $server = new FakeOAuthServer(refreshTokens: true);
-        $server->expiresIn = 10;
         $storage = new class implements CredentialStorageInterface {
             public bool $broken = false;
 
@@ -1561,6 +1579,7 @@ final class OAuthAuthenticatorTest extends TestCase
         };
         $authenticator = $this->authenticator($server, storage: $storage);
         $authenticator->handleChallenge($this->request(), $server->challenge());
+        self::ageToken($authenticator, $storage);
         $storage->broken = true;
 
         $request = $authenticator->authenticate($this->request());
@@ -1633,9 +1652,10 @@ final class OAuthAuthenticatorTest extends TestCase
     public function testNoRefreshBeforeSendingWithoutARefreshToken(): void
     {
         $server = new FakeOAuthServer();
-        $server->expiresIn = 10;
-        $authenticator = $this->authenticator($server);
+        $storage = new InMemoryCredentialStorage();
+        $authenticator = $this->authenticator($server, storage: $storage);
         $authenticator->handleChallenge($this->request(), $server->challenge());
+        self::ageToken($authenticator, $storage);
         $requests = \count($server->requested);
 
         $request = $authenticator->authenticate($this->request());
@@ -2553,6 +2573,19 @@ final class OAuthAuthenticatorTest extends TestCase
     public static function tokenKey(string $grant = 'authorization_code', ?string $clientId = null): string
     {
         return self::ENDPOINT.'#'.$grant.(null === $clientId ? '' : ' '.$clientId);
+    }
+
+    /**
+     * Brings the current token close to its expiry, in the authenticator and in the storage.
+     */
+    private static function ageToken(OAuthAuthenticator $authenticator, CredentialStorageInterface $storage): void
+    {
+        $property = new \ReflectionProperty($authenticator, 'token');
+        $token = $property->getValue($authenticator);
+        \assert($token instanceof AccessToken);
+        $aged = new AccessToken($token->accessToken, $token->tokenType, time() + 10, $token->refreshToken, $token->scopes, $token->clientId);
+        $property->setValue($authenticator, $aged);
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), $aged);
     }
 
     private function request(): RequestInterface

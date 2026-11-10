@@ -47,8 +47,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     private ?AuthorizationServerMetadata $metadata = null;
     private ?ClientRegistration $client = null;
 
-    /** A refresh before sending that failed isn't repeated for the same token, as a down token endpoint would delay every request. */
-    private ?AccessToken $refreshFailedFor = null;
+    /** Not refreshed before sending: a failed refresh would repeat on every request, and so would a token shorter-lived than the leeway. */
+    private ?AccessToken $noRefreshBeforeSending = null;
 
     public function __construct(
         private readonly OAuthConfiguration $configuration,
@@ -193,6 +193,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->audience = $resource;
         $this->metadata = $metadata;
         $this->client = $client;
+        $this->noRefreshBeforeSending = $token->isExpiringSoon() ? $token : null;
 
         return true;
     }
@@ -274,6 +275,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->audience = $pending->resource;
         $this->metadata = $metadata;
         $this->client = $client;
+        $this->noRefreshBeforeSending = $this->token->isExpiringSoon() ? $this->token : null;
         $this->storage->saveToken($metadata->issuer, $this->tokenKey($pending->resource), $this->token);
     }
 
@@ -482,7 +484,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      */
     private function refreshBeforeSending(AccessToken $token, RequestInterface $request, string $resource): AccessToken
     {
-        if (null === $token->refreshToken || null === $this->metadata || $token === $this->refreshFailedFor) {
+        if (null === $token->refreshToken || null === $this->metadata || $token === $this->noRefreshBeforeSending) {
             return $token;
         }
 
@@ -496,19 +498,20 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             $refreshed = $this->refresh($token, $this->metadata, $client, array_values(array_diff($token->scopes, ['offline_access'])), $resource, $request);
         } catch (AuthorizationException|RuntimeException $e) {
             $this->logger->info('Refreshing the access token before sending failed; leaving it to the server\'s challenge.', ['exception' => $e]);
-            $this->refreshFailedFor = $token;
+            $this->noRefreshBeforeSending = $token;
 
             return $token;
         }
 
         if (null === $refreshed) {
-            $this->refreshFailedFor = $token;
+            $this->noRefreshBeforeSending = $token;
 
             return $token;
         }
 
         $this->token = $refreshed;
         $this->client = $client;
+        $this->noRefreshBeforeSending = $refreshed->isExpiringSoon() ? $refreshed : null;
 
         return $refreshed;
     }
