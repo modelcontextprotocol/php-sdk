@@ -24,11 +24,12 @@ Under **Resources**, read `config://calculator/settings` to get the array back a
 ## HTTP
 
 A server behind a web server speaks the [HTTP transport](../run/http.md) instead, so the
-last lines of `server.php` change — `StdioTransport` reads stdin and would just block
-under `php -S`:
+last lines of `server.php` change. `StdioTransport` needs the `STDIN` constant of the CLI,
+so it fails under `php -S`:
 
 ```php title="server.php (HTTP variant)"
 use Http\Discovery\Psr17Factory;
+use Mcp\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
@@ -46,12 +47,16 @@ $response = Server::builder()
 ```
 
 That needs a PSR-17 implementation and an emitter
-(`composer require nyholm/psr7 laminas/laminas-httphandlerrunner`). Start it, then give
-the Inspector its URL:
+(`composer require nyholm/psr7 laminas/laminas-httphandlerrunner`). Start the server:
 
 ```bash
 php -S localhost:8000 server.php
-npx @modelcontextprotocol/inspector http://localhost:8000
+```
+
+Then, in a second terminal, give the Inspector its URL:
+
+```bash
+npx @modelcontextprotocol/inspector --transport http --server-url http://localhost:8000
 ```
 
 `curl` works too, if you would rather see the wire format:

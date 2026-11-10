@@ -23,6 +23,7 @@ use Mcp\Tests\Unit\Capability\Discovery\Fixtures\InvocablePromptFixture;
 use Mcp\Tests\Unit\Capability\Discovery\Fixtures\InvocableResourceFixture;
 use Mcp\Tests\Unit\Capability\Discovery\Fixtures\InvocableResourceTemplateFixture;
 use Mcp\Tests\Unit\Capability\Discovery\Fixtures\InvocableToolFixture;
+use Mcp\Tests\Unit\Capability\Discovery\LeadingEnumFixtures\LeadingEnumToolHandler;
 use PHPUnit\Framework\TestCase;
 
 class DiscoveryTest extends TestCase
@@ -46,6 +47,15 @@ class DiscoveryTest extends TestCase
         $this->assertSame([], $discovery->getPrompts());
         $this->assertSame([], $discovery->getResources());
         $this->assertSame([], $discovery->getResourceTemplates());
+    }
+
+    public function testClassAfterALoadedEnumIsDiscovered(): void
+    {
+        $this->assertTrue(class_exists(LeadingEnumToolHandler::class));
+
+        $discovery = $this->discoverer->discover(__DIR__, ['LeadingEnumFixtures']);
+
+        $this->assertArrayHasKey('after_enum', $discovery->getTools());
     }
 
     public function testDiscoversAllElementTypesCorrectlyFromFixtureFiles(): void

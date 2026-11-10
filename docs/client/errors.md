@@ -1,17 +1,19 @@
-# Error Handling
+# Error handling
 
-Every exception the client throws implements `Mcp\Exception\ExceptionInterface`. Catch it to handle
-all client errors in one place. All classes below live in the `Mcp\Exception` namespace:
+Every exception `Client` throws implements `Mcp\Exception\ExceptionInterface`. Catch it to handle
+client errors in one place. Creating an `HttpTransport` is different: if no PSR-18 client or PSR-17
+factory can be found, the constructor throws an exception from `php-http/discovery`. All classes below
+live in the `Mcp\Exception` namespace:
 
 | Exception | Thrown when |
 | --- | --- |
-| `ConnectionException` | `connect()` fails on every attempt, an HTTP request fails on the network level, or you call a method before `connect()` |
-| `RequestException` | the server answers with an error, the request reaches the default request timeout (code `-32603`, message `Request timed out`), the server answers with an HTTP error status other than `401` or `403`, or the STDIO server process exits while you wait for an answer |
+| `ConnectionException` | `connect()` fails on every attempt, an HTTP request fails on the network level, an HTTP session has expired (status `404`, code `404`), or you call a method on a client that isn't connected |
+| `RequestException` | the server answers with an error, the server answers with an HTTP error status other than `401` or `403`, a redirect or a successful body over the size limit, an interrupted event stream can't be resumed, or the STDIO server process exits while you wait for an answer |
 | `AuthorizationException` | the server answers a request, a notification or the resumption of an event stream with the HTTP status `401` or `403`, or the [OAuth flow](authorization.md) fails |
-| `TimeoutException` | the `timeoutSeconds` deadline of a `callTool()` call expires |
+| `TimeoutException` | the request timeout (`setRequestTimeout()`, for any method) or the `timeoutSeconds` of a `callTool()` call runs out |
 | `RequestCancelledException` | the cancellation token of a `callTool()` call is canceled, see [Cancellation and deadlines](transports.md#cancellation-and-deadlines) |
-| `InvalidArgumentException` | `callTool()` gets a `timeoutSeconds` that is not finite and positive, `readResource()` gets an empty URI, the builder gets an invalid timeout, retry count or fallback revision, the request can't be encoded as JSON (for example invalid UTF-8 in tool arguments), or the server returns a malformed result (also from `connect()`) |
-| `RuntimeException` | `callTool()` calls a tool with malformed `x-mcp-header` annotations, you call `sendRootsListChanged()` without the `rootsListChanged` capability, or, on `2026-07-28`, the server asks for input (elicitation, sampling, roots) that no request handler answers, or whose callback throws |
+| `InvalidArgumentException` | `callTool()` gets a `timeoutSeconds` that is not finite and positive, `readResource()` gets an empty URI, `build()` finds an invalid timeout, retry count or fallback revision, the request can't be encoded as JSON (for example invalid UTF-8 in tool arguments), or the server returns a malformed result |
+| `RuntimeException` | `callTool()` calls a tool that `listTools()` dropped for malformed `x-mcp-header` annotations, you call `sendRootsListChanged()` without the `rootsListChanged` capability, or, on `2026-07-28`, the server asks for input (elicitation, sampling, roots) that no request handler answers, or whose callback throws |
 
 An HTTP error status or an exited server process fails the request at once. The client doesn't
 wait for the request timeout.
@@ -27,6 +29,9 @@ try {
     echo "Failed to connect: {$e->getMessage()}\n";
 }
 ```
+
+A malformed result during `connect()` also throws a `ConnectionException`. In this case, `$e->getPrevious()`
+returns the `InvalidArgumentException`.
 
 ## AuthorizationException
 
@@ -59,7 +64,7 @@ try {
 
 ## TimeoutException
 
-Thrown when the server does not answer within the request timeout. It extends
+Thrown when the request timeout or the `timeoutSeconds` of a `callTool()` call runs out. It extends
 `RequestException`, so catch it first to tell a timeout from an error response:
 
 ```php
@@ -75,12 +80,27 @@ try {
 }
 ```
 
+## Tool errors
+
+A tool can report a failure in its result. In this case, `callTool()` doesn't throw. It returns a result with
+`isError` set to `true`, and the content describes the error:
+
+```php
+$result = $client->callTool('get_weather', ['city' => 'Paris']);
+
+if ($result->isError) {
+    // show $result->content to the user or the model
+}
+```
+
 ## Complete Example
 
-Here's a comprehensive example demonstrating client usage:
+This script connects to a `server.php` next to it, which provides a `process_data` tool:
 
 ```php-file
 <?php
+
+require __DIR__.'/vendor/autoload.php';
 
 use Mcp\Client;
 use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
@@ -115,7 +135,7 @@ $client = Client::builder()
 // Create transport
 $transport = new StdioTransport(
     command: 'php',
-    args: [__DIR__ . '/server.php'],
+    args: [__DIR__.'/server.php'],
 );
 
 // Connect and use server
@@ -151,7 +171,7 @@ try {
         }
     );
     
-    echo "\nResult:\n";
+    echo $result->isError ? "\nTool error:\n" : "\nResult:\n";
     foreach ($result->content as $content) {
         if ($content instanceof TextContent) {
             echo $content->text . "\n";

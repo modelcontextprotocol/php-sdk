@@ -18,6 +18,7 @@ use Mcp\Exception\RegistryException;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
@@ -876,6 +877,22 @@ class CallToolHandlerTest extends TestCase
         $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertTrue($response->result->isError);
         $this->assertStringContainsString("Invalid structured output for tool 'get_weather'", $this->firstText($response->result));
+    }
+
+    public function testScalarStructuredContentGoesOutAsJsonTextToo(): void
+    {
+        $toolReference = $this->createToolReference('conditions', static fn () => 'sunny', ['type' => 'string']);
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn('sunny');
+        $this->session->method('get')->with('protocol_version')->willReturn(ProtocolVersion::V2026_07_28->value);
+
+        $response = $this->handler->handle($this->createCallToolRequest('conditions', []), $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
+        $this->assertSame('sunny', $response->result->structuredContent);
+        $this->assertInstanceOf(TextContent::class, $response->result->content[0]);
+        $this->assertSame('"sunny"', $response->result->content[0]->text);
     }
 
     public function testConformingStructuredContentIsSentUnchanged(): void

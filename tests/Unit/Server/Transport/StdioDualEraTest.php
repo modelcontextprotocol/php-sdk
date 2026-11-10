@@ -481,7 +481,7 @@ final class StdioDualEraTest extends TestCase
     #[TestDox('a listen stream shares the channel, acknowledged and tagged with its subscription')]
     public function testListenStreamIsAcknowledged(): void
     {
-        $lines = $this->exchange(self::builder()->setCapabilities(new ServerCapabilities(toolsListChanged: true)), [
+        $lines = $this->exchange(self::builder()->setCapabilities(new ServerCapabilities(toolsListChanged: true))->setNotificationBus(new InMemoryNotificationBus()), [
             self::modern(5, 'subscriptions/listen', ['notifications' => ['toolsListChanged' => true]]),
             self::modern(6, 'tools/call', ['name' => 'echo', 'arguments' => ['text' => 'still served']]),
             ['jsonrpc' => '2.0', 'method' => 'notifications/cancelled', 'params' => ['requestId' => 5]],
@@ -494,6 +494,49 @@ final class StdioDualEraTest extends TestCase
         $this->assertSame(6, $lines[1]['id']);
         $this->assertSame('still served', $lines[1]['result']['content'][0]['text']);
         $this->assertCount(2, $lines);
+    }
+
+    #[TestDox('without a bus, a listen stream agrees to nothing and ends at once')]
+    public function testListenStreamWithoutBusEndsAtOnce(): void
+    {
+        $lines = $this->exchange(self::builder()->setCapabilities(new ServerCapabilities(toolsListChanged: true)), [
+            self::modern(5, 'subscriptions/listen', ['notifications' => ['toolsListChanged' => true, 'resourceSubscriptions' => ['file:///a']]]),
+        ]);
+
+        $this->assertSame('notifications/subscriptions/acknowledged', $lines[0]['method']);
+        $this->assertSame([], $lines[0]['params']['notifications']);
+        $this->assertSame(5, $lines[1]['id']);
+        $this->assertCount(2, $lines);
+    }
+
+    #[TestDox('server/discover announces resource subscriptions only with a bus')]
+    public function testDiscoverAnnouncesSubscribeOnlyWithBus(): void
+    {
+        $withResource = static fn (): Builder => self::builder()->addResource(static fn (): string => 'text', 'file:///a', 'a');
+
+        $without = $this->serve($withResource(), [self::modern(1, 'server/discover')]);
+        $with = $this->serve($withResource()->setNotificationBus(new InMemoryNotificationBus()), [self::modern(1, 'server/discover')]);
+
+        $this->assertArrayNotHasKey('subscribe', $without[1]['result']['capabilities']['resources']);
+        $this->assertTrue($with[1]['result']['capabilities']['resources']['subscribe']);
+    }
+
+    #[TestDox('a manual element with a bad handler is an internal error on both eras, without its details')]
+    public function testBadManualElementIsAnInternalError(): void
+    {
+        $bad = static fn (): Builder => self::builder()->addTool('Acme\\Missing::handler', name: 'bad', description: 'Bad');
+
+        $modern = $this->serve($bad(), [self::modern(1, 'tools/list')]);
+        $handshake = $this->serve($bad(), [
+            ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'initialize', 'params' => ['protocolVersion' => ProtocolVersion::V2025_11_25->value, 'capabilities' => new \stdClass(), 'clientInfo' => ['name' => 'c', 'version' => '1']]],
+            ['jsonrpc' => '2.0', 'method' => 'notifications/initialized'],
+            ['jsonrpc' => '2.0', 'id' => 2, 'method' => 'tools/list'],
+        ]);
+
+        foreach ([$modern[1], $handshake[2]] as $answer) {
+            $this->assertSame(-32603, $answer['error']['code']);
+            $this->assertSame('Internal server error.', $answer['error']['message']);
+        }
     }
 
     #[TestDox('a notification published while a listen stream is open reaches the client on a later tick, tagged with its subscription')]
@@ -557,7 +600,7 @@ final class StdioDualEraTest extends TestCase
         rewind($input);
 
         $transport = new StdioTransport($input, $output);
-        self::builder()->setCapabilities(new ServerCapabilities(toolsListChanged: true))->build()->run($transport);
+        self::builder()->setCapabilities(new ServerCapabilities(toolsListChanged: true))->setNotificationBus(new InMemoryNotificationBus())->build()->run($transport);
 
         $streams = (new \ReflectionProperty($transport, 'streams'))->getValue($transport);
 
@@ -582,7 +625,7 @@ final class StdioDualEraTest extends TestCase
         rewind($input);
 
         $transport = new StdioTransport($input, $output);
-        self::builder()->setCapabilities(new ServerCapabilities(toolsListChanged: true))->build()->run($transport);
+        self::builder()->setCapabilities(new ServerCapabilities(toolsListChanged: true))->setNotificationBus(new InMemoryNotificationBus())->build()->run($transport);
 
         $streams = (new \ReflectionProperty($transport, 'streams'))->getValue($transport);
 

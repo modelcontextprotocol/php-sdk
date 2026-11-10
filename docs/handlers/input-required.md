@@ -9,11 +9,21 @@ write that: ask for it, or return the ask.
 For elicitation, ask and use the answer:
 
 ```php
-static function (RequestContext $context): string {
+use Mcp\Schema\Elicitation\ElicitationSchema;
+use Mcp\Schema\Elicitation\StringSchemaDefinition;
+use Mcp\Server\RequestContext;
+
+$schema = new ElicitationSchema(['name' => new StringSchemaDefinition('Your name')], ['name']);
+
+$handler = static function (RequestContext $context) use ($schema): string {
     $answer = $context->getClientGateway()->elicit('Your name?', $schema, key: 'who');
 
+    if (!$answer->isAccepted()) {
+        return 'Hello, stranger!';
+    }
+
     return "Hello, {$answer->content['name']}!";
-}
+};
 ```
 
 `key` names an ask, so its answer keeps finding the question it belongs to. Leave it out and
@@ -26,6 +36,10 @@ top, once per question. Everything above an ask therefore has to be safe to repe
 effects after the last one, and re-derive where you are from the answers rather than from
 anything you kept.
 
+Over HTTP, a handshake-era client can answer inside the open request only if the server has
+[sessions](../run/sessions.md#serving-without-sessions). Without them, `elicit()` throws a
+`SessionRequiredException`.
+
 Answers given in an earlier round travel in the [`requestState`](#requeststate), so a handler
 asking more than once needs `Builder::setRequestState()` configured.
 [`examples/server/elicitation`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/elicitation)
@@ -35,8 +49,8 @@ is written this way.
 
 The explicit form: **return** an `InputRequiredResult` naming what you need, and read the
 answer off `RequestContext` when the call comes back. It is more to write, and it is the only
-way to ask several things in **one** round trip, to carry your own state, or to ask for
-anything other than elicitation.
+way to ask several things in **one** round trip or to carry your own state. On revision
+`2026-07-28`, it is also the only way to ask for anything other than elicitation.
 
 > **Revision `2026-07-28`.** Multi round-trip requests (MRTR) are that revision's feature, and
 > only there does the protocol itself carry this shape. Over a handshake-era connection the SDK
@@ -51,12 +65,16 @@ anything other than elicitation.
 
 ```php
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Elicitation\ElicitationSchema;
+use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\RequestContext;
 
-static function (RequestContext $context): CallToolResult|InputRequiredResult {
+$schema = new ElicitationSchema(['name' => new StringSchemaDefinition('Your name')], ['name']);
+
+$handler = static function (RequestContext $context) use ($schema): CallToolResult|InputRequiredResult {
     $answer = $context->getInputContext()?->elicitResult('who');
 
     if (null === $answer) {
@@ -66,8 +84,12 @@ static function (RequestContext $context): CallToolResult|InputRequiredResult {
         );
     }
 
+    if (!$answer->isAccepted()) {
+        return new CallToolResult([new TextContent('Hello, stranger!')]);
+    }
+
     return new CallToolResult([new TextContent("Hello, {$answer->content['name']}!")]);
-}
+};
 ```
 
 `tools/call`, `prompts/get` and `resources/read` may answer this way; nothing else may.
@@ -86,7 +108,7 @@ a state that fails verification never reaches a handler. Configure the key with
 `Builder::setRequestState()`:
 
 ```php
-->setRequestState($_ENV['MCP_REQUEST_STATE_KEY'], ttl: 600)
+->setRequestState(getenv('MCP_REQUEST_STATE_KEY'), ttl: 600)
 ```
 
 When the call comes back, read the verified payload with `requestState()`:
@@ -116,7 +138,7 @@ like a forged state. The value itself never goes on the wire.
 ```php
 use Mcp\Server\Stateless\OriginatingRequestBinder;
 
-->setRequestState($_ENV['MCP_REQUEST_STATE_KEY'], ttl: 600, binder: new OriginatingRequestBinder())
+->setRequestState(getenv('MCP_REQUEST_STATE_KEY'), ttl: 600, binder: new OriginatingRequestBinder())
 ```
 
 `OriginatingRequestBinder` binds the method, the tool or prompt name and a digest of its
@@ -148,7 +170,7 @@ calls in flight for at most one TTL.
 Pass a list of keys instead of one, and the first key signs while every key verifies:
 
 ```php
-->setRequestState([$_ENV['MCP_REQUEST_STATE_KEY'], $_ENV['MCP_REQUEST_STATE_KEY_PREVIOUS']], ttl: 600)
+->setRequestState([getenv('MCP_REQUEST_STATE_KEY'), getenv('MCP_REQUEST_STATE_KEY_PREVIOUS')], ttl: 600)
 ```
 
 Every entry must be a key: once the rotation is done, go back to a single key instead of
@@ -169,9 +191,15 @@ Each key needs at least 32 bytes.
 
 ## Capabilities
 
-A server must not ask for input the client cannot provide. The SDK checks each ask against
-the request's declared capabilities and answers `-32021` — with the missing set in
-`data.requiredCapabilities` — rather than sending an ask that could never be answered.
+A server must not ask for input the client cannot provide. The SDK checks every ask on
+revision `2026-07-28`, and every `InputRequiredResult` on a handshake-era connection, against
+the capabilities the client declared. If one is missing, the SDK doesn't send the ask. It
+answers `-32021`, with the missing capabilities in `data.requiredCapabilities`.
+
+On a handshake-era connection, `elicit()`, `sample()` and `listRoots()` send their request
+without this check. Call `supportsElicitation()`, `supportsSampling()` or `supportsRoots()`
+first.
+
 Url-mode elicitation needs its own `elicitation.url` declaration; a bare `elicitation` means
 form mode only.
 
@@ -199,6 +227,7 @@ code, prefer tool arguments, resource URIs or server configuration.
 
 ## Which revision called
 
-Nothing above forks on it. `elicit()` works the same on every revision — only the mechanics
-underneath differ, and the SDK picks them. The one thing to keep in mind is the rule already
+For elicitation, your handler doesn't fork on it. `elicit()` works on every revision. Only
+the mechanics underneath differ, and the SDK picks them. It needs sessions for handshake-era
+clients over HTTP, as described in [Just asking](#just-asking). The one thing to keep in mind is the rule already
 stated: a handler that asks may be entered again from the top, so let it repeat safely.

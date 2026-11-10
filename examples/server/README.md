@@ -22,7 +22,7 @@ Run with Inspector:
 npx @modelcontextprotocol/inspector php examples/server/discovery-calculator/server.php
 ```
 
-## The 2026-07-28 lifecycle
+## The modern era
 
 `stateless-lifecycle/server.php` demonstrates protocol revision `2026-07-28`, which removed the
 `initialize` handshake and protocol-level sessions. Like every example it answers both eras — the
@@ -74,9 +74,8 @@ themselves, e.g. the progress the `wait` tool reports halfway when the client as
 
 ## Debugging
 
-You can enable debug output by setting the `DEBUG` environment variable to `1`, and additionally log to a file by
-setting the `FILE_LOG` environment variable to `1` as well. A `dev.log` file gets written within the example's
-directory.
+You can enable debug output by setting the `DEBUG` environment variable to `1`. To log to a file instead of STDERR,
+set the `FILE_LOG` environment variable to `1` as well. A `dev.log` file gets written within the example's directory.
 
 With the Inspector you can set the environment variables like this:
 ```bash

@@ -748,8 +748,10 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     private function tick(): void
     {
         $this->processSends();
-        // The send may have been the fiber's last step, leaving nothing to read for.
+        // The send may have been the fiber's last step, leaving only the listening stream to read.
         if ($this->activeFiber?->isTerminated()) {
+            $this->processListenStream();
+
             return;
         }
 
@@ -848,9 +850,17 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             return;
         }
 
-        $done = $this->pumpSse($this->listenStream, $this->listenParser, $this->dispatchSseData(...), function (string $reason): void {
-            $this->logger->warning('Closing the listening stream: '.$reason, ['session_id' => $this->sessionId]);
-        });
+        try {
+            $done = $this->pumpSse($this->listenStream, $this->listenParser, $this->dispatchSseData(...), function (string $reason): void {
+                $this->logger->warning('Closing the listening stream: '.$reason, ['session_id' => $this->sessionId]);
+            });
+        } catch (\Throwable $e) {
+            // The listening stream is optional; losing it must not fail the request in flight.
+            $this->logger->warning('Closing the listening stream after a read failure', ['session_id' => $this->sessionId, 'exception' => $e]);
+            $this->closeListenStream();
+
+            return;
+        }
 
         if ($done) {
             if (null !== $rest = $this->listenParser->rest()) {

@@ -14,6 +14,7 @@ namespace Mcp\Server\Stateless;
 use Mcp\Event\ErrorEvent;
 use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
+use Mcp\Exception\ConfigurationException;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\Exception\LogicException;
 use Mcp\Exception\MissingRequestMetaException;
@@ -355,7 +356,10 @@ final class StatelessProtocol
     private function listen(?array $params, string|int $id, bool $bounded): StatelessResult
     {
         $notifications = \is_array($params['notifications'] ?? null) ? $params['notifications'] : null;
-        $agreed = NotificationFilter::fromParams($notifications)->intersect($this->configuration->capabilities);
+        // Only the bus delivers anything on this stream.
+        $agreed = null === $this->notificationBus
+            ? new NotificationFilter()
+            : NotificationFilter::fromParams($notifications)->intersect($this->configuration->capabilities);
 
         $lifetime = $this->subscriptionLifetime;
         $bus = $this->notificationBus;
@@ -899,7 +903,7 @@ final class StatelessProtocol
             );
         }
 
-        if ($e instanceof \InvalidArgumentException) {
+        if ($e instanceof \InvalidArgumentException && !$e instanceof ConfigurationException) {
             return StatelessResult::error($this->dispatchError(Error::forInvalidParams($e->getMessage(), $id), $request, $session, $e), 400);
         }
 

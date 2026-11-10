@@ -13,7 +13,7 @@ $transport = new StdioTransport(
     command: 'php',
     args: ['/path/to/server.php'],
     cwd: '/working/directory',     // Optional working directory
-    env: ['KEY' => 'value'],       // Optional environment variables
+    env: ['KEY' => 'value'],       // Optional, replaces the inherited environment
 );
 ```
 
@@ -22,12 +22,12 @@ $transport = new StdioTransport(
 - `command` (string): The command to execute
 - `args` (array): Command arguments
 - `cwd` (string|null): Working directory for the process
-- `env` (array|null): Environment variables
+- `env` (array|null): Environment variables of the process. An array replaces the inherited environment, so pass `[...getenv(), 'KEY' => 'value']` to keep it
 - `logger` (LoggerInterface|null): Optional PSR-3 logger
 - `maxBufferSize` (int): Maximum buffered bytes per message before the transport gives up
 
 If the server process exits while a request waits for its answer, the request fails at once with a
-`RequestException`.
+`RequestException`. The next call throws a `ConnectionException` until you call `connect()` again.
 
 On Windows, use PHP 8.5 or newer. With older versions, the client blocks while the server sends no output, and its
 timeouts have no effect.
@@ -66,7 +66,7 @@ $transport = new HttpTransport(
 - `maxResponseBodyBytes` (int): Maximum bytes read from a response body that is not an SSE stream (default: 8 MiB)
 - `auth` (AuthenticatorInterface|null): Credentials for a server that requires authorization, see [Authorization](authorization.md)
 
-When an SSE connection closes before its JSON-RPC response arrives, the transport resumes it with a GET request carrying the latest `Last-Event-ID`. A server-provided SSE `retry` value controls the delay; otherwise the fallback delay doubles from 1 second up to 10 seconds. Completed requests and explicitly closed transports are not reconnected. A server-provided `retry` value is not capped, so a long one leaves the request waiting until its timeout. A reconnect answered with a redirect or a client error (e.g. `404` for an expired session or `405` without GET support) fails the request at once; only `408`, `429`, server errors and a successful answer that is not an event stream are retried. Protocol version `2026-07-28` removed stream resumption, so there an interrupted stream fails the request at once.
+When an SSE connection closes before its JSON-RPC response arrives, the transport resumes it with a GET request carrying the latest `Last-Event-ID`. A stream that sent no event ID can't be resumed, so the request fails at once. A server-provided SSE `retry` value controls the delay; otherwise the fallback delay doubles from 1 second up to 10 seconds. Completed requests and explicitly closed transports are not reconnected. A server-provided `retry` value is not capped, so a long one leaves the request waiting until its timeout. A reconnect answered with a redirect or a client error (e.g. `404` for an expired session or `405` without GET support) fails the request at once; only `408`, `429`, server errors and a successful answer that is not an event stream are retried. Revision `2026-07-28` removed stream resumption, so there an interrupted stream fails the request at once.
 
 To change the attempts or the fallback delays, pass a `ReconnectPolicy`:
 
@@ -90,14 +90,25 @@ The transport automatically discovers PSR-18 HTTP clients from:
 - `symfony/http-client`
 - And other PSR-18 compatible implementations
 
+The transport also discovers PSR-17 factories. `php-http/guzzle7-adapter` installs them with its
+dependencies. With `php-http/curl-client` or `symfony/http-client`, also install a PSR-17
+implementation such as `nyholm/psr7`. If one is missing, the `HttpTransport` constructor throws an
+exception from `php-http/discovery`.
+
 ```bash
-# Install any PSR-18 client - discovery works automatically
+# brings its own PSR-17 factories
 composer require php-http/guzzle7-adapter
+
+# needs a PSR-17 implementation next to it
+composer require symfony/http-client nyholm/psr7
 ```
 
 **Error status codes:**
 
 If the server answers with an HTTP error status, the request fails at once with a `RequestException`. The status `401` or `403` fails with an [`AuthorizationException`](errors.md#authorizationexception).
+
+In the handshake era, the status `404` on a request with a session ID means that the session has expired. The client
+throws a `ConnectionException` with the code `404`. Call `connect()` again to start a new session.
 
 **Response body size:**
 
@@ -145,6 +156,9 @@ it *must not* follow any redirect, because a redirect on the same origin also re
 To pass a `symfony/http-client` client, create it with `max_redirects` set to `0`:
 
 ```php
+use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\HttpClient\Psr18Client;
+
 $httpClient = new Psr18Client(HttpClient::create(['max_redirects' => 0]));
 ```
 
@@ -204,15 +218,32 @@ The transport sends the token in the `Authorization` header of every request. Th
 
 To get credentials in another way, implement `Mcp\Client\Auth\AuthenticatorInterface`. The transport calls `authenticate()` for every request. It calls `handleChallenge()` when the server answers with `401` or `403`. Return `true` to send the request again, at most 3 times, or `false` to give up.
 
+To authenticate other requests to the same server, see [Authenticating other requests](authorization.md#authenticating-other-requests).
+
 ## Cancellation and deadlines
 
-`callTool()` accepts optional `cancellation: ?CancellationTokenInterface` and
+`callTool()` accepts optional `cancellation: ?Mcp\Client\CancellationTokenInterface` and
 `timeoutSeconds: ?float` arguments. The token's `isCancellationRequested()`
 method must return without blocking. The timeout must be finite and positive
 and replaces the default request timeout for this call.
 An observed cancellation throws `RequestCancelledException`. When the per-call
 or default request timeout runs out, the client throws `TimeoutException`, a
-`RequestException`, and sends `notifications/cancelled` for the request.
+`RequestException`, and sends `notifications/cancelled` for the request. Over HTTP on
+revision `2026-07-28`, it sends no notification.
+
+```php
+use Mcp\Client\CancellationTokenInterface;
+
+$token = new class implements CancellationTokenInterface {
+    public function isCancellationRequested(): bool
+    {
+        // true once another process has created this file
+        return file_exists('/tmp/cancel-weather-lookup');
+    }
+};
+
+$result = $client->callTool('get_weather', ['city' => 'Paris'], cancellation: $token, timeoutSeconds: 10.0);
+```
 
 Interruption is checked before a request goes out and again once the send
 returns. The second check is what covers a synchronous `application/json`

@@ -1,4 +1,4 @@
-# Protocol Extensions
+# Protocol extensions
 
 MCP protocol extensions advertise additional, optional capabilities alongside the regular ones.
 A server opts in with `Builder::enableExtension()`. The SDK announces the extension in the
@@ -48,6 +48,9 @@ public function getWeather(string $city, RequestContext $context): string
 }
 ```
 
+A handshake-era client on a server without sessions always counts as not supporting the extension, see
+[Serving without sessions](../run/sessions.md#serving-without-sessions).
+
 ## Writing your own extension
 
 An extension implements `Mcp\Schema\Extension\ExtensionInterface`. If it only announces a
@@ -75,12 +78,17 @@ final class AuditExtension extends AbstractExtension
 
 Enable it with `Builder::enableExtension(new AuditExtension())`.
 
+!!! warning
+    A prefix whose second label is `modelcontextprotocol` or `mcp` (e.g. `io.modelcontextprotocol/`) is reserved for
+    official extensions. The SDK doesn't refuse such an identifier, so choose a prefix of your own.
+
 An extension that adds JSON-RPC methods also implements `getMessages()` and
 `getRequestHandlers()`. `getMessages()` returns the request and notification classes of the
 new methods, so the SDK can parse them. `getRequestHandlers()` returns the
 [request handlers](custom-handlers.md) that answer them. If two enabled extensions define
 the same method, `enableExtension()` throws a `LogicException`. Extensions bring no
-notification handlers: add those with `Builder::addNotificationHandler()`.
+notification handlers: add those with `Builder::addNotificationHandler()`. They
+[don't run on revision `2026-07-28`](custom-handlers.md#protocol-2026-07-28).
 
 ## MCP Apps (`io.modelcontextprotocol/ui`)
 
@@ -137,7 +145,9 @@ Note the two distinct `_meta.ui` shapes: the resource *descriptor* (its
 `resources/list` entry) carries only an empty marker — `McpApps::resourceMarker()` —
 flagging it as an MCP App, while the resource *content* returned by `resources/read`
 carries the structured `UiResourceContentMeta` with the actual CSP and permission
-configuration.
+configuration. The marker is a convention of this SDK. The MCP Apps specification doesn't
+define it: it allows the structured metadata on the descriptor too, and its example descriptor
+has no `_meta`.
 
 ### Attribute-based discovery
 
@@ -185,8 +195,9 @@ handshake:
 1. View → Host: `ui/initialize` request
 2. Host → View: response with `hostCapabilities`, `hostInfo`, `hostContext`
 3. View → Host: `ui/notifications/initialized`
-4. View → Host: `ui/notifications/size-changed` whenever the iframe wants to
-   resize
+
+After the handshake, the View sends `ui/notifications/size-changed` whenever the
+iframe wants to resize.
 
 See the [`ext-apps` repository][ext-apps] for the full protocol, official
 TypeScript SDK (`@modelcontextprotocol/ext-apps`), and view-side examples. A

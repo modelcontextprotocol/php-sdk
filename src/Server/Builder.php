@@ -1074,11 +1074,17 @@ final class Builder
     {
         $parts = $this->assemble();
 
+        $discovery = $parts['configuration'];
+        // Without a bus, `subscriptions/listen` delivers nothing; `resources/subscribe` only exists on the handshake.
+        if (null === $this->notificationBus && null === $this->serverCapabilities) {
+            $discovery = new Configuration($discovery->serverInfo, $discovery->capabilities->withoutResourcesSubscribe(), $discovery->paginationLimit, $discovery->instructions, $discovery->protocolVersion);
+        }
+
         return new StatelessProtocol(
             requestHandlers: [
                 ...$parts['requestHandlers'],
                 // Last, so a custom handler supporting DiscoverRequest answers instead.
-                new Handler\Request\DiscoverHandler($parts['configuration'], $supportedVersions),
+                new Handler\Request\DiscoverHandler($discovery, $supportedVersions),
             ],
             messageFactory: $parts['modernMessageFactory'],
             configuration: $parts['configuration'],

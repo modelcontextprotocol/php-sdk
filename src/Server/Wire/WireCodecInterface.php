@@ -20,8 +20,6 @@ namespace Mcp\Server\Wire;
  * modelled on the result classes, so one set of results can serve every
  * revision without older clients receiving vocabulary they have never seen.
  *
- * Keyed by era, not version: every revision through 2025-11-25 shares one.
- *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 interface WireCodecInterface

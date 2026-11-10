@@ -62,7 +62,7 @@ public function returnVoid(): void { /* no return */ }           // TextContent(
 For fine control over output formatting:
 
 ```php
-use Mcp\Schema\Content\{TextContent, ImageContent, AudioContent, ResourceLink, EmbeddedResource};
+use Mcp\Schema\Content\{TextContent, ImageContent, AudioContent, ResourceLink, EmbeddedResource, TextResourceContents};
 
 public function getFormattedCode(): TextContent
 {
@@ -71,7 +71,7 @@ public function getFormattedCode(): TextContent
 
 public function getMarkdown(): TextContent  
 {
-    return new TextContent('# Title\n\nMarkdown content');
+    return new TextContent("# Title\n\nMarkdown content");
 }
 
 public function getImage(): ImageContent
@@ -117,6 +117,8 @@ public function getResourceLink(): ResourceLink
 Return an array of content items:
 
 ```php
+use Mcp\Schema\Content\TextContent;
+
 public function getMultipleContent(): array
 {
     return [
@@ -130,9 +132,11 @@ public function getMultipleContent(): array
 ### Structured Output
 
 Besides the human-readable `content`, a tool result can carry a machine-readable `structuredContent` value. Declare its
-shape with `outputSchema`, a JSON Schema. This example uses an object schema, which works with every protocol version:
+shape with `outputSchema`, a JSON Schema. This example uses an object schema, which works with every revision:
 
 ```php
+use Mcp\Capability\Attribute\McpTool;
+
 #[McpTool(
     name: 'get_weather',
     outputSchema: [
@@ -177,6 +181,8 @@ conforming to it. The SDK picks the rule from the revision negotiated for the ca
 object shape to produce structured output everywhere. Wrap the list in a key for that:
 
 ```php
+use Mcp\Capability\Attribute\McpTool;
+
 // Structured content only from 2026-07-28 on: a bare list is not a JSON object
 public function listUsersFlat(): array
 {
@@ -196,9 +202,12 @@ public function listUsers(): array
 }
 ```
 
-Either way the data reaches the client: a return value with no structured representation is still JSON-encoded into
-`content` as a `TextContent`. When a tool declares an `outputSchema` but returns something that cannot be sent as
-`structuredContent`, the SDK logs a warning — the value is not silently dropped.
+Either way the data reaches the client in `content`. A scalar sent as `structuredContent` has its serialized JSON there:
+`'sunny'` gives the text `"sunny"`. A return value with no structured form becomes a `TextContent`. An array or object is
+JSON-encoded, a scalar is plain text (`sunny`) and `null` is the text `(null)`.
+
+When a tool declares an `outputSchema` but returns something that cannot be sent as `structuredContent`, the SDK logs a
+warning and sends the value in `content` only.
 
 A tool that wants to branch on the revision itself can read it from the injected `RequestContext`, see
 [Talking back to the client](../handlers/client-communication.md#request-metadata).
@@ -252,6 +261,7 @@ By default, the SDK also JSON-encodes structured content into `content`. To send
 `CallToolResult` with an empty `content` list:
 
 ```php
+use Mcp\Capability\Attribute\McpTool;
 use Mcp\Schema\Result\CallToolResult;
 
 #[McpTool(outputSchema: [/* ... */])]
@@ -262,7 +272,7 @@ public function getWeather(string $city): CallToolResult
 ```
 
 The SDK still validates `structuredContent` against the `outputSchema`, but it doesn't change the value for older
-protocol versions. Before `2026-07-28`, clients may reject a list, a scalar or explicit null, so always pass an associative array or
+revisions. Before `2026-07-28`, clients may reject a list, a scalar or explicit null, so always pass an associative array or
 an object. An explicit null that fails an object output schema becomes a tool error in every revision.
 
 !!! warning
@@ -278,9 +288,10 @@ an object. An explicit null that fails an object output schema becomes a tool er
 Tool handlers can throw any exception, but the type determines how it's handled:
 
 - **`ToolCallException`**: Converted to JSON-RPC response with `CallToolResult` where `isError: true`, allowing the LLM to see the error message and self-correct
-- **Any other exception**: Converted to JSON-RPC error response, but with a generic error message
+- **Any other exception you throw from your handler**: Converted to JSON-RPC error response, but with a generic error message
 
 ```php
+use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;
 
 #[McpTool]
@@ -304,4 +315,4 @@ public function processFile(string $filename): string
 }
 ```
 
-**Recommendation**: Use `ToolCallException` when you want to communicate specific errors to clients. Any other exception will still be converted to JSON-RPC compliant errors but with generic error messages.
+**Recommendation**: Use `ToolCallException` when you want to communicate specific errors to clients. Any other exception you throw will still be converted to JSON-RPC compliant errors but with generic error messages.

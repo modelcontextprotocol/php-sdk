@@ -2,7 +2,8 @@
 
 The client side is for applications that *use* MCP servers: you connect to a server,
 discover what it offers, and call it. The API is synchronous — every method returns a
-result or throws.
+result or throws. A tool can report its own failure in the result, see
+[Tool errors](errors.md#tool-errors).
 
 ```php
 use Mcp\Client;

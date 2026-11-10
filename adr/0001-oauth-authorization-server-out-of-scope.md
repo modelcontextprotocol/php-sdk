@@ -97,4 +97,4 @@ If you need an authorization server (token issuance, client registration, login,
   itself.
 
 See [`../docs/run/authorization.md`](../docs/run/authorization.md) for the supported Resource Server
-and delegation setup.
+setup.

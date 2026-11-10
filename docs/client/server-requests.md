@@ -1,4 +1,4 @@
-# Server-Initiated Communication
+# Server-initiated requests
 
 The client can receive requests and notifications from the server when configured with appropriate handlers.
 
@@ -23,6 +23,10 @@ use Mcp\Client\Handler\Request\ElicitationRequestHandler;
 use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
 use Mcp\Exception\ElicitationException;
 use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Elicitation\AbstractSchemaDefinition;
+use Mcp\Schema\Elicitation\BooleanSchemaDefinition;
+use Mcp\Schema\Elicitation\EnumSchemaDefinition;
+use Mcp\Schema\Elicitation\NumberSchemaDefinition;
 use Mcp\Schema\Enum\ElicitAction;
 use Mcp\Schema\Enum\ElicitationMode;
 use Mcp\Schema\Request\ElicitRequest;
@@ -45,19 +49,57 @@ class ConsoleElicitationCallback implements ElicitationCallbackInterface
         // Form mode: start from the defaults the server declared, then collect input.
         $content = $request->requestedSchema->getDefaults();
         foreach ($request->requestedSchema->properties as $name => $definition) {
-            $answer = readline(($definition->title ?? $name).': ');
+            while (true) {
+                $answer = readline(($definition->title ?? $name).': ');
 
-            if (false === $answer) {
-                // No input available — let the server know the user cancelled.
-                return new ElicitResult(ElicitAction::Cancel);
-            }
+                if (false === $answer) {
+                    // no input available, let the server know the user canceled
+                    return new ElicitResult(ElicitAction::Cancel);
+                }
 
-            if ('' !== $answer) {
-                $content[$name] = $answer;
+                if ('' === $answer) {
+                    // keep the default, if any
+                    break;
+                }
+
+                $value = $this->parse($definition, $answer);
+                if (null !== $value) {
+                    $content[$name] = $value;
+                    break;
+                }
+
+                echo 'Invalid value, please try again.'.\PHP_EOL;
             }
         }
 
         return new ElicitResult(ElicitAction::Accept, $content);
+    }
+
+    // readline() returns strings, null means the answer doesn't fit the field
+    private function parse(AbstractSchemaDefinition $definition, string $answer): string|int|float|bool|null
+    {
+        if ($definition instanceof BooleanSchemaDefinition) {
+            return filter_var($answer, \FILTER_VALIDATE_BOOLEAN, \FILTER_NULL_ON_FAILURE);
+        }
+
+        if ($definition instanceof NumberSchemaDefinition) {
+            $number = filter_var($answer, $definition->integerOnly ? \FILTER_VALIDATE_INT : \FILTER_VALIDATE_FLOAT, \FILTER_NULL_ON_FAILURE);
+
+            // the bounds may be fractional, even for an integer field
+            if (null === $number
+                || (null !== $definition->minimum && $number < $definition->minimum)
+                || (null !== $definition->maximum && $number > $definition->maximum)) {
+                return null;
+            }
+
+            return $number;
+        }
+
+        if ($definition instanceof EnumSchemaDefinition) {
+            return \in_array($answer, $definition->enum, true) ? $answer : null;
+        }
+
+        return $answer;
     }
 }
 
@@ -78,7 +120,8 @@ Only the `Accept` action carries content.
     **Error Handling in Elicitation Callbacks:**
 
     - **Throw `ElicitationException`** to forward a specific error message to the server
-    - **Any other exception** is logged but returns a generic error to the server
+    - **Any other exception** returns a generic error to the server. The handler logs it when you
+      pass a PSR-3 logger as its second argument.
 
     ```php
     // Good: Server receives "No interactive console available" message
@@ -114,6 +157,11 @@ use Mcp\Schema\Enum\Role;
 
 class LlmSamplingCallback implements SamplingCallbackInterface
 {
+    // AcmeLlmClient stands for the client of your LLM provider
+    public function __construct(private readonly AcmeLlmClient $llmClient)
+    {
+    }
+
     public function __invoke(CreateSamplingMessageRequest $request): CreateSamplingMessageResult
     {
         try {
@@ -143,7 +191,7 @@ class LlmSamplingCallback implements SamplingCallbackInterface
 
 $client = Client::builder()
     ->setCapabilities(new ClientCapabilities(sampling: true))
-    ->addRequestHandler(new SamplingRequestHandler(new LlmSamplingCallback))
+    ->addRequestHandler(new SamplingRequestHandler(new LlmSamplingCallback($llmClient)))
     ->build();
 ```
 
@@ -191,7 +239,8 @@ blocks in a user message. The client should pass those blocks back to the LLM pr
     When implementing sampling callbacks, error handling is critical:
 
     - **Throw `SamplingException`** to forward specific error messages to the server
-    - **Any other exception** will be logged but return a generic error to the server
+    - **Any other exception** returns a generic error to the server. The handler logs it when you
+      pass a PSR-3 logger as its second argument.
 
     This distinction allows you to control what error information the server receives:
 
@@ -235,12 +284,13 @@ $client = Client::builder()
 
 $client->connect($transport);
 
-// set the minimum log level (optional), only after connect()
+// call this after connect(), on 2026-07-28 the server sends no log messages without it
 $client->setLoggingLevel(LoggingLevel::Info);
 ```
 
 Before `connect()`, `setLoggingLevel()` throws a `ConnectionException`. On revision `2026-07-28`,
-the client sends the level with every following request. See
+the client sends the level with every following request, and the server sends log messages only
+for a request that carries a level. See
 [Protocol versions](../protocol-versions.md#how-the-client-settles-on-an-era).
 
 ## Roots

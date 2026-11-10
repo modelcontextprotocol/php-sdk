@@ -1,13 +1,13 @@
-# Session Management
+# Sessions
 
 > Sessions belong to the handshake era. Protocol revision `2026-07-28` removed them, along with
 > `Mcp-Session-Id`, because every request carries what is needed to answer it — see
-> [The 2026-07-28 lifecycle](../protocol-versions.md). One server serves both, so the configuration below still
+> [Protocol versions](../protocol-versions.md). One server serves both, so the configuration below still
 > applies to the handshake-era clients it answers.
 
 Over Streamable HTTP, a server has sessions only once you configure them with `setSession()`; without it, it
-serves handshake-era clients [without sessions](#serving-without-sessions). Over stdio, the connection holds the
-one session in memory, with or without `setSession()`. Configure session storage and lifecycle:
+serves handshake-era clients [without sessions](#serving-without-sessions). Over stdio, the connection has one
+session, which stays in memory unless `setSession()` names a store. Configure session storage and lifecycle:
 
 ```php
 use Mcp\Server;
@@ -20,7 +20,7 @@ use Symfony\Component\Cache\Adapter\RedisAdapter;
 
 // File-based storage
 $server = Server::builder()
-    ->setSession(new FileSessionStore(__DIR__ . '/sessions'))
+    ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->build();
 
 // In-memory storage with a custom TTL, for a single long-running process
@@ -55,7 +55,7 @@ $server = Server::builder()
 
 With HTTP, PHP often serves each request in a different process (e.g. PHP-FPM workers).
 `InMemorySessionStore` keeps sessions in the memory of one process, so the next request
-doesn't find them. Use a store that all processes share, like `FileSessionStore` on a shared
+doesn't find them. `setSession()` without a store uses this store. Use a store that all processes share, like `FileSessionStore` on a shared
 directory or `Psr6SessionStore` (or `Psr16SessionStore`) with a shared cache such as Redis.
 
 `FileSessionStore` suits a single host. Once requests are spread over several hosts, or sessions number in the
@@ -106,13 +106,13 @@ request is `gcProbability / gcDivisor`.
 ```php
 // Default: 1/100 (1% chance per request)
 $server = Server::builder()
-    ->setSession(new FileSessionStore(__DIR__ . '/sessions'))
+    ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->build();
 
 // Higher frequency: 1/10 (10% chance per request)
 $server = Server::builder()
     ->setSession(
-        new FileSessionStore(__DIR__ . '/sessions'),
+        new FileSessionStore(__DIR__.'/sessions'),
         gcProbability: 1,
         gcDivisor: 10,
     )
@@ -120,12 +120,12 @@ $server = Server::builder()
 
 // Run GC on every request
 $server = Server::builder()
-    ->setSession(gcProbability: 1, gcDivisor: 1)
+    ->setSession(new FileSessionStore(__DIR__.'/sessions'), gcProbability: 1, gcDivisor: 1)
     ->build();
 
 // Disable GC entirely (e.g. when using an external cleanup process)
 $server = Server::builder()
-    ->setSession(gcProbability: 0)
+    ->setSession(new FileSessionStore(__DIR__.'/sessions'), gcProbability: 0)
     ->build();
 ```
 
@@ -142,9 +142,9 @@ directory and TTL as the server:
 // bin/session-gc.php, e.g. run every 10 minutes from cron
 use Mcp\Server\Session\FileSessionStore;
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
-$store = new FileSessionStore(__DIR__ . '/../sessions', ttl: 3600);
+$store = new FileSessionStore(__DIR__.'/../sessions', ttl: 3600);
 $deleted = $store->gc(); // returns the IDs of the deleted sessions
 
 echo count($deleted) . " expired sessions deleted\n";
@@ -152,7 +152,7 @@ echo count($deleted) . " expired sessions deleted\n";
 
 ```php
 $server = Server::builder()
-    ->setSession(new FileSessionStore(__DIR__ . '/sessions', ttl: 3600), gcProbability: 0)
+    ->setSession(new FileSessionStore(__DIR__.'/sessions', ttl: 3600), gcProbability: 0)
     ->build();
 ```
 
@@ -185,8 +185,8 @@ use Mcp\Server\Session\FileSessionStore;
 
 // flock() on one file per session, for the workers of one machine
 $server = Server::builder()
-    ->setSession(new FileSessionStore(__DIR__ . '/sessions'))
-    ->setSessionLock(new FileSessionLock(__DIR__ . '/sessions'))
+    ->setSession(new FileSessionStore(__DIR__.'/sessions'))
+    ->setSessionLock(new FileSessionLock(__DIR__.'/sessions'))
     ->build();
 ```
 
@@ -286,3 +286,5 @@ class RedisSessionStore implements SessionStoreInterface
     }
 }
 ```
+
+Throw a `SessionStoreException` from `exists()` when the backend cannot be reached. The client then gets a `503`.

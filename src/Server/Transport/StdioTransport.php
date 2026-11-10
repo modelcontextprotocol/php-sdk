@@ -96,7 +96,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     /**
      * @param resource $input
      * @param resource $output
-     * @param int      $maxLineBytes Maximum bytes read for a single input line. fgets() with no length reads until a
+     * @param int      $maxLineBytes Maximum bytes of a single input line, including its newline. fgets() with no length reads until a
      *                               newline or EOF, so a peer that never sends a newline would buffer the whole stream
      *                               into one allocation and exhaust memory; a line exceeding this cap is discarded
      *                               instead.
@@ -179,7 +179,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             return;
         }
 
-        $line = fgets($this->input, $this->maxLineBytes);
+        $line = fgets($this->input, $this->maxLineBytes + 1);
         if (false === $line) {
             // Selecting may have failed, and then nothing else keeps an idle run loop from spinning.
             if (!feof($this->input)) {
@@ -200,10 +200,9 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             return;
         }
 
-        // fgets() reads at most maxLineBytes - 1 bytes; a full read with no
-        // trailing newline means the line exceeds the cap. Discard it rather
+        // A full read with no trailing newline means the line exceeds the cap. Discard it rather
         // than buffering it, and keep discarding the remainder on later ticks.
-        if (!$lineComplete && \strlen($line) >= $this->maxLineBytes - 1) {
+        if (!$lineComplete && \strlen($line) >= $this->maxLineBytes) {
             $this->discardingLine = true;
             $this->logger->warning('StdioTransport discarded an input line exceeding the maximum length.', [
                 'max_line_bytes' => $this->maxLineBytes,

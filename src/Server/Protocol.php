@@ -17,6 +17,7 @@ use Mcp\Event\NotificationEvent;
 use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\Event\ServerRequestEvent;
+use Mcp\Exception\ConfigurationException;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Exception\SessionLockException;
@@ -1180,7 +1181,7 @@ class Protocol
 
     private function errorForThrowable(\Throwable $e, Request $request, SessionInterface $session): Error
     {
-        if ($e instanceof \InvalidArgumentException) {
+        if ($e instanceof \InvalidArgumentException && !$e instanceof ConfigurationException) {
             $this->logger->warning(\sprintf('Invalid argument: %s', $e->getMessage()), ['exception' => $e]);
             $error = Error::forInvalidParams($e->getMessage(), $request->getId());
         } elseif ($e instanceof SessionRequiredException) {

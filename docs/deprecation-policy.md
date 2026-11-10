@@ -2,8 +2,8 @@
 
 The MCP specification (SEP-2596) defines a formal feature lifecycle: **Active → Deprecated → Removed**,
 with a minimum of twelve months between a feature being marked deprecated and its earliest possible removal.
-Each stage transition gets its own SEP — deprecating a feature and removing it are separate proposals, never
-bundled into one.
+Deprecating a feature needs a SEP. Once the window has elapsed, the Core Maintainers decide on the removal,
+which needs no SEP of its own.
 
 The PHP SDK mirrors that window for anything it deprecates, whether the deprecation originates in the spec
 or is SDK-internal (an API shape the SDK wants to retire independently of the protocol).
@@ -18,6 +18,10 @@ SDK-internal deprecation) that introduced the deprecation and the earliest remov
  * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
  */
 ```
+
+The deprecated `ClientGateway` methods (`log()`, `sample()` and `listRoots()`) and the client's handlers for
+logging, sampling and roots also call `trigger_deprecation()`. This raises a silenced `E_USER_DEPRECATED`
+error, which your error handler or test tooling can report. Schema classes only carry the tag.
 
 ## The SDK's own BC promise
 

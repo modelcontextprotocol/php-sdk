@@ -100,6 +100,11 @@ server {
 }
 ```
 
+!!! note
+    The systemd unit of the Debian and Ubuntu packages creates `/run/php/php-fpm.sock`, a link to the versioned
+    socket (e.g. `/run/php/php8.4-fpm.sock`). Without systemd, for example in a container, use the path from `listen`
+    in your pool configuration, here and in the Apache configuration below.
+
 The first location passes every HTTP method to PHP. The transport handles `POST`, `DELETE`
 and `OPTIONS` and answers the others itself. The second answers every other path, including
 `/index.php`, which Nginx would otherwise serve as a file, source and all.

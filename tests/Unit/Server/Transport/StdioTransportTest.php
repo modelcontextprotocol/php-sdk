@@ -41,6 +41,17 @@ final class StdioTransportTest extends TestCase
         $this->assertSame(['{"valid":1}'], $messages);
     }
 
+    #[TestDox('the byte cap counts the newline')]
+    public function testCapCountsTheNewline(): void
+    {
+        $messages = [];
+        $transport = $this->createTransport(str_repeat('a', 9)."\n".str_repeat('b', 10)."\n", $messages, maxLineBytes: 10);
+
+        $this->pumpToEof($transport);
+
+        $this->assertSame([str_repeat('a', 9)], $messages);
+    }
+
     #[TestDox('a normal line within the cap is dispatched')]
     public function testNormalLineIsDispatched(): void
     {

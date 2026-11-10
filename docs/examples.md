@@ -1,7 +1,7 @@
 # Examples
 
 Every example lives in [`examples/`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples)
-and runs against the dependencies installed in the repository root. Each server example is a
+and runs against the dependencies installed in the repository root. Most server examples are a
 `server.php` whose bootstrap picks the transport from the SAPI it runs under:
 
 ```bash
@@ -15,6 +15,10 @@ php -S 127.0.0.1:8000 examples/server/discovery-userprofile/server.php
 npx @modelcontextprotocol/inspector php examples/server/discovery-calculator/server.php
 ```
 
+`oauth-keycloak` and `oauth-microsoft` run with Docker Compose, see their READMEs. `revolt` and
+`reactphp` are long-running processes that serve HTTP themselves. You start them directly, for
+example with `php examples/server/revolt/server.php 127.0.0.1:8000`.
+
 ## Server examples
 
 | Example | What it shows | Docs |
@@ -27,8 +31,8 @@ npx @modelcontextprotocol/inspector php examples/server/discovery-calculator/ser
 | [`custom-dependencies`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/custom-dependencies) | Handlers pulling services from a PSR-11 container | [Server builder](run/server-builder.md#service-dependencies) |
 | [`complex-tool-schema`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/complex-tool-schema) | Rich input schemas from typed parameters, PHP enums, defaults and JSON objects | [Schema generation](servers/schemas.md) |
 | [`schema-showcase`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/schema-showcase) | `#[Schema]` constraint attributes: formats, patterns, ranges | [Schema generation](servers/schemas.md) |
-| [`env-variables`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/env-variables) | Configuring a server through environment variables | [Server builder](run/server-builder.md) |
-| [`client-communication`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/client-communication) | Sampling, roots, progress and log messages from inside a handler | [Talking back to the client](handlers/client-communication.md) |
+| [`env-variables`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/env-variables) | Configuring a server through environment variables | The example's `server.php` |
+| [`client-communication`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/client-communication) | Sampling, roots, progress and log messages from inside a handler | [Talking back to the client](handlers/client-communication.md), [Asking for input](handlers/input-required.md) |
 | [`client-logging`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/client-logging) | Structured log notifications through the `ClientLogger` | [Logging](handlers/logging.md) |
 | [`elicitation`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/elicitation) | Asking the user for input mid-call with `ClientGateway::elicit()` and typed elicitation schemas, on either protocol era | [Asking for input](handlers/input-required.md) |
 | [`custom-method-handlers`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/custom-method-handlers) | Replacing the built-in `tools/list` and `tools/call` request handlers | [Custom message handlers](advanced/custom-handlers.md) |
@@ -36,6 +40,8 @@ npx @modelcontextprotocol/inspector php examples/server/discovery-calculator/ser
 | [`stateless-lifecycle`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/stateless-lifecycle) | Revision `2026-07-28`: cache policy, request state, notification bus, null structured content | [Serving both eras](run/protocol-eras.md), [Caching](run/caching.md), [Subscriptions](run/subscriptions.md), [Tools](servers/tools.md#absent-and-null-structured-content) |
 | [`oauth-keycloak`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/oauth-keycloak) | OAuth authorization against a Keycloak instance (own README) | [Authorization](run/authorization.md) |
 | [`oauth-microsoft`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/oauth-microsoft) | OAuth authorization against Microsoft Entra ID (own README) | [Authorization](run/authorization.md) |
+| [`revolt`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/revolt) | A server on the Revolt event loop with `amphp/http-server`; tools wait without blocking other requests | [Fiber scheduler](run/server-builder.md#fiber-scheduler) |
+| [`reactphp`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/reactphp) | The same server on the ReactPHP event loop with `react/http` | [Fiber scheduler](run/server-builder.md#fiber-scheduler) |
 
 ## Client examples
 
@@ -50,13 +56,16 @@ npx @modelcontextprotocol/inspector php examples/server/discovery-calculator/ser
 | [`oauth_client.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/oauth_client.php) | Authorizing against a protected server, with discovery, PKCE and the browser | [Authorization](client/authorization.md) |
 | [`stateless_lifecycle_client.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stateless_lifecycle_client.php) | A client that only connects on revision `2026-07-28`, see [Modern-era client](#modern-era-client) | [Connecting to a server](client/connecting.md) |
 
-Client examples run directly:
+The STDIO client examples start their server themselves, so they run directly:
 
 ```bash
 php examples/client/stdio_discovery_calculator.php
 ```
 
-## The 2026-07-28 lifecycle
+The HTTP client examples and `stateless_lifecycle_client.php` connect to a server on port 8000.
+Start the server first with `php -S 127.0.0.1:8000`, as shown in [Modern-era client](#modern-era-client).
+
+## The modern era
 
 `stateless-lifecycle/server.php` answers both eras on the same URL. On revision `2026-07-28`
 every request carries its own protocol version and client capabilities, so a call is a single

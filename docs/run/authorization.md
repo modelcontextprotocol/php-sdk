@@ -45,15 +45,21 @@ Authorization is implemented at the transport level using PSR-15 middleware:
 
 ## Quick Start
 
-`JwtTokenValidator::fromIssuer()` needs `firebase/php-jwt` and a PSR-6 cache, e.g. `symfony/cache`:
+`JwtTokenValidator::fromIssuer()` needs `firebase/php-jwt`, a PSR-6 cache (e.g. `symfony/cache`), a PSR-18 client
+(e.g. `symfony/http-client`) and PSR-17 factories (e.g. `nyholm/psr7`). This example also needs `symfony/finder` for
+`setDiscovery()` and `laminas/laminas-httphandlerrunner` to send the response:
 
 ```bash
-composer require firebase/php-jwt symfony/cache
+composer require firebase/php-jwt symfony/cache symfony/http-client nyholm/psr7 symfony/finder laminas/laminas-httphandlerrunner
 ```
 
 ```php
+use Http\Discovery\Psr17Factory;
+use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 use Mcp\Server;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
+use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
+use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
@@ -79,10 +85,12 @@ $metadata = new ProtectedResourceMetadata(
 );
 
 // 3. Create transport with middleware; the metadata must be reachable without a token
+$request = (new Psr17Factory())->createServerRequestFromGlobals();
 $transport = new StreamableHttpTransport(
     $request,
     middleware: [
-        ...StreamableHttpTransport::defaultMiddleware(),
+        new CorsMiddleware(),
+        new DnsRebindingProtectionMiddleware(allowedHosts: ['mcp.example.com']),
         new ProtectedResourceMetadataMiddleware($metadata),
         new AuthorizationMiddleware($validator, $metadata, new ScopePolicy(default: ['mcp:read'])),
     ],
@@ -94,8 +102,11 @@ $server = Server::builder()
     ->setDiscovery(__DIR__, excludeDirs: ['vendor'])
     ->build();
 
-$response = $server->run($transport);
+(new SapiEmitter())->emit($server->run($transport));
 ```
+
+`DnsRebindingProtectionMiddleware` only allows `localhost`, `127.0.0.1` and `[::1]` by default. Add your public
+hostname to `allowedHosts`, or every request gets a 403, see [DNS Rebinding Protection](http.md#dns-rebinding-protection).
 
 The same middleware works with `StatelessHttpTransport`.
 
@@ -119,11 +130,14 @@ $middleware = new AuthorizationMiddleware(
 |---------|----------|
 | Missing Authorization header or another scheme | 401 with `WWW-Authenticate: Bearer resource_metadata="...", scope="..."` |
 | Malformed Bearer token | 400 with `error="invalid_request"` |
-| Invalid/expired token | 401 with `error="invalid_token"` |
+| Invalid/expired token, or a signing key whose type or curve `firebase/php-jwt` doesn't support | 401 with `error="invalid_token"` |
 | Token cannot be checked, e.g. the authorization server is down | 503 with `Retry-After` and no `WWW-Authenticate` challenge |
 | Valid token lacking a required scope | 403 with `error="insufficient_scope"` and every scope the request needs |
 | Valid token, body over `maxBodyBytes` while the `ScopePolicy` reads it | 413 with a JSON-RPC error |
 | Valid token | Passes to the transport, which hands the `AccessToken` to the handlers |
+
+The `scope` value of a 400 or 401 challenge lists the `scopesSupported` of the metadata. The challenge has no
+`scope` if you don't set `scopesSupported`.
 
 The `resource_metadata` URL is derived from the configured resource, never from the request's
 `Host` header, so it stays correct behind TLS-terminating proxies.
@@ -140,7 +154,7 @@ $scopePolicy = new ScopePolicy(
     default: ['mcp:read'],
     methods: ['resources/subscribe' => ['mcp:subscribe']],
     tools: ['delete_file' => ['files:write']],
-    implies: ['files:admin' => ['files:write']], // a token with files:admin may call delete_file
+    implies: ['files:admin' => ['files:write']], // files:admin grants files:write; delete_file also needs mcp:read
 );
 ```
 
@@ -198,7 +212,7 @@ $psrResponse = $handler->handle($psrRequest);
 
 Validates JWT access tokens issued by one authorization server. It checks the `alg` header against
 an allowlist, optionally the `typ` header, the signature and time claims, the issuer, and the
-audience.
+audience. A token must have a `kid` header and a numeric `exp` claim, or it gets a 401.
 
 `fromIssuer()` discovers the JWKS URI (RFC 8414, then OpenID Connect Discovery) on the first token
 and caches it and the keys in a PSR-6 pool. An unknown key id triggers a rate-limited refetch, so key
@@ -224,7 +238,8 @@ $validator = JwtTokenValidator::fromIssuer(
 
 To manage the keys yourself, pass them to the constructor — any `ArrayAccess` of
 `Firebase\JWT\Key` by key id, typically a `Firebase\JWT\CachedKeySet`, or a plain array. If the JWKS
-omits `alg`, `CachedKeySet` needs it as last argument:
+omits `alg`, `CachedKeySet` needs it as last argument. The constructor doesn't check your URLs, so use https
+for `$jwksUri` and the issuer yourself:
 
 ```php
 use Firebase\JWT\CachedKeySet;
@@ -360,7 +375,7 @@ $transport = new StreamableHttpTransport($request);
 
 If the claims do not identify the user, or there is no token, set the
 `StreamableHttpTransport::PRINCIPAL_ATTRIBUTE` attribute as well. It takes a non-empty string, so cast
-an integer user id. The server answers any other value with a 500:
+an integer user id. On a request with a session, the server answers any other value with a 500:
 
 ```php
 use Mcp\Server\Transport\StreamableHttpTransport;
@@ -388,7 +403,7 @@ final class IntrospectionValidator implements AuthorizationTokenValidatorInterfa
             return AuthorizationResult::unauthorized('invalid_token', 'Token is not active for this resource.');
         }
 
-        return AuthorizationResult::allow(new AccessToken(explode(' ', $claims['scope'] ?? ''), $claims));
+        return AuthorizationResult::allow(new AccessToken(preg_split('/\s+/', $claims['scope'] ?? '', -1, \PREG_SPLIT_NO_EMPTY), $claims));
     }
 }
 ```
@@ -415,8 +430,9 @@ AuthorizationResult::unavailable(30);
 ## Browser Clients
 
 The default `CorsMiddleware` exposes `WWW-Authenticate` and `Retry-After`, so browser-based clients can
-read the challenge, discover the authorization server and wait before they retry. Allow their origins
-via `allowedOrigins`.
+read the challenge, discover the authorization server and wait before they retry. Add their origins to
+`allowedOrigins` of both `CorsMiddleware` and `DnsRebindingProtectionMiddleware`, see
+[CORS Configuration](http.md#cors-configuration).
 
 `AuthorizationMiddleware` lets `OPTIONS` requests pass without a token, because a browser sends
 no credentials with a CORS preflight. Keep `CorsMiddleware` before it in the list, as
@@ -450,7 +466,7 @@ See [oauth-microsoft/README.md](https://github.com/modelcontextprotocol/php-sdk/
 
 ## Security Considerations
 
-1. **Always use HTTPS** in production; the SDK refuses plain http URLs outside loopback hosts
+1. **Always use HTTPS** in production. `ProtectedResourceMetadata` and `fromIssuer()` refuse plain http URLs outside loopback hosts
 2. **Bind the audience to this server** — never accept tokens issued for other resources
 3. **Never pass the received token on** to upstream APIs; obtain a separate token for them
 4. **Use a persistent PSR-6 cache** so keys are not fetched on every request

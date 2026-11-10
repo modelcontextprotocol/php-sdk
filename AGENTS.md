@@ -28,9 +28,10 @@ vendor/bin/phpunit --filter testMethodName                   # single test
 CI runs PHP 8.1–8.6 with lowest and highest dependencies (8.6 is non-blocking while in pre-release); code must stay valid on PHP 8.1.
 PHPUnit fails on warnings, risky tests and unexpected output.
 
-Integration and interop tests snapshot their output; snapshots are written on first run — delete one to re-record it.
-`tests/Integration/ClientExamples/` and `tests/Interop/Server/` have one test class per script in `examples/`, so
-changing an example usually means updating its snapshot.
+Integration and interop tests snapshot their output. A missing snapshot is written on first run and marks the test
+incomplete, which fails the suite, so run it again; delete a snapshot to re-record it.
+`tests/Integration/ClientExamples/` has one test class per script in `examples/client/`, and `tests/Interop/Server/` one
+per example server it drives, so changing an example usually means updating its snapshot.
 
 ## Architecture
 
@@ -38,15 +39,15 @@ changing an example usually means updating its snapshot.
 
 The central design constraint (see `docs/protocol-versions.md`):
 
-- **Handshake era** (≤ `2025-11-25`): `initialize` handshake, sessions (`Mcp-Session-Id`), server→client requests
-  over the open channel. Dispatched by `Server\Protocol`.
+- **Handshake era** (≤ `2025-11-25`): `initialize` handshake, optional sessions (`Mcp-Session-Id`, off over HTTP
+  unless `Builder::setSession()` is called), server→client requests over the open channel. Dispatched by `Server\Protocol`.
 - **Modern era** (`2026-07-28`, SEP-2575): stateless, version and capabilities declared per request in
   `params._meta`, discovery via `server/discover`, no server→client requests — a handler returns an
   `InputRequiredResult` and the client retries (MRTR). Dispatched by `Server\Stateless\StatelessProtocol`.
 
 Both share the **request handlers**, not control flow. `StreamableHttpTransport` and `StdioTransport` serve both eras
 (`StatelessAwareTransportInterface`); `Server\Wire\InboundClassifier` decides the era once per inbound request.
-`Server\Wire\Rev2025Codec`/`Rev2026Codec` adapt results to each era's wire shape. The modern codec supplies default
+`Server\Wire\Rev2026Codec` adapts results to the modern era's wire shape. It supplies default
 `resultType` and caching hints where applicable; `InputRequiredResult` declares its own type, and
 `ReadResourceResult` can carry explicit caching hints.
 `InputRequiredShim` lets a modern-style handler that returns an input-required result run on a handshake connection
@@ -64,7 +65,8 @@ by issuing real `elicitation/create`/`sampling/createMessage` requests and re-ru
   `Server\Suspension\RequestSuspension`/`NotificationSuspension`; the transport loop sends the message and resumes the
   fiber with the client's answer. Request ids to the client are UUIDs, matched per fiber, so concurrent requests of one
   session don't cross.
-- `Server\Session\*`: session stores (in-memory, file, PSR-16) and optional per-session locks.
+- `Server\Session\*`: session stores (in-memory, file, PSR-6, PSR-16), the ephemeral session of a server without
+  sessions, and optional per-session locks.
 - `Server\Transport\Http\OAuth\*`: resource-server-only OAuth (ADR 0001/0002 in `adr/`) — token validation, scope policy,
   protected resource metadata. Being an authorization server or proxying the OAuth flow is out of scope.
 - `Server\Transport\Http\*`: PSR-15 middleware (CORS, DNS rebinding, authorization) in front of the HTTP transport.
@@ -74,7 +76,8 @@ by issuing real `elicitation/create`/`sampling/createMessage` requests and re-ru
 - Elements are declared with attributes (`Capability\Attribute\McpTool`, `McpResource`, `McpPrompt`, …) or registered
   explicitly on the builder.
 - `Capability\Registry\Loader\*` populate the `Registry`: `DiscoveryLoader` scans directories (needs
-  `symfony/finder`), `ExplicitElementLoader` handles builder registrations, chained by `ChainLoader`.
+  `symfony/finder`), `ReflectedElementLoader` handles `addTool()` & co, `ExplicitElementLoader` handles `Builder::add()`,
+  chained by `ChainLoader`.
 - `Capability\Discovery\*` derives JSON schemas from signatures and docblocks; `Registry\ReferenceHandler` invokes the
   element, injecting `RequestContext` and container services; `Capability\Formatter\*` turns return values into
   content.

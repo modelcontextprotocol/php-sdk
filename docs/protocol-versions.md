@@ -1,7 +1,7 @@
 # Protocol versions
 
 MCP has two eras. Everything up to `2025-11-25` opens with an `initialize` handshake and
-keeps the negotiated revision on a session. Protocol revision `2026-07-28` removed both:
+can keep state on a session. Protocol revision `2026-07-28` removed both:
 everything a server needs to answer a request travels *in* that request, so any process can
 answer any request and none of them need to share state.
 
@@ -13,15 +13,15 @@ map; the mechanics live with the task they belong to.
 | | Handshake era (`2025-11-25` and earlier) | Modern era (`2026-07-28`) |
 | --- | --- | --- |
 | Opening | `initialize` / `notifications/initialized` | none |
-| Version | negotiated once, kept on the session | declared on every request |
+| Version | negotiated once, then kept on the session or named in the `MCP-Protocol-Version` header | declared on every request |
 | Capabilities | exchanged once | declared on every request |
 | Discovery | `initialize` result | `server/discover` |
-| Sessions | `Mcp-Session-Id` | removed |
+| Sessions | `Mcp-Session-Id`, optional and off by default over HTTP | removed |
 | Server → client requests | sent as JSON-RPC requests | returned in the result (MRTR) |
 | Change notifications | `resources/subscribe` | `subscriptions/listen` |
 | Dispatcher | `Protocol` | `StatelessProtocol` |
-| HTTP entry | `StreamableHttpTransport` — the same one, for both |
-| stdio entry | `StdioTransport` — the same one, settled by the client's first request |
+| HTTP entry | `StreamableHttpTransport` | the same `StreamableHttpTransport`, or `StatelessHttpTransport` for an endpoint that serves only this era |
+| stdio entry | `StdioTransport` | the same `StdioTransport`. The client's first request settles the era |
 
 `ProtocolVersion::isModern()` tells the two apart, and
 `Mcp\Schema\Enum\ProtocolVersion::FIRST_MODERN_VERSION` is where the boundary sits.
@@ -29,9 +29,9 @@ map; the mechanics live with the task they belong to.
 ## Negotiating in the handshake era
 
 Revisions up to `2025-11-25` agree on one during `initialize`. The client names the revision it wants to speak, and
-the server answers with the revision the connection will actually use. Both sides disconnect if they cannot agree.
-This follows the
-[protocol version negotiation](https://modelcontextprotocol.io/specification/latest/basic/versioning#protocol-version-negotiation)
+the server answers with the revision the connection will actually use. The client should disconnect if it doesn't
+support that revision. This follows the
+[version negotiation](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation)
 section of the specification. The modern era negotiates nothing — each request names its own revision.
 
 The SDK's known revisions live in `Mcp\Schema\Enum\ProtocolVersion`, declared oldest to newest:
@@ -53,11 +53,14 @@ but they are an enumerated set rather than an ordered scalar, so nothing should 
 | Client requests | Server responds with |
 | --- | --- |
 | A revision the server supports | That same revision |
-| An unknown or malformed revision | `ProtocolVersion::latestHandshake()` as a counter-offer |
+| An unknown revision string | `ProtocolVersion::latestHandshake()` as a counter-offer |
+| A missing or non-string revision | A `-32602` error |
 | A modern revision such as `2026-07-28` | `ProtocolVersion::latestHandshake()` as a counter-offer |
 
 A counter-offer is not an error: the client decides whether it can continue on the offered revision or must close the
-connection. The negotiated revision is stored on the session under `protocol_version`.
+connection. With a session, the SDK stores the negotiated revision on it under `protocol_version`. Without one, each
+request's `MCP-Protocol-Version` header names the revision, see
+[Serving without sessions](run/sessions.md#serving-without-sessions).
 
 The last row is not a rejection of an unknown revision — the SDK knows `2026-07-28`, it just cannot be reached through
 this handshake. The modern era replaced `initialize` with per-request metadata, so answering with one of its revisions
@@ -74,24 +77,26 @@ negotiating across the supported set. The client builder has a method with the s
 so a client asking for anything else receives the pinned revision as a counter-offer and has to decide whether
 to continue. Leave it unset unless you have a reason to refuse other revisions.
 
-It pins the handshake era only. `setModernVersions()` narrows what the modern leg answers for, and
-`withoutModernEra()` removes that leg altogether — see
+It pins the handshake era only. `setModernVersions()` narrows the revisions the modern era answers for, and
+`withoutModernEra()` removes the modern era altogether. See
 [Serving one era only](run/protocol-eras.md#serving-one-era-only).
 
 !!! note
-    On the Streamable HTTP transport, every handshake-era request after the handshake also carries an
-    `MCP-Protocol-Version` header. The transport checks this header against every revision in
+    On the Streamable HTTP transport, from revision `2025-06-18`, every handshake-era request after the handshake also
+    carries an `MCP-Protocol-Version` header. The transport checks this header against every revision in
     `ProtocolVersion::handshakeVersions()`, and the pin doesn't change that set. See
     [Protocol Version Validation](run/http.md#protocol-version-validation).
 
 ## What changes, and where it is written down
 
-Tools, resources, prompts and their handlers are unaffected — the same registrations serve
-either lifecycle. What changes:
+The same tool, resource and prompt registrations serve both eras. What changes:
 
-* **[Asking for input](handlers/input-required.md)** — a handler that needs elicitation,
-  sampling or roots *returns* the ask instead of calling out. Write handlers this way and
-  they serve both eras.
+* **[Asking for input](handlers/input-required.md)**: `elicit()` works in both eras. For
+  sampling and roots in the modern era, the handler returns the ask, as `sample()` and
+  `listRoots()` fail there.
+* **[Structured output](servers/tools.md#structured-output)**: from `2026-07-28`, a tool can
+  send any JSON value as `structuredContent` ([SEP-2106](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2106)).
+  Before it, only a JSON object.
 * **[Serving both eras](run/protocol-eras.md)** — what a modern request carries, how one
   endpoint classifies and routes each request, and how to serve one era only.
 * **[Caching](run/caching.md)** — the `ttlMs` / `cacheScope` hints a cacheable result must
@@ -99,9 +104,7 @@ either lifecycle. What changes:
 * **[Subscriptions](run/subscriptions.md)** — `subscriptions/listen` and the notification bus
   behind it.
 * **[Sessions](run/sessions.md)** — handshake-era only; the modern era has none.
-* Progress and logging become per-request opt-ins — see
-  [Talking back to the client](handlers/client-communication.md#progress) and
-  [Logging](handlers/logging.md).
+* Logging becomes a per-request opt-in. See [Logging](handlers/logging.md).
 
 ## Speaking it from a client
 
@@ -110,6 +113,10 @@ A client speaks both eras out of the box. It prefers `2026-07-28`, and finds out
 depends on the answer.
 
 ```php
+use Mcp\Client;
+use Mcp\Client\Transport\HttpTransport;
+use Mcp\Schema\ClientCapabilities;
+
 $client = Client::builder()
     ->setClientInfo('my-client', '1.0.0')
     ->setCapabilities(new ClientCapabilities(elicitation: true))
@@ -139,6 +146,7 @@ describe.
 | `-32022` naming nothing it speaks | fails the connection |
 | a successful HTTP response with a body over the [response body limit](client/transports.md#http-transport) | fails the connection, with no retry |
 | a `3xx` HTTP response | fails the connection, with no retry |
+| a `401` or `403` HTTP response | fails the connection, with no retry |
 | any other error, an HTTP refusal without one, or no answer in time | falls back to `initialize` |
 | a `DiscoverResult` listing only handshake revisions | falls back to `initialize` |
 
@@ -189,29 +197,38 @@ for a runnable version, described in [Examples](examples.md#modern-era-client).
 
 ## What was removed
 
-Answered with `404` and `-32601` by a modern server — except a bare `initialize`, which is how
-a client from before the modern era opens, and is refused with `-32022` naming the revisions
-the server does speak:
+A request that declares a modern revision and calls one of these methods gets a `-32601` error,
+with HTTP status `404` over HTTP:
 
-- `initialize`, `notifications/initialized`
+- `initialize`
 - `ping`
 - `logging/setLevel` — replaced by `_meta["io.modelcontextprotocol/logLevel"]`
 - `resources/subscribe`, `resources/unsubscribe` — replaced by the `resourceSubscriptions`
   filter of `subscriptions/listen`
-- `notifications/roots/list_changed`
+
+Over HTTP, the notifications `notifications/initialized` and `notifications/roots/list_changed`
+get HTTP status `400` and an empty body.
+
+A client from before the modern era opens with an `initialize` request that has no `_meta`. A
+server that serves both eras answers it with the handshake. An endpoint that serves only the
+modern era refuses it with `-32022` and names the revisions it speaks.
 
 Also gone: `Mcp-Session-Id`, the HTTP `GET` stream, and SSE resumability (`Last-Event-ID`).
 A broken response stream loses the request; the client re-issues it with a new id.
 
+This revision also removes `notifications/elicitation/complete` and the `elicitationId` field, and
+moves tasks to the `io.modelcontextprotocol/tasks` extension. The SDK implements none of these.
+
 Error code `-32002` (resource not found) is retired in favour of `-32602`, and must not be
 emitted by a server of this revision. The SDK picks the code from the revision serving the
-request, so a handshake-era client still gets `-32002`.
+request, so a handshake-era client still gets `-32002`. Error code `-32042` (URL elicitation
+required) is retired too, and the SDK doesn't send it.
 
 ## Deprecations
 
 Roots, sampling and logging are all **deprecated** as of this revision
-([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest
-removal `2027-07-28`. They remain functional until then; new servers should pass directories
+([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)). The earliest
+removal is the first revision released on or after `2027-07-28`. They remain functional until then; new servers should pass directories
 through tool arguments or resource URIs instead of roots, integrate with an LLM provider
 directly instead of sampling, and log to `stderr` or OpenTelemetry instead of
 `notifications/message`.

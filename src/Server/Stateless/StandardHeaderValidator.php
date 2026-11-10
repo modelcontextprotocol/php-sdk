@@ -12,6 +12,7 @@
 namespace Mcp\Server\Stateless;
 
 use Mcp\Capability\RegistryInterface;
+use Mcp\Exception\ConfigurationException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\JsonRpc\Json;
 use Mcp\Schema\Wire\McpHeader;
@@ -138,7 +139,7 @@ final class StandardHeaderValidator
 
         try {
             $tool = $this->registry->getTool($toolName)->tool;
-        } catch (ToolNotFoundException) {
+        } catch (ToolNotFoundException|ConfigurationException) {
             // The handler reports this properly; a header complaint would not.
             return null;
         }

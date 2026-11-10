@@ -19,6 +19,8 @@ use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\Content\BlobResourceContents;
 use Mcp\Schema\Content\TextResourceContents;
+use Mcp\Schema\Enum\CacheScope;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ReadResourceRequest;
@@ -458,6 +460,25 @@ class ReadResourceHandlerTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals(Error::RESOURCE_NOT_FOUND, $response->code);
         $this->assertEquals('Resource not found for uri: "'.$uri.'".', $response->message);
+    }
+
+    public function testCachingHintsOfAResultOnlyReachTheModernEra(): void
+    {
+        $result = new ReadResourceResult([new TextResourceContents('file://a', 'text/plain', 'a')], 111, CacheScope::Public);
+        $this->registry->method('getResource')->willReturn($this->createStub(ResourceReference::class));
+        $this->referenceHandler->method('handle')->willReturn($result);
+
+        $this->session->method('get')->willReturnOnConsecutiveCalls(ProtocolVersion::V2025_11_25->value, ProtocolVersion::V2026_07_28->value);
+
+        $handshake = $this->handler->handle($this->createReadResourceRequest('file://a'), $this->session);
+        $modern = $this->handler->handle($this->createReadResourceRequest('file://a'), $this->session);
+
+        $this->assertInstanceOf(Response::class, $handshake);
+        $this->assertInstanceOf(ReadResourceResult::class, $handshake->result);
+        $this->assertNull($handshake->result->ttlMs);
+        $this->assertNull($handshake->result->cacheScope);
+        $this->assertInstanceOf(Response::class, $modern);
+        $this->assertSame($result, $modern->result);
     }
 
     private function createReadResourceRequest(string $uri): ReadResourceRequest

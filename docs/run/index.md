@@ -5,6 +5,8 @@ answering. `StdioTransport`, `StreamableHttpTransport` and `InMemoryTransport` i
 `TransportInterface` and are used the same way:
 
 ```php
+use Mcp\Server;
+
 $server = Server::builder()
     ->setServerInfo('My Server', '1.0.0')
     ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])
@@ -14,6 +16,9 @@ $transport = new SomeTransport();
 
 $result = $server->run($transport); // Blocks for STDIO, returns a response for HTTP
 ```
+
+`InMemoryTransport` takes a list of JSON-RPC messages, handles them in order and discards the
+answers. Use it in tests.
 
 `StatelessHttpTransport` works differently. It serves only protocol revision `2026-07-28`.
 You create it with the result of `buildStateless()` and call `handle()` with the request. See
@@ -36,7 +41,7 @@ The rest of this section:
   a Symfony, Laravel, or Slim application, or running it standalone.
 * **[Web servers](web-servers.md)** — serving the endpoint with Nginx or Apache and
   PHP-FPM.
-* **[Sessions](sessions.md)** — off over HTTP until you configure a store; what needs
+* **[Sessions](sessions.md)** — off over HTTP until you call `setSession()`; what needs
   them, and where per-client state lives once you serve HTTP from more than one process.
 * **[Serving both eras](protocol-eras.md)** — the same endpoint also answers protocol
   revision `2026-07-28`, which has no handshake and no sessions; what a modern request

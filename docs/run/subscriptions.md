@@ -30,12 +30,17 @@ use Mcp\Server\Subscription\Psr6NotificationBus;
 ->setNotificationBus(new Psr16NotificationBus($cache))      // or a PSR-16 cache
 ```
 
+Without a bus, `server/discover` doesn't announce `resources.subscribe` unless `setCapabilities()` sets it.
+A handshake-era `initialize` on a server with sessions still announces it, because `resources/subscribe` works there.
+
 Registry changes (`registerTool()`, `unregisterPrompt()`, …) are published automatically, with or
 without an event dispatcher, unless you pass your own registry with `setRegistry()`. Then you wire
 it to the bus yourself, and the builder announces `listChanged` for it:
 
 ```php
 use Mcp\Capability\Registry;
+use Mcp\Server;
+use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Subscription\PublishingEventDispatcher;
 
 $bus = new InMemoryNotificationBus();
@@ -59,7 +64,7 @@ $bus->publish(new ResourceUpdatedNotification('file:///project/config.json'));
 ## How long a stream lives
 
 `Builder::setSubscriptionLifetime()` bounds how long a stream is held before the server
-closes it gracefully. The real ceiling is the runtime's: under PHP-FPM,
+closes it gracefully. The default is 30 seconds. The real ceiling is the runtime's: under PHP-FPM,
 `request_terminate_timeout`, once set, ends a stream without the closing message, see
 [Web servers](web-servers.md#workers-and-long-lived-requests). Pass `0` for "until the client
 or the runtime ends it".
@@ -67,6 +72,6 @@ or the runtime ends it".
 Over stdio the lifetime does not apply: a stream stays open until the client sends
 `notifications/cancelled` for it, see [Over stdio](protocol-eras.md#over-stdio).
 
-On both transports, a stream that can carry nothing, because the server announces none of
-the types the client asked for, or the client asked for none, is acknowledged and closed
-right away.
+On both transports, a stream that can carry nothing is acknowledged and closed right away. This happens
+when the server has no bus, when it announces none of the types the client asked for, or when the client
+asked for none.

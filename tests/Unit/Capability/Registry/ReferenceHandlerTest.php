@@ -659,12 +659,16 @@ final class ReferenceHandlerTest extends TestCase
         $container = new Container();
         $container->set('app.greet_handler', new InvokableHandlerFixture());
 
-        $this->expectException(RegistryException::class);
-        $this->expectExceptionMessage('Missing required argument `who` for app.greet_handler.');
-
-        (new ReferenceHandler($container))->handle(new ElementReference('app.greet_handler'), [
-            '_session' => $this->createMock(SessionInterface::class),
-        ]);
+        try {
+            (new ReferenceHandler($container))->handle(new ElementReference('app.greet_handler'), [
+                '_session' => $this->createMock(SessionInterface::class),
+            ]);
+            $this->fail('A missing required argument must throw.');
+        } catch (RegistryException $e) {
+            $this->assertTrue($e->isInvalidParams());
+            $this->assertSame('Missing required argument `who`.', $e->getMessage());
+            $this->assertStringContainsString('app.greet_handler', $e->getPrevious()?->getMessage() ?? '');
+        }
     }
 
     public function testHandleRefusesClassWithoutInvokeMethod(): void

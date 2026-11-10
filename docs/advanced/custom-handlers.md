@@ -1,13 +1,13 @@
-# Custom Message Handlers
+# Custom message handlers
 
 **Low-level escape hatch.** Custom message handlers run before the SDK's built-in handlers and give you total control over
 individual JSON-RPC messages. They do not receive the builder's registry, container, or discovery output unless you pass
 those dependencies in yourself.
 
-> **Warning**: Custom message handlers bypass discovery, manual capability registration, and container lookups (unless
-> you explicitly pass them). Tools, resources, and prompts you register elsewhere will not show up unless your handler
-> loads and executes them manually. Reach for this API only when you need that level of control and are comfortable
-> taking on the additional plumbing.
+!!! warning
+    A custom handler replaces the built-in handler of the method it takes. A custom `tools/list` handler hides the tools
+    you registered elsewhere, unless it loads them itself. Other methods keep their built-in handlers, so `tools/call`
+    still runs those tools.
 
 !!! note
     A custom handler can only serve a method the SDK knows. The SDK rejects any other method as unknown before
@@ -24,7 +24,12 @@ methods as many times as needed; handlers are collected in call order, and the w
 built-in defaults:
 
 ```php
+use Mcp\Schema\ServerCapabilities;
+use Mcp\Server;
+
 $server = Server::builder()
+    // the SDK detects capabilities from registered elements, so declare what your handlers serve
+    ->setCapabilities(new ServerCapabilities(tools: true, resources: false, prompts: true))
     ->addRequestHandler(new CustomListToolsHandler())
     ->addRequestHandlers([
         new CustomCallToolHandler(),
@@ -33,13 +38,12 @@ $server = Server::builder()
     ->build();
 ```
 
-Request handlers implement `RequestHandlerInterface`:
+Request handlers implement `Mcp\Server\Handler\Request\RequestHandlerInterface`:
 
 ```php
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
-use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 
 interface RequestHandlerInterface
@@ -61,6 +65,8 @@ return anything - they perform side effects only.
 Attach notification handlers with `addNotificationHandler()` (single) or `addNotificationHandlers()` (multiple):
 
 ```php
+use Mcp\Server;
+
 // Handlers are your own classes implementing NotificationHandlerInterface;
 // the SDK ships only its internal ones.
 $server = Server::builder()
@@ -72,11 +78,10 @@ $server = Server::builder()
     ->build();
 ```
 
-Notification handlers implement `NotificationHandlerInterface`:
+Notification handlers implement `Mcp\Server\Handler\Notification\NotificationHandlerInterface`:
 
 ```php
 use Mcp\Schema\JsonRpc\Notification;
-use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 
 interface NotificationHandlerInterface
@@ -95,9 +100,9 @@ Request handlers stop at the first match. Notification handlers don't: every han
 
 ## Protocol `2026-07-28`
 
-Custom request handlers also serve requests on protocol version `2026-07-28`. Each of these requests gets a new
-in-memory session, so nothing you store in `$session` reaches the next request. Notification handlers never run
-on this protocol version.
+Custom request handlers also serve requests on revision `2026-07-28`. Each of these requests gets a new
+in-memory session, so nothing you store in `$session` reaches the next request. The same applies to handshake-era
+requests over HTTP without `setSession()`. Notification handlers never run on this revision.
 
 There are two exceptions. The SDK rejects the methods this revision removed (`initialize`, `ping`,
 `logging/setLevel`, `resources/subscribe` and `resources/unsubscribe`) before any handler runs. And the SDK answers
