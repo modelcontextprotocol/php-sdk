@@ -101,6 +101,8 @@ reference concrete extension types.
 
 - Throw the `Exception\*` of the package you are in (`Mcp\Schema`, `Mcp\Client` or `Mcp\Server`; all implement
   `Mcp\Schema\Exception\ExceptionInterface`), never native SPL exceptions.
+- `src/Schema`, `src/Client` and `src/Server` are split into `mcp/schema`, `mcp/client` and `mcp/server` (`splitsh.json`);
+  a new runtime dependency goes into the root `composer.json` and into the `composer.json` of each package that uses it.
 - No `suggest` in `composer.json`: code that needs an optional package or extension checks for it and throws an
   exception that names what to install.
 - Add an `@author` tag to newly introduced classes.

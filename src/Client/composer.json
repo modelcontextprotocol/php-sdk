@@ -1,0 +1,52 @@
+{
+    "name": "mcp/client",
+    "description": "Model Context Protocol client for PHP applications",
+    "license": "Apache-2.0",
+    "type": "library",
+    "keywords": [
+        "mcp",
+        "model-context-protocol",
+        "ai",
+        "client"
+    ],
+    "homepage": "https://php.sdk.modelcontextprotocol.io",
+    "authors": [
+        {
+            "name": "Christopher Hertel",
+            "email": "mail@christopher-hertel.de"
+        },
+        {
+            "name": "Kyrian Obikwelu",
+            "email": "koshnawaza@gmail.com"
+        },
+        {
+            "name": "Tobias Nyholm",
+            "email": "tobias.nyholm@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "mcp/schema": "^0.11",
+        "php-http/discovery": "^1.20",
+        "psr/clock": "^1.0",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.1",
+        "psr/http-message": "^1.1 || ^2.0",
+        "psr/log": "^1.0 || ^2.0 || ^3.0",
+        "symfony/deprecation-contracts": "^2.5 || ^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Mcp\\Client\\": ""
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "thanks": {
+            "name": "mcp/sdk",
+            "url": "https://github.com/modelcontextprotocol/php-sdk"
+        }
+    }
+}

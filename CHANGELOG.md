@@ -5,6 +5,10 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.11.0
 ------
 
+### General
+
+* Publish `Mcp\Schema`, `Mcp\Client` and `Mcp\Server` as the separate packages `mcp/schema`, `mcp/client` and `mcp/server`; `mcp/sdk` still contains all three
+
 ### Server
 
 * Fix const validation errors always reporting the expected value as null.
