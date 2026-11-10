@@ -146,7 +146,7 @@ final class AccessTokenTest extends TestCase
     #[TestDox('a token survives a round trip through storage')]
     public function testRoundTrip(): void
     {
-        $token = new AccessToken('abc', 'Bearer', 4600, 'refresh', ['mcp:read']);
+        $token = new AccessToken('abc', 'Bearer', 4600, 'refresh', ['mcp:read'], 'client-1');
         $restored = AccessToken::fromArray($token->jsonSerialize());
 
         $this->assertEquals($token, $restored);

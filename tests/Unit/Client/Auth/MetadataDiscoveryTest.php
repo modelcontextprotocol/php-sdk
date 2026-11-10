@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Client\Auth;
 
 use Mcp\Client\Auth\MetadataDiscovery;
+use Mcp\Exception\AuthorizationException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -305,6 +306,35 @@ final class MetadataDiscoveryTest extends TestCase
         $this->assertNotNull($metadata);
         $this->assertSame(['https://auth.example.com'], $metadata->authorizationServers);
         $this->assertSame(['https://mcp.example.com/custom/location.json'], $client->requested);
+    }
+
+    #[TestDox('a document for another resource does not stop a later location')]
+    public function testContinuesAfterAnUnrelatedResource(): void
+    {
+        $path = 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp';
+        $root = 'https://mcp.example.com/.well-known/oauth-protected-resource';
+        $client = new RecordingClient([
+            $path => self::json(['resource' => 'https://mcp.example.com/other']),
+            $root => self::json(['resource' => 'https://mcp.example.com']),
+        ]);
+
+        $metadata = $this->discovery($client)->discoverProtectedResource('https://mcp.example.com/mcp');
+
+        $this->assertSame('https://mcp.example.com', $metadata?->resource);
+        $this->assertSame([$path, $root], $client->requested);
+    }
+
+    #[TestDox('documents only for other resources are refused, rather than taken as no metadata')]
+    public function testRefusesWhenOnlyUnrelatedResourcesAreFound(): void
+    {
+        $client = new RecordingClient([
+            'https://mcp.example.com/.well-known/oauth-protected-resource/mcp' => self::json(['resource' => 'https://evil.example.com/mcp']),
+        ]);
+
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('declares the unrelated resource "https://evil.example.com/mcp"');
+
+        $this->discovery($client)->discoverProtectedResource('https://mcp.example.com/mcp');
     }
 
     #[TestDox('an invalid resource identifier does not stop a later location')]

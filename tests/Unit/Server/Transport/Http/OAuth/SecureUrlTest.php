@@ -129,4 +129,38 @@ final class SecureUrlTest extends TestCase
     {
         $this->assertSame($loopback, SecureUrl::isLoopback($url));
     }
+
+    /**
+     * @return iterable<string, array{string, bool}>
+     */
+    public static function providePrivateNetworkUrls(): iterable
+    {
+        yield '10/8' => ['https://10.0.0.5/x', true];
+        yield 'upper end of 172.16/12' => ['https://172.31.255.1/x', true];
+        yield 'above 172.16/12' => ['https://172.32.0.1/x', false];
+        yield '192.168/16' => ['https://192.168.1.1/x', true];
+        yield 'link-local metadata service' => ['https://169.254.169.254/x', true];
+        yield 'shared address space' => ['https://100.100.100.200/x', true];
+        yield 'above the shared address space' => ['https://100.128.0.1/x', false];
+        yield 'unique local IPv6' => ['https://[fd00::1]/x', true];
+        yield 'link-local IPv6' => ['https://[fe80::1]/x', true];
+        yield 'public IPv4' => ['https://8.8.8.8/x', false];
+        yield 'public IPv6' => ['https://[2001:db8::1]/x', false];
+        yield 'loopback' => ['https://127.0.0.1/x', false];
+        yield 'a name, which is not resolved' => ['https://internal.corp/x', false];
+        yield 'site-local IPv6' => ['https://[fec0::1]/x', true];
+        yield 'NAT64 of a private address' => ['https://[64:ff9b::a00:5]/x', true];
+        yield 'NAT64 of the metadata service' => ['https://[64:ff9b::a9fe:a9fe]/x', true];
+        yield 'NAT64 of loopback' => ['https://[64:ff9b::7f00:1]/x', true];
+        yield 'NAT64 of a public address' => ['https://[64:ff9b::808:808]/x', false];
+        yield 'local-use NAT64' => ['https://[64:ff9b:1::808:808]/x', true];
+        yield '6to4 of a private address' => ['https://[2002:c0a8:101::1]/x', true];
+        yield '6to4 of a public address' => ['https://[2002:808:808::1]/x', false];
+    }
+
+    #[DataProvider('providePrivateNetworkUrls')]
+    public function testDetectsPrivateNetworkUrls(string $url, bool $private): void
+    {
+        $this->assertSame($private, SecureUrl::isPrivateNetwork($url));
+    }
 }

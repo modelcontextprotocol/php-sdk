@@ -74,6 +74,11 @@ final class AuthorizationServerMetadata implements \JsonSerializable
             }
         }
 
+        /** @var string $issuer */
+        $issuer = $data['issuer'];
+        $issuerOnLoopback = SecureUrl::isLoopback($issuer);
+        $issuerIsPublic = !$issuerOnLoopback && !SecureUrl::isPrivateNetwork($issuer);
+
         foreach (['authorization_endpoint', 'token_endpoint', 'registration_endpoint'] as $endpoint) {
             if (!\is_string($data[$endpoint] ?? null)) {
                 continue;
@@ -84,8 +89,13 @@ final class AuthorizationServerMetadata implements \JsonSerializable
             }
 
             // Only a server on this machine may send the client back to this machine.
-            if (SecureUrl::isLoopback($data[$endpoint]) && \is_string($data['issuer'] ?? null) && !SecureUrl::isLoopback($data['issuer'])) {
-                throw new InvalidArgumentException(\sprintf('The authorization server metadata of "%s" declares "%s" as "%s", which is a loopback address.', $data['issuer'], $endpoint, $data[$endpoint]));
+            if (!$issuerOnLoopback && SecureUrl::isLoopback($data[$endpoint])) {
+                throw new InvalidArgumentException(\sprintf('The authorization server metadata of "%s" declares "%s" as "%s", which is a loopback address.', $issuer, $endpoint, $data[$endpoint]));
+            }
+
+            // Nor may a server outside a private network send the client into one.
+            if ($issuerIsPublic && SecureUrl::isPrivateNetwork($data[$endpoint])) {
+                throw new InvalidArgumentException(\sprintf('The authorization server metadata of "%s" declares "%s" as "%s", which is an address of a private network.', $issuer, $endpoint, $data[$endpoint]));
             }
 
             $parts = SecureUrl::parse($data[$endpoint], $endpoint);

@@ -318,6 +318,27 @@ final class HttpTransportTest extends TestCase
         $this->assertCount(2, $httpClient->requests);
     }
 
+    #[TestDox('a pending authorization during a stream resumption reaches the request as it is, without logging an error')]
+    public function testPendingAuthorizationDuringResumptionReachesTheRequest(): void
+    {
+        $clock = new SteppingClock();
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-0\ndata:\n\n"),
+            new AuthorizationPendingException('https://auth.example.com/authorize?state=abc'),
+        ], $clock);
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->never())->method('error');
+
+        try {
+            $this->runRequest($this->createTransport(httpClient: $httpClient, clock: $clock, logger: $logger), 1);
+            $this->fail('The request should have failed.');
+        } catch (AuthorizationPendingException $e) {
+            $this->assertSame('https://auth.example.com/authorize?state=abc', $e->authorizationUrl);
+        }
+
+        $this->assertCount(2, $httpClient->requests);
+    }
+
     #[TestDox('the server-minted session ID is exposed while connected and cleared on close')]
     public function testSessionIdIsExposedAndClearedOnClose(): void
     {
@@ -720,6 +741,26 @@ final class HttpTransportTest extends TestCase
 
         $this->assertInstanceOf(Error::class, $this->runRequest($transport, 1));
         $this->assertCount($requests, $httpClient->requests);
+    }
+
+    #[TestDox('a Symfony client passed without auth stops following redirects')]
+    public function testPassedSymfonyClientStopsFollowingRedirects(): void
+    {
+        if (!(new \ReflectionClass(Psr18Client::class))->hasMethod('withOptions')) {
+            $this->markTestSkipped('Psr18Client has no withOptions() before symfony/http-client 6.2.');
+        }
+
+        $maxRedirects = null;
+        $mock = new MockHttpClient(static function (string $method, string $url, array $options) use (&$maxRedirects): MockResponse {
+            $maxRedirects = $options['max_redirects'];
+
+            return new MockResponse('', ['http_code' => 202]);
+        });
+
+        $transport = new HttpTransport('http://localhost/mcp', httpClient: new Psr18Client($mock), requestFactory: $this->factory, streamFactory: $this->factory);
+        $transport->send('{"jsonrpc":"2.0","method":"notifications/initialized"}');
+
+        $this->assertSame(0, $maxRedirects);
     }
 
     #[TestDox('a discovered Symfony client keeps its configuration and stops following redirects')]

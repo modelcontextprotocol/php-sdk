@@ -25,6 +25,9 @@ use Mcp\Exception\InvalidArgumentException;
  */
 final class SecureUrl
 {
+    /** @var list<array{string, int}> */
+    private const PRIVATE_IPV4 = [['10.0.0.0', 8], ['172.16.0.0', 12], ['192.168.0.0', 16], ['169.254.0.0', 16], ['100.64.0.0', 10]];
+
     /**
      * @return array{scheme: string, host: string, port?: int, path?: string, query?: string, fragment?: string}
      *
@@ -64,6 +67,65 @@ final class SecureUrl
         $host = parse_url($url, \PHP_URL_HOST);
 
         return \is_string($host) && self::isLoopbackHost($host);
+    }
+
+    /**
+     * Whether a URL names an address of a private or link-local network as an IP literal; a name is not resolved.
+     */
+    public static function isPrivateNetwork(string $url): bool
+    {
+        $host = parse_url($url, \PHP_URL_HOST);
+        $host = \is_string($host) ? trim($host, '[]') : '';
+
+        if (false === filter_var($host, \FILTER_VALIDATE_IP)) {
+            return false;
+        }
+
+        $address = (string) inet_pton($host);
+
+        if (4 === \strlen($address)) {
+            return self::isWithin($address, self::PRIVATE_IPV4);
+        }
+
+        if (self::isWithin($address, [['64:ff9b:1::', 48]])) {
+            return true;
+        }
+
+        // NAT64 (RFC 6052) and 6to4 (RFC 3056) addresses reach the IPv4 address they carry, loopback included.
+        $embedded = match (true) {
+            self::isWithin($address, [['64:ff9b::', 96]]) => substr($address, 12),
+            self::isWithin($address, [['2002::', 16]]) => substr($address, 2, 4),
+            default => null,
+        };
+
+        if (null !== $embedded) {
+            return self::isWithin($embedded, [...self::PRIVATE_IPV4, ['127.0.0.0', 8], ['0.0.0.0', 8]]);
+        }
+
+        return self::isWithin($address, [['fc00::', 7], ['fe80::', 10], ['fec0::', 10]]);
+    }
+
+    /**
+     * @param list<array{string, int}> $ranges
+     */
+    private static function isWithin(string $address, array $ranges): bool
+    {
+        foreach ($ranges as [$network, $bits]) {
+            $prefix = (string) inet_pton($network);
+
+            if (\strlen($prefix) !== \strlen($address)) {
+                continue;
+            }
+
+            $bytes = intdiv($bits, 8);
+            $mask = 0xFF << (8 - $bits % 8) & 0xFF;
+
+            if (0 === substr_compare($address, $prefix, 0, $bytes) && (0 === $bits % 8 || (\ord($address[$bytes]) & $mask) === \ord($prefix[$bytes]))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Each of these can reach this machine or a private network without looking like it.

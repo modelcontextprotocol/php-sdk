@@ -200,8 +200,8 @@ final class AuthenticatingHttpClientTest extends TestCase
             ->sendRequest((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/mcp'));
     }
 
-    #[TestDox('a body that fails to seek leaves no rejected response open')]
-    public function testClosesTheRejectedResponseWhenTheBodyCannotSeek(): void
+    #[TestDox('a body that fails to seek ends the exchange with the rejected response, inside the PSR-18 contract')]
+    public function testReturnsTheRejectedResponseWhenTheBodyCannotSeek(): void
     {
         $rejected = new Response(401, [], 'body');
         $inner = $this->createStub(ClientInterface::class);
@@ -212,15 +212,29 @@ final class AuthenticatingHttpClientTest extends TestCase
         $body->method('tell')->willReturn(0);
         $body->method('seek')->willThrowException(new \RuntimeException('Unable to seek.'));
 
-        try {
-            (new AuthenticatingHttpClient($inner, new CountingAuthenticator()))
-                ->sendRequest((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/mcp')->withBody($body));
-            $this->fail('The seek failure should have reached the caller.');
-        } catch (\RuntimeException $e) {
-            $this->assertSame('Unable to seek.', $e->getMessage());
-        }
+        $response = (new AuthenticatingHttpClient($inner, new CountingAuthenticator()))
+            ->sendRequest((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/mcp')->withBody($body));
 
-        $this->assertFalse($rejected->getBody()->isReadable());
+        $this->assertSame($rejected, $response);
+        $this->assertTrue($response->getBody()->isReadable());
+    }
+
+    #[TestDox('a body that fails to tell its position is not replayed')]
+    public function testDoesNotRetryABodyThatCannotTell(): void
+    {
+        $body = $this->createStub(StreamInterface::class);
+        $body->method('isSeekable')->willReturn(true);
+        $body->method('tell')->willThrowException(new \RuntimeException('Unable to tell.'));
+
+        $inner = new RejectingClient(1);
+        $authenticator = new CountingAuthenticator();
+
+        $response = (new AuthenticatingHttpClient($inner, $authenticator))
+            ->sendRequest((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/mcp')->withBody($body));
+
+        $this->assertSame(401, $response->getStatusCode());
+        $this->assertSame(1, $inner->calls);
+        $this->assertSame(1, $authenticator->challenges);
     }
 
     #[TestDox('a body that cannot be replayed ends the exchange after the challenge')]

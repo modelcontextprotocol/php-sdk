@@ -160,7 +160,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->listenParser = new SseParser($maxSseBufferBytes);
         $this->reconnectPolicy = $reconnectPolicy ?? new ReconnectPolicy();
         $this->clock = $clock ?? new MonotonicClock();
-        $client = $httpClient ?? NoRedirects::discover();
+        $client = null === $httpClient ? NoRedirects::discover() : NoRedirects::apply($httpClient);
         $this->httpClient = null === $auth ? $client : new AuthenticatingHttpClient($client, $auth);
         $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
@@ -956,6 +956,10 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         try {
             $response = $this->httpClient->sendRequest($request);
+        } catch (AuthorizationPendingException $e) {
+            $this->failSseResumption($e);
+
+            return;
         } catch (AuthorizationException $e) {
             $this->handleError($e);
             $this->failSseResumption($e);

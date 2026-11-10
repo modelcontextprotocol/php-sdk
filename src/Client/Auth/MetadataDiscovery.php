@@ -11,6 +11,7 @@
 
 namespace Mcp\Client\Auth;
 
+use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\InvalidArgumentException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
@@ -39,9 +40,15 @@ final class MetadataDiscovery
      *
      * @param string  $resourceUrl the MCP endpoint being called
      * @param ?string $metadataUrl the location the challenge named, which wins over any guess
+     *
+     * @return ?ProtectedResourceMetadata the first document that covers the endpoint, null if there is none
+     *
+     * @throws AuthorizationException if documents were found, but only for other resources
      */
     public function discoverProtectedResource(string $resourceUrl, ?string $metadataUrl = null): ?ProtectedResourceMetadata
     {
+        $unrelated = null;
+
         foreach (null !== $metadataUrl ? [$metadataUrl] : self::protectedResourceCandidates($resourceUrl) as $candidate) {
             if (!AuthorizationServerMetadata::isTransportSecure($candidate)) {
                 $this->logger->error('Refusing protected resource discovery: the metadata URL is neither an HTTPS URL nor a loopback address.', ['url' => $candidate]);
@@ -56,10 +63,27 @@ final class MetadataDiscovery
             }
 
             try {
-                return ProtectedResourceMetadata::fromArray($document);
+                $metadata = ProtectedResourceMetadata::fromArray($document);
             } catch (InvalidArgumentException $e) {
                 $this->logger->warning('Ignoring malformed protected resource metadata', ['url' => $candidate, 'exception' => $e]);
+
+                continue;
             }
+
+            // RFC 9728 section 3.3: the document must not be used, but a later location may describe this resource.
+            if (!$metadata->covers($resourceUrl)) {
+                $this->logger->warning('Ignoring protected resource metadata for another resource', ['url' => $candidate, 'resource' => $metadata->resource]);
+                $unrelated ??= $metadata;
+
+                continue;
+            }
+
+            return $metadata;
+        }
+
+        if (null !== $unrelated) {
+            // A token for another resource would be sent to this one: a confused deputy.
+            throw new AuthorizationException(\sprintf('The protected resource metadata for "%s" declares the unrelated resource "%s"; refusing to authorize against it.', $resourceUrl, $unrelated->resource));
         }
 
         return null;

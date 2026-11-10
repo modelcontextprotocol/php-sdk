@@ -145,15 +145,19 @@ If the server answers a request with a `3xx` status, the request fails at once w
 `ConnectionException` at once, with no retry and no fallback to the `initialize` handshake. To
 reach a server that moved, configure its new URL as `endpoint`.
 
-The transport turns off redirects on a `symfony/http-client` client that it discovers. With `auth`,
-it also turns them off on a `symfony/http-client` client that you pass as `httpClient`. Any other
-client keeps its own configuration.
+The transport turns off redirects on a `symfony/http-client` client, whether it discovers the client
+or you pass it as `httpClient`. Any other client keeps its own configuration.
 
 Such a client *must not* follow redirects to another origin. If it does, your headers and the
 request body reach that origin, and the transport accepts its answer as the server's. With `auth`,
 it *must not* follow any redirect, because a redirect on the same origin also receives the token.
 
-To pass a `symfony/http-client` client, create it with `max_redirects` set to `0`:
+Guzzle doesn't follow redirects through PSR-18. An HTTPlug adapter around a Guzzle client with the
+default handler stack (e.g. `php-http/guzzle7-adapter`), HTTPlug's `RedirectPlugin` and Symfony's
+`HttplugClient` do.
+
+Before `symfony/http-client` 6.2, the transport can't change a client that you pass. Create it with
+`max_redirects` set to `0`:
 
 ```php
 use Symfony\Component\HttpClient\HttpClient;

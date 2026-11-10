@@ -31,6 +31,7 @@ final class AccessToken implements \JsonSerializable
      * @param ?int     $expiresAt    unix timestamp the token expires at, null when the server did not say
      * @param ?string  $refreshToken the refresh token, when the grant produced one
      * @param string[] $scopes       the scopes the authorization server actually granted
+     * @param ?string  $clientId     the client the token was issued to, null when unknown
      */
     public function __construct(
         public readonly string $accessToken,
@@ -38,6 +39,7 @@ final class AccessToken implements \JsonSerializable
         public readonly ?int $expiresAt = null,
         public readonly ?string $refreshToken = null,
         public readonly array $scopes = [],
+        public readonly ?string $clientId = null,
     ) {
         if ('' === trim($accessToken)) {
             throw new InvalidArgumentException('The access token must not be empty.');
@@ -122,7 +124,20 @@ final class AccessToken implements \JsonSerializable
             return $this;
         }
 
-        return new self($this->accessToken, $this->tokenType, $this->expiresAt, $this->refreshToken, $scopes);
+        return new self($this->accessToken, $this->tokenType, $this->expiresAt, $this->refreshToken, $scopes, $this->clientId);
+    }
+
+    public function withClientId(string $clientId): self
+    {
+        return new self($this->accessToken, $this->tokenType, $this->expiresAt, $this->refreshToken, $this->scopes, $clientId);
+    }
+
+    /**
+     * Whether the token may be used by this client: a token and its refresh token belong to the client they were issued to (RFC 6749 section 6).
+     */
+    public function isIssuedTo(?string $clientId): bool
+    {
+        return null === $this->clientId || $this->clientId === $clientId;
     }
 
     public function getAuthorizationHeader(): string
@@ -141,6 +156,7 @@ final class AccessToken implements \JsonSerializable
             'expires_at' => $this->expiresAt,
             'refresh_token' => $this->refreshToken,
             'scopes' => $this->scopes,
+            'client_id' => $this->clientId,
         ], static fn (mixed $value): bool => null !== $value && [] !== $value);
     }
 
@@ -155,6 +171,7 @@ final class AccessToken implements \JsonSerializable
             isset($data['expires_at']) && is_numeric($data['expires_at']) ? (int) $data['expires_at'] : null,
             \is_string($data['refresh_token'] ?? null) ? $data['refresh_token'] : null,
             array_values(array_filter((array) ($data['scopes'] ?? []), 'is_string')),
+            \is_string($data['client_id'] ?? null) ? $data['client_id'] : null,
         );
     }
 

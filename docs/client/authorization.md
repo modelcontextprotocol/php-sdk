@@ -89,6 +89,8 @@ The file contains tokens and client secrets. The SDK creates it with the mode `0
 
 The storage keys everything by the issuer of the authorization server. If a server moves to another authorization server, the client registers again and doesn't send its old client ID to the new one. It also registers again if you change the redirect URI, if it needs scopes that its registration doesn't include, or if the token endpoint answers `invalid_client` for a client that it registered.
 
+Tokens are also stored per resource, grant and client ID. So you can share one storage between a service account and an application for users, or between clients with different client IDs. None of them uses a token of another. Each token also records the client it was issued to, and a client never uses or refreshes a token of another, e.g. after a dynamic registration was replaced. A storage of your own must keep that client ID, which `AccessToken::jsonSerialize()` includes.
+
 ## Finishing the Authorization in a Later Request
 
 A web application can't wait for the browser within one request. It redirects the user to the authorization server, which sends the user back to a callback route of the application. Use `RedirectAuthorizationHandler` for this, with one storage per user session:
@@ -246,7 +248,7 @@ OAuth::forApplication('My App')->setScopes('mcp:read', 'mcp:write');
 
 If the server answers with `insufficient_scope`, the client adds the scopes of this challenge and authorizes again. It doesn't authorize again for scopes that it already requested. With any other `403`, the client doesn't authorize again.
 
-If the authorization server supports `offline_access`, the client requests it to get a refresh token. If the server refuses this scope, the client tries again without it. Use `setOfflineAccess(false)` to never request this scope. The server can still issue a refresh token, and the client then uses it.
+If the authorization server supports `offline_access`, the client requests it to get a refresh token. If the server refuses this scope, the client tries again without it. Use `setOfflineAccess(false)` to never request this scope. The server can still issue a refresh token, and the client then uses it. It refreshes a token 30 seconds before it expires, so the server doesn't have to reject a request first. A token that lives shorter than that is only refreshed once the server rejects it.
 
 ## Connecting to Older Servers
 
@@ -272,11 +274,13 @@ The client treats the MCP server and its metadata as untrusted input. It stops w
 
 | Input | Reason |
 | --- | --- |
-| The protected resource metadata names a `resource` that doesn't cover the endpoint | The token would be issued for another server |
+| No location of the protected resource metadata names a `resource` that covers the endpoint | The token would be issued for another server |
 | The authorization server metadata names another `issuer` than the one it was fetched for | The document describes another server |
 | The MCP server URL, an authorization server URL or an endpoint doesn't use `https` on a host that isn't loopback | Credentials would travel without encryption |
 | One of these URLs names `0.0.0.0`, `::`, an IPv4 address within IPv6 or an IPv4 address in another form than four decimal numbers (e.g. `127.1`), or writes its host with percent-encoding or non-ASCII characters | The request could reach a local service or a private network without looking like it |
-| A server that isn't on loopback names a loopback authorization server or endpoint, unless `setExpectedIssuer()` allows that issuer | It could reach services that only listen on this machine |
+| A server that isn't on loopback names a loopback authorization server, unless `setExpectedIssuer()` allows that issuer, or an authorization server that isn't on loopback names a loopback endpoint, even with `setExpectedIssuer()` | It could reach services that only listen on this machine |
+| An MCP server whose URL isn't a loopback or private-network IP address names an IP address of a private or link-local network (e.g. `10.0.0.5` or `169.254.169.254`) as authorization server, unless `setExpectedIssuer()` allows that issuer. A DNS name counts as public, so an MCP server at `https://mcp.corp.internal` with its authorization server at `https://10.0.0.5` needs `setExpectedIssuer()` | It could reach services of the network the client runs in |
+| An authorization server whose URL isn't a loopback or private-network IP address names such an address as endpoint, even with `setExpectedIssuer()` | The same |
 | The authorization server metadata doesn't list `S256` in `code_challenge_methods_supported` | The client can't use PKCE with this server |
 | The authorization endpoint is on another origin than the issuer and the metadata doesn't announce `iss`, without `setExpectedIssuer()` | A response could come from another server, and the code would go to this one |
 | The authorization response has no `state`, or another `state` | It doesn't answer the request of this client |
@@ -286,10 +290,10 @@ The client treats the MCP server and its metadata as untrusted input. It stops w
 | With `setLegacyDiscovery(true)`, a metadata location answers anything but a `404` and gives no usable metadata | The client only uses the fixed endpoints after a `404` |
 | The server has no protected resource metadata, without `setLegacyDiscovery(true)` | There is nothing to check the authorization server against |
 
-These checks only look at how a URL writes its host. A DNS name that points at loopback or a private network still gets through. If you run the client on a server, block requests to private networks in your HTTP client or proxy (e.g. with Symfony's `NoPrivateNetworkHttpClient`) and pass that client to `setHttpClient()`. Pass it to `HeadlessAuthorizationHandler` as well, which sends its own request to the authorization endpoint.
+These checks only look at how a URL writes its host. A DNS name that points at loopback or a private network still gets through, as the client doesn't resolve names. If you run the client on a server, block requests to private networks in your HTTP client or proxy (e.g. with Symfony's `NoPrivateNetworkHttpClient`) and pass that client to `setHttpClient()`. Pass it to `HeadlessAuthorizationHandler` as well, which sends its own request to the authorization endpoint.
 
 !!! warning
-    A client that you pass to `setHttpClient()` *must not* follow redirects. The client only turns them off on a `Psr18Client` of `symfony/http-client` 6.2 or later. With redirects on, an authorization server can send the authorization code and the client credentials to any address.
+    A client that you pass to `setHttpClient()` *must not* follow redirects. The client only turns them off on a `Psr18Client` of `symfony/http-client` 6.2 or later. Guzzle doesn't follow redirects through PSR-18, but an HTTPlug adapter around a Guzzle client with the default handler stack, HTTPlug's `RedirectPlugin` and Symfony's `HttplugClient` do. With redirects on, an authorization server can send the authorization code and the client credentials to any address.
 
 The client ignores a `resource_metadata` URL on another origin than the MCP server and looks at the well-known URLs instead. It only sends a token to the resource it was issued for.
 
