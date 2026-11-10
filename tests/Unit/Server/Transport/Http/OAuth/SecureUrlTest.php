@@ -148,6 +148,14 @@ final class SecureUrlTest extends TestCase
         yield 'public IPv6' => ['https://[2001:db8::1]/x', false];
         yield 'loopback' => ['https://127.0.0.1/x', false];
         yield 'a name, which is not resolved' => ['https://internal.corp/x', false];
+        yield 'site-local IPv6' => ['https://[fec0::1]/x', true];
+        yield 'NAT64 of a private address' => ['https://[64:ff9b::a00:5]/x', true];
+        yield 'NAT64 of the metadata service' => ['https://[64:ff9b::a9fe:a9fe]/x', true];
+        yield 'NAT64 of loopback' => ['https://[64:ff9b::7f00:1]/x', true];
+        yield 'NAT64 of a public address' => ['https://[64:ff9b::808:808]/x', false];
+        yield 'local-use NAT64' => ['https://[64:ff9b:1::808:808]/x', true];
+        yield '6to4 of a private address' => ['https://[2002:c0a8:101::1]/x', true];
+        yield '6to4 of a public address' => ['https://[2002:808:808::1]/x', false];
     }
 
     #[DataProvider('providePrivateNetworkUrls')]
