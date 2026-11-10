@@ -211,6 +211,11 @@ $server = Server::builder()
     ->build();
 ```
 
+!!! warning
+    With PHP-FPM or Apache mod_php, each request opens new TCP connections to Redis. Under load, the server
+    can run out of local ports. Symfony Cache logs the connection errors and reports a cache miss, so clients
+    get HTTP `404` for sessions that still exist. Use a persistent connection: `redis://localhost:6379?persistent=1`.
+
 The lock is held from before a request reads its session until it saved it, so while its handlers run. It
 is released when a handler suspends to wait for the client (elicitation, sampling), so the answer's own
 request can be processed. The stream that waits for the answer takes the lock briefly on each poll, and only
