@@ -69,11 +69,7 @@ final class ClientOAuthTest extends TestCase
         $this->authorizationServer->stop();
         $this->resourceServer->stop();
 
-        foreach (glob($this->workingDirectory.'/*') ?: [] as $file) {
-            is_dir($file) ? $this->removeDirectory($file) : unlink($file);
-        }
-
-        @rmdir($this->workingDirectory);
+        $this->removeDirectory($this->workingDirectory);
     }
 
     #[TestDox('a client with no credentials at all ends up calling a protected tool')]
@@ -319,7 +315,8 @@ final class ClientOAuthTest extends TestCase
 
     private function removeDirectory(string $directory): void
     {
-        foreach (glob($directory.'/*') ?: [] as $file) {
+        foreach (array_diff(scandir($directory) ?: [], ['.', '..']) as $name) {
+            $file = $directory.'/'.$name;
             is_dir($file) ? $this->removeDirectory($file) : unlink($file);
         }
 

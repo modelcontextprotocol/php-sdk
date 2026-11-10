@@ -585,8 +585,7 @@ final class OAuthAuthenticatorTest extends TestCase
             $this->assertSame(['mcp:read'], $stored?->scopes);
             $this->assertSame([], json_decode((string) file_get_contents($path), true)['pending']);
         } finally {
-            unlink($path);
-            @unlink($path.'.lock');
+            $this->removeStorage($path);
         }
     }
 
@@ -755,7 +754,7 @@ final class OAuthAuthenticatorTest extends TestCase
             $this->assertSame('known-client', $server->token['client_id'] ?? null);
             $this->assertSame('known-secret', $server->token['client_secret'] ?? null);
         } finally {
-            array_map('unlink', glob($path.'*') ?: []);
+            $this->removeStorage($path);
         }
     }
 
@@ -824,6 +823,17 @@ final class OAuthAuthenticatorTest extends TestCase
         }
 
         return ['code' => 'test-code', 'state' => $server->authorization['state'], 'iss' => 'https://auth.example.com'];
+    }
+
+    private function removeStorage(string $path): void
+    {
+        $lockPrefix = \dirname($path).'/.'.basename($path);
+
+        foreach ([$path, $lockPrefix.'.lock', $lockPrefix.'.refresh.lock'] as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
     }
 
     /**
