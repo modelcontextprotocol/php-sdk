@@ -14,7 +14,7 @@ namespace Mcp\Client\Auth;
 use Mcp\Exception\AuthorizationPendingException;
 
 /**
- * @author bbdu3 <ergouyang854@gamil.com>
+ * @author bbdu3 <ergouyang854@gmail.com>
  */
 final class RedirectAuthorizationHandler implements AuthorizationHandlerInterface
 {

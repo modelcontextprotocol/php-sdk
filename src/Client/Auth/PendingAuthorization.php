@@ -14,7 +14,7 @@ namespace Mcp\Client\Auth;
 use Mcp\Exception\InvalidArgumentException;
 
 /**
- * @author bbdu3 <ergouyang854@gamil.com>
+ * @author bbdu3 <ergouyang854@gmail.com>
  */
 final class PendingAuthorization implements \JsonSerializable
 {

@@ -14,7 +14,7 @@ namespace Mcp\Client\Auth;
 /**
  * Storage must be scoped to the user session that initiated authorization.
  *
- * @author bbdu3 <ergouyang854@gamil.com>
+ * @author bbdu3 <ergouyang854@gmail.com>
  */
 interface PendingAuthorizationStorageInterface extends CredentialStorageInterface
 {

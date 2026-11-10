@@ -12,7 +12,7 @@
 namespace Mcp\Exception;
 
 /**
- * @author bbdu3 <ergouyang854@gamil.com>
+ * @author bbdu3 <ergouyang854@gmail.com>
  */
 final class AuthorizationPendingException extends AuthorizationException
 {
