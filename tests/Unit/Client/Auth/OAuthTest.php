@@ -19,6 +19,7 @@ use Mcp\Client\Auth\Grant;
 use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Auth\OAuthAuthenticator;
 use Mcp\Client\Auth\OAuthConfiguration;
+use Mcp\Client\Auth\RedirectAuthorizationHandler;
 use Mcp\Client\Auth\TokenEndpointAuthMethod;
 use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\InvalidArgumentException;
@@ -96,6 +97,15 @@ final class OAuthTest extends TestCase
         $this->expectExceptionMessage('expected issuer');
 
         OAuth::forApplication('My App')->setClientCredentials($clientId, $clientSecret)->build();
+    }
+
+    #[TestDox('the redirect handler needs a storage that outlives the request')]
+    public function testRedirectHandlerNeedsAStorage(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('setCredentialStorage()');
+
+        OAuth::forApplication('My App')->setAuthorizationHandler(new RedirectAuthorizationHandler())->build();
     }
 
     #[TestDox('a client that registers itself needs no expected issuer')]
