@@ -99,6 +99,8 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
     private const MAX_LOGGED_BODY_BYTES = 4096;
 
+    private const MAX_LISTEN_BYTES_PER_TICK = 64 * 1024;
+
     private readonly SseParser $sseParser;
 
     private readonly SseParser $listenParser;
@@ -850,10 +852,18 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             return;
         }
 
+        $stream = $this->listenStream;
+        $onOverflow = function (string $reason): void {
+            $this->logger->warning('Closing the listening stream: '.$reason, ['session_id' => $this->sessionId]);
+        };
+
         try {
-            $done = $this->pumpSse($this->listenStream, $this->listenParser, $this->dispatchSseData(...), function (string $reason): void {
-                $this->logger->warning('Closing the listening stream: '.$reason, ['session_id' => $this->sessionId]);
-            });
+            // Its reads never block, so drain what arrived, bounded to leave time for the request.
+            $total = 0;
+            do {
+                $done = $this->pumpSse($stream, $this->listenParser, $this->dispatchSseData(...), $onOverflow, $read, min(4096, self::MAX_LISTEN_BYTES_PER_TICK - $total));
+                $total += $read;
+            } while (!$done && 0 < $read && $total < self::MAX_LISTEN_BYTES_PER_TICK && $stream === $this->listenStream);
         } catch (\Throwable $e) {
             // The listening stream is optional; losing it must not fail the request in flight.
             $this->logger->warning('Closing the listening stream after a read failure', ['session_id' => $this->sessionId, 'exception' => $e]);
@@ -862,7 +872,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             return;
         }
 
-        if ($done) {
+        if ($done && $stream === $this->listenStream) {
             if (null !== $rest = $this->listenParser->rest()) {
                 $this->dispatchSseData($rest);
             }
@@ -878,11 +888,14 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      * @param callable(SseEvent): void       $onEvent
      * @param callable(string $reason): void $onOverflow called when the buffer would exceed its cap
      *
+     * @param-out int $read
+     *
      * @return bool whether the stream is done: ended, or given up for its size
      */
-    private function pumpSse(StreamInterface $stream, SseParser $parser, callable $onEvent, callable $onOverflow): bool
+    private function pumpSse(StreamInterface $stream, SseParser $parser, callable $onEvent, callable $onOverflow, ?int &$read = null, int $length = 4096): bool
     {
-        $chunk = $stream->eof() ? '' : $stream->read(4096);
+        $chunk = $stream->eof() ? '' : $stream->read($length);
+        $read = \strlen($chunk);
 
         if (!$parser->append($chunk)) {
             $onOverflow(\sprintf('buffered %d bytes without a complete event, exceeding the %d byte limit', $parser->bufferedBytes() + \strlen($chunk), $parser->maxBufferBytes));

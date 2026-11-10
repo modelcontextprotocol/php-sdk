@@ -194,6 +194,39 @@ final class HttpTransportListenTest extends TestCase
         $client->disconnect();
     }
 
+    #[TestDox('an event larger than one read that already arrived is handled within a call answered with JSON')]
+    public function testEventLargerThanOneReadIsHandledWithinOneCall(): void
+    {
+        $server = new FakeListeningServer(rootsOnGet: false);
+        $client = $this->client($server, listen: true);
+
+        fwrite($server->getStream(), self::paddedRootsRequest('srv-1', 20_000));
+
+        $this->assertSame('hello', $this->echo($client, 'hello', 'echo-json'));
+        $this->assertSame(['srv-1'], $server->answeredIds());
+
+        $client->disconnect();
+    }
+
+    #[TestDox('a call reads at most 64 KiB of the listening stream, leaving the rest for the next call')]
+    public function testListenStreamReadIsBoundedPerCall(): void
+    {
+        $server = new FakeListeningServer(rootsOnGet: false);
+        $client = $this->client($server, listen: true);
+
+        foreach (['srv-1', 'srv-2', 'srv-3'] as $id) {
+            fwrite($server->getStream(), self::paddedRootsRequest($id, 30_000));
+        }
+
+        $this->assertSame('first', $this->echo($client, 'first', 'echo-json'));
+        $this->assertSame(['srv-1', 'srv-2'], $server->answeredIds());
+
+        $this->assertSame('second', $this->echo($client, 'second', 'echo-json'));
+        $this->assertSame(['srv-1', 'srv-2', 'srv-3'], $server->answeredIds());
+
+        $client->disconnect();
+    }
+
     #[TestDox('an oversized event on the listening stream closes it, leaving the connection usable')]
     public function testOversizedEventOnListenStreamClosesIt(): void
     {
@@ -219,11 +252,21 @@ final class HttpTransportListenTest extends TestCase
         return $content instanceof TextContent ? $content->text : null;
     }
 
-    private function echo(Client $client, string $text): ?string
+    private function echo(Client $client, string $text, string $tool = 'echo'): ?string
     {
-        $content = $client->callTool('echo', ['text' => $text])->content[0] ?? null;
+        $content = $client->callTool($tool, ['text' => $text])->content[0] ?? null;
 
         return $content instanceof TextContent ? $content->text : null;
+    }
+
+    private static function paddedRootsRequest(string $id, int $padding): string
+    {
+        return 'data: '.json_encode([
+            'jsonrpc' => '2.0',
+            'id' => $id,
+            'method' => 'roots/list',
+            'params' => ['_meta' => ['padding' => str_repeat('x', $padding)]],
+        ])."\n\n";
     }
 
     /**
@@ -438,6 +481,22 @@ final class FakeListeningServer implements ClientInterface
         return array_values(array_filter($this->requests, static fn (RequestInterface $r): bool => $method === $r->getMethod()));
     }
 
+    /**
+     * @return list<string> the ids of the server requests the client answered
+     */
+    public function answeredIds(): array
+    {
+        $ids = [];
+        foreach ($this->requests('POST') as $request) {
+            $message = json_decode((string) $request->getBody(), true);
+            if (\is_string($message['id'] ?? null) && str_starts_with($message['id'], 'srv-') && \array_key_exists('result', $message)) {
+                $ids[] = $message['id'];
+            }
+        }
+
+        return $ids;
+    }
+
     public function sendRequest(RequestInterface $request): ResponseInterface
     {
         $this->requests[] = $request;
@@ -490,7 +549,7 @@ final class FakeListeningServer implements ClientInterface
             return new Response(200, ['Content-Type' => 'application/json'], json_encode([
                 'jsonrpc' => '2.0',
                 'id' => $message['id'],
-                'result' => ['content' => [['type' => 'text', 'text' => 'json']]],
+                'result' => ['content' => [['type' => 'text', 'text' => $message['params']['arguments']['text'] ?? 'json']]],
             ], \JSON_THROW_ON_ERROR));
         }
 
