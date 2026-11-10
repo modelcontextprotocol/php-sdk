@@ -15,7 +15,7 @@ use Mcp\Exception\LogicException;
 use Mcp\Server\Fiber\FiberContextInterface;
 
 /**
- * @author bbdu3 <ergouyang854@gamil.com>
+ * @author bbdu3 <ergouyang854@gmail.com>
  */
 final class RecordingFiberContext implements FiberContextInterface
 {

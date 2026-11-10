@@ -14,7 +14,7 @@ namespace Mcp\Server\Fiber;
 /**
  * Carries execution context, e.g. the active OpenTelemetry context, into the fibers request handlers run in.
  *
- * @author bbdu3 <ergouyang854@gamil.com>
+ * @author bbdu3 <ergouyang854@gmail.com>
  */
 interface FiberContextInterface
 {
