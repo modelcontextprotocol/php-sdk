@@ -318,6 +318,27 @@ final class HttpTransportTest extends TestCase
         $this->assertCount(2, $httpClient->requests);
     }
 
+    #[TestDox('a pending authorization during a stream resumption reaches the request as it is, without logging an error')]
+    public function testPendingAuthorizationDuringResumptionReachesTheRequest(): void
+    {
+        $clock = new SteppingClock();
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-0\ndata:\n\n"),
+            new AuthorizationPendingException('https://auth.example.com/authorize?state=abc'),
+        ], $clock);
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->never())->method('error');
+
+        try {
+            $this->runRequest($this->createTransport(httpClient: $httpClient, clock: $clock, logger: $logger), 1);
+            $this->fail('The request should have failed.');
+        } catch (AuthorizationPendingException $e) {
+            $this->assertSame('https://auth.example.com/authorize?state=abc', $e->authorizationUrl);
+        }
+
+        $this->assertCount(2, $httpClient->requests);
+    }
+
     #[TestDox('the server-minted session ID is exposed while connected and cleared on close')]
     public function testSessionIdIsExposedAndClearedOnClose(): void
     {

@@ -956,6 +956,10 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         try {
             $response = $this->httpClient->sendRequest($request);
+        } catch (AuthorizationPendingException $e) {
+            $this->failSseResumption($e);
+
+            return;
         } catch (AuthorizationException $e) {
             $this->handleError($e);
             $this->failSseResumption($e);
