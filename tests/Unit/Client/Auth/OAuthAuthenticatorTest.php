@@ -16,6 +16,7 @@ use Mcp\Client\Auth\AuthorizationHandlerInterface;
 use Mcp\Client\Auth\ClientRegistrar;
 use Mcp\Client\Auth\ClientRegistration;
 use Mcp\Client\Auth\CredentialStorageInterface;
+use Mcp\Client\Auth\CrossAppAccess;
 use Mcp\Client\Auth\InMemoryCredentialStorage;
 use Mcp\Client\Auth\MetadataDiscovery;
 use Mcp\Client\Auth\OAuth;
@@ -28,6 +29,7 @@ use Mcp\Exception\OAuthErrorException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
@@ -573,6 +575,25 @@ final class OAuthAuthenticatorTest extends TestCase
         }
 
         $this->assertSame([], array_filter($server->requested, static fn (string $url): bool => str_starts_with($url, $issuer)));
+    }
+
+    #[TestDox('another type of token from the identity provider is not presented as a grant')]
+    public function testCrossAppAccessRefusesAnotherTokenType(): void
+    {
+        $server = new FakeOAuthServer(issuedTokenType: 'urn:ietf:params:oauth:token-type:access_token');
+        $oauth = OAuth::forApplication('test')
+            ->setClientCredentials('known-client', 'known-secret')
+            ->setExpectedIssuer('https://auth.example.com')
+            ->setCrossAppAccess(new CrossAppAccess('https://idp.example.com/token', 'an-id-token'));
+
+        try {
+            $this->authenticator($server, configuration: $oauth)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The other type of token was presented as a grant.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('returned no authorization grant', $e->getMessage());
+        }
+
+        $this->assertNotContains('https://auth.example.com/token', $server->requested);
     }
 
     #[TestDox('an authorization endpoint on another origin needs iss, so a relayed code can not leave the real server')]
@@ -1431,6 +1452,286 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('known-client', $server->authorization['client_id'] ?? null);
     }
 
+    #[TestDox('a service account gets a token without registering or a browser')]
+    public function testClientCredentialsGrant(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server, configuration: OAuth::forServiceAccount('job', 'job-client', 'job-secret')->setExpectedIssuer('https://auth.example.com'));
+
+        $this->assertTrue($authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read'])));
+
+        $this->assertSame('client_credentials', $server->token['grant_type'] ?? null);
+        $this->assertSame('mcp:read', $server->token['scope'] ?? null);
+        $this->assertSame(self::ENDPOINT, $server->token['resource'] ?? null);
+        $this->assertSame([], $server->authorization);
+        $this->assertNotContains('https://auth.example.com/register', $server->requested);
+    }
+
+    #[TestDox('a service account never asks for scopes beyond the configured ones, whatever the server demands')]
+    public function testServiceAccountKeepsToTheConfiguredScopes(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server, configuration: OAuth::forServiceAccount('job', 'job-client', 'job-secret')
+            ->setExpectedIssuer('https://auth.example.com')
+            ->setScopes('mcp:read'));
+        $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+        $server->token = [];
+
+        $retry = $authenticator->handleChallenge($authenticator->authenticate($this->request()), $server->challenge(['admin'], 403, 'insufficient_scope'));
+
+        $this->assertFalse($retry);
+        $this->assertSame([], $server->token);
+    }
+
+    /**
+     * @return iterable<string, array{string[]}>
+     */
+    public static function broaderStoredScopesProvider(): iterable
+    {
+        yield 'a scope beyond the configured ones' => [['mcp:read', 'admin']];
+        yield 'no reported scopes, which cover anything' => [[]];
+    }
+
+    /**
+     * @param string[] $storedScopes
+     */
+    #[DataProvider('broaderStoredScopesProvider')]
+    #[TestDox('a service account does not take over a stored token that may exceed its configured scopes: $_dataName')]
+    public function testServiceAccountIgnoresABroaderStoredToken(array $storedScopes): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('broader', 'Bearer', time() + 3600, null, $storedScopes));
+        $authenticator = $this->authenticator($server, storage: $storage, configuration: OAuth::forServiceAccount('job', 'job-client', 'job-secret')
+            ->setExpectedIssuer('https://auth.example.com')
+            ->setScopes('mcp:read'));
+
+        $this->assertTrue($authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read'])));
+
+        $this->assertNotSame('Bearer broader', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
+        $this->assertSame('mcp:read', $server->token['scope'] ?? null);
+    }
+
+    #[TestDox('a service account does not refresh a stored token that exceeds its configured scopes')]
+    public function testServiceAccountDoesNotRefreshABroaderStoredToken(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('broader', 'Bearer', time() - 60, 'broader-refresh', ['mcp:read', 'admin']));
+        $authenticator = $this->authenticator($server, storage: $storage, configuration: OAuth::forServiceAccount('job', 'job-client', 'job-secret')
+            ->setExpectedIssuer('https://auth.example.com')
+            ->setScopes('mcp:read'));
+
+        $this->assertTrue($authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read'])));
+
+        $this->assertSame('client_credentials', $server->token['grant_type'] ?? null);
+        $this->assertSame('mcp:read', $server->token['scope'] ?? null);
+    }
+
+    #[TestDox('a service account still reuses the token it stored itself')]
+    public function testServiceAccountReusesItsOwnStoredToken(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $configuration = OAuth::forServiceAccount('job', 'job-client', 'job-secret')
+            ->setExpectedIssuer('https://auth.example.com')
+            ->setScopes('mcp:read');
+        $this->authenticator($server, storage: $storage, configuration: $configuration)->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+        $server->token = [];
+
+        $this->assertTrue($this->authenticator($server, storage: $storage, configuration: $configuration)->handleChallenge($this->request(), $server->challenge(['mcp:read'])));
+        $this->assertSame([], $server->token);
+    }
+
+    /**
+     * @return iterable<string, array{int}>
+     */
+    public static function broaderStoredTokenLifetimeProvider(): iterable
+    {
+        yield 'still valid, so it would be taken over' => [3600];
+        yield 'expired, so its scopes would be requested' => [-60];
+    }
+
+    #[DataProvider('broaderStoredTokenLifetimeProvider')]
+    #[TestDox('a step-up does not use the scopes of a broader token another process stored: $_dataName')]
+    public function testServiceAccountStepUpIgnoresStoredScopes(int $expiresIn): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $authenticator = $this->authenticator($server, storage: $storage, configuration: OAuth::forServiceAccount('job', 'job-client', 'job-secret')
+            ->setExpectedIssuer('https://auth.example.com')
+            ->setScopes('mcp:read'));
+        $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+        $current = $authenticator->authenticate($this->request());
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('broader', 'Bearer', time() + $expiresIn, null, ['mcp:read', 'admin']));
+        $server->token = [];
+
+        $retry = $authenticator->handleChallenge($current, $server->challenge(['admin'], 403, 'insufficient_scope'));
+
+        $this->assertFalse($retry);
+        $this->assertSame([], $server->token);
+        $this->assertSame($current->getHeaderLine('Authorization'), $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
+    }
+
+    #[TestDox('cross-app access never asks the identity provider for scopes beyond the configured ones')]
+    public function testCrossAppAccessKeepsToTheConfiguredScopes(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server, configuration: $this->crossAppAccess()->setScopes('mcp:read'));
+        $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+        $server->exchange = [];
+        $server->token = [];
+
+        $retry = $authenticator->handleChallenge($authenticator->authenticate($this->request()), $server->challenge(['admin'], 403, 'insufficient_scope'));
+
+        $this->assertFalse($retry);
+        $this->assertSame([], $server->exchange);
+        $this->assertSame([], $server->token);
+    }
+
+    #[TestDox('a service account secret never reaches an authorization server other than the expected one')]
+    public function testServiceAccountRefusesAnUnexpectedIssuer(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server, configuration: OAuth::forServiceAccount('job', 'job-client', 'job-secret')->setExpectedIssuer('https://trusted.example.com'));
+
+        try {
+            $authenticator->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The unexpected issuer was not refused.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('https://trusted.example.com', $e->getMessage());
+        }
+
+        $this->assertSame([], $server->token);
+    }
+
+    #[TestDox('cross-app access exchanges the identity token and presents the grant as an assertion')]
+    public function testCrossAppAccessGrant(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server, configuration: $this->crossAppAccess());
+
+        $this->assertTrue($authenticator->handleChallenge($this->request(), $server->challenge()));
+
+        $this->assertSame('urn:ietf:params:oauth:grant-type:token-exchange', $server->exchange['grant_type'] ?? null);
+        $this->assertSame('an-id-token', $server->exchange['subject_token'] ?? null);
+        $this->assertSame(CrossAppAccess::AUTHORIZATION_GRANT_TOKEN_TYPE, $server->exchange['requested_token_type'] ?? null);
+        $this->assertSame('https://auth.example.com', $server->exchange['audience'] ?? null);
+        $this->assertSame(self::ENDPOINT, $server->exchange['resource'] ?? null);
+        $this->assertSame('urn:ietf:params:oauth:grant-type:jwt-bearer', $server->token['grant_type'] ?? null);
+        $this->assertSame('an-authorization-grant', $server->token['assertion'] ?? null);
+        $this->assertSame([], $server->authorization);
+    }
+
+    #[TestDox('the identity provider is asked for a grant covering the requested scopes')]
+    public function testCrossAppAccessRequestsTheScopes(): void
+    {
+        $server = new FakeOAuthServer();
+        $configuration = $this->crossAppAccess()->setScopes('mcp:read', 'mcp:write');
+
+        $this->authenticator($server, configuration: $configuration)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame($server->token['scope'] ?? null, $server->exchange['scope'] ?? null);
+        $this->assertContains('mcp:write', explode(' ', $server->exchange['scope'] ?? ''));
+    }
+
+    #[TestDox('a closure hands over a fresh identity token for each grant')]
+    public function testCrossAppAccessWithAnIdentityTokenClosure(): void
+    {
+        $server = new FakeOAuthServer();
+        $configuration = OAuth::forApplication('test')
+            ->setClientCredentials('known-client', 'known-secret')
+            ->setExpectedIssuer('https://auth.example.com')
+            ->setCrossAppAccess(new CrossAppAccess('https://idp.example.com/token', static fn (): string => 'a-fresh-id-token'));
+
+        $this->authenticator($server, configuration: $configuration)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('a-fresh-id-token', $server->exchange['subject_token'] ?? null);
+    }
+
+    #[TestDox('the identity provider gets the client id of the authorization server by default')]
+    public function testCrossAppAccessFallsBackToTheClientId(): void
+    {
+        $server = new FakeOAuthServer();
+
+        $this->authenticator($server, configuration: $this->crossAppAccess())->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('known-client', $server->exchange['client_id'] ?? null);
+        $this->assertArrayNotHasKey('client_secret', $server->exchange);
+    }
+
+    #[TestDox('the identity provider gets its own client id and secret, when configured')]
+    public function testCrossAppAccessWithIdentityProviderCredentials(): void
+    {
+        $server = new FakeOAuthServer();
+        $configuration = OAuth::forApplication('test')
+            ->setClientCredentials('known-client', 'known-secret')
+            ->setExpectedIssuer('https://auth.example.com')
+            ->setCrossAppAccess(new CrossAppAccess('https://idp.example.com/token', 'an-id-token', clientId: 'idp-client', clientSecret: 'idp-secret'));
+
+        $this->authenticator($server, configuration: $configuration)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('idp-client', $server->exchange['client_id'] ?? null);
+        $this->assertSame('idp-secret', $server->exchange['client_secret'] ?? null);
+    }
+
+    #[TestDox('an identity provider that returns no grant ends the flow')]
+    public function testCrossAppAccessWithoutAGrant(): void
+    {
+        $server = new FakeOAuthServer(identityProviderGrants: false);
+
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('returned no authorization grant');
+
+        $this->authenticator($server, configuration: $this->crossAppAccess())->handleChallenge($this->request(), $server->challenge());
+    }
+
+    #[TestDox('a configured private key signs the code exchange')]
+    #[RequiresPhpExtension('openssl')]
+    public function testPrivateKeySignsTheCodeExchange(): void
+    {
+        $key = openssl_pkey_new(['private_key_type' => \OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
+        $this->assertNotFalse($key);
+        openssl_pkey_export($key, $pem);
+
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')
+            ->setClientCredentials('known-client')
+            ->setPrivateKeyJwt($pem, 'ES256')
+            ->setExpectedIssuer('https://auth.example.com'));
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('urn:ietf:params:oauth:client-assertion-type:jwt-bearer', $server->token['client_assertion_type'] ?? null);
+        $this->assertNotEmpty($server->token['client_assertion'] ?? null);
+    }
+
+    #[TestDox('a service account with only a key signs an assertion even where the server also takes public clients')]
+    public function testServiceAccountNeverAuthenticatesAsAPublicClient(): void
+    {
+        $key = openssl_pkey_new(['private_key_type' => \OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
+        $this->assertNotFalse($key);
+        openssl_pkey_export($key, $pem);
+
+        $server = new FakeOAuthServer(tokenEndpointAuthMethods: ['client_secret_basic', 'none']);
+        $authenticator = $this->authenticator($server, configuration: OAuth::forServiceAccount('job', 'job-client')
+            ->setPrivateKeyJwt($pem, 'ES256')
+            ->setExpectedIssuer('https://auth.example.com'));
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('client_credentials', $server->token['grant_type'] ?? null);
+        $this->assertNotEmpty($server->token['client_assertion'] ?? null);
+    }
+
+    private function crossAppAccess(): OAuth
+    {
+        return OAuth::forApplication('test')
+            ->setClientCredentials('known-client', 'known-secret')
+            ->setExpectedIssuer('https://auth.example.com')
+            ->setCrossAppAccess(new CrossAppAccess('https://idp.example.com/token', 'an-id-token'));
+    }
+
     /**
      * @return iterable<string, array{?string[]}>
      */
@@ -1612,6 +1913,8 @@ final class FakeOAuthServer implements ClientInterface
 
     /** @var ?string[] */
     public ?array $grantTypes = ['authorization_code', 'refresh_token'];
+    /** @var array<string, string> */
+    public array $exchange = [];
 
     private int $issued = 0;
 
@@ -1633,7 +1936,10 @@ final class FakeOAuthServer implements ClientInterface
         private readonly ?array $codeChallengeMethods = ['S256'],
         private readonly ?string $authorizationEndpoint = null,
         private readonly bool $announcesIssuer = true,
+        private readonly string $issuedTokenType = CrossAppAccess::AUTHORIZATION_GRANT_TOKEN_TYPE,
         private readonly bool $clientMetadataDocuments = false,
+        private readonly bool $identityProviderGrants = true,
+        private readonly ?array $tokenEndpointAuthMethods = null,
     ) {
     }
 
@@ -1686,10 +1992,12 @@ final class FakeOAuthServer implements ClientInterface
                 'grant_types_supported' => $this->hasAuthorizationEndpoint ? $this->grantTypes : ['client_credentials'],
                 'code_challenge_methods_supported' => $this->codeChallengeMethods,
                 'authorization_response_iss_parameter_supported' => $this->announcesIssuer,
+                ...(null !== $this->tokenEndpointAuthMethods ? ['token_endpoint_auth_methods_supported' => $this->tokenEndpointAuthMethods] : []),
             ]),
 
             'https://auth.example.com/register' => $this->register((string) $request->getBody()),
             'https://auth.example.com/token' => $this->issueToken($form),
+            'https://idp.example.com/token' => $this->exchangeToken($form),
 
             default => new Response(404),
         };
@@ -1721,6 +2029,20 @@ final class FakeOAuthServer implements ClientInterface
 
     /**
      * @param array<string, mixed> $form
+     */
+    private function exchangeToken(array $form): ResponseInterface
+    {
+        $this->exchange = $form;
+
+        return self::json($this->identityProviderGrants ? [
+            'access_token' => 'an-authorization-grant',
+            'issued_token_type' => $this->issuedTokenType,
+            'token_type' => 'N_A',
+        ] : []);
+    }
+
+    /**
+     * @param array<string, string> $form
      */
     private function issueToken(array $form): ResponseInterface
     {

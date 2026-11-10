@@ -19,6 +19,9 @@
  * credentials -- is the SDK's, not this script's. The script only supplies the browser
  * (see BrowserAuthorizationHandler) and then checks the outcome.
  *
+ * The service accounts then get in with no user at all: one with a secret, one with a
+ * key that KeycloakAdmin registers first, as an administrator would.
+ *
  * Run it through run.sh, which brings the environment up first.
  */
 
@@ -30,13 +33,16 @@ use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\ConnectionException;
+use Mcp\Exception\RuntimeException;
 use Mcp\Tests\E2E\BrowserAuthorizationHandler;
+use Mcp\Tests\E2E\KeycloakAdmin;
 
 $endpoint = getenv('MCP_E2E_ENDPOINT') ?: 'http://localhost:8001/mcp';
 $issuer = getenv('MCP_E2E_ISSUER') ?: 'http://localhost:8181/realms/mcp-e2e';
 $username = getenv('MCP_E2E_USERNAME') ?: 'demo';
 $password = getenv('MCP_E2E_PASSWORD') ?: 'demo123';
 $credentialsFile = getenv('MCP_E2E_CREDENTIALS') ?: sys_get_temp_dir().'/mcp-e2e-credentials.json';
+[$keycloakUrl, $realm] = explode('/realms/', $issuer, 2);
 
 $failures = 0;
 $check = static function (string $what, bool $passed, string $detail = '') use (&$failures): void {
@@ -103,6 +109,49 @@ fwrite(\STDOUT, "\nSecond run, reusing what was stored\n");
 $second = $connect(new FileCredentialStorage($credentialsFile));
 $check('the stored token still opens the server', str_contains((string) json_encode($second->callTool('whoami', [])->content), 'authorized'));
 $second->disconnect();
+
+$callAs = static function (OAuth $oauth) use ($endpoint, $issuer): string {
+    $client = Client::builder()->setClientInfo('mcp-client-auth-e2e', '1.0.0')->setInitTimeout(30)->setRequestTimeout(30)->build();
+    $client->connect(new HttpTransport($endpoint, auth: $oauth->setExpectedIssuer($issuer)->build()));
+
+    try {
+        return (string) json_encode($client->callTool('whoami', [])->content);
+    } finally {
+        $client->disconnect();
+    }
+};
+
+fwrite(\STDOUT, "\nService account with a secret\n");
+
+$result = $callAs(OAuth::forServiceAccount('MCP PHP SDK end-to-end job', 'mcp-service-account', 'mcp-service-secret'));
+$check('a service account with a secret gets in', str_contains($result, 'authorized'), $result);
+
+try {
+    $callAs(OAuth::forServiceAccount('MCP PHP SDK end-to-end job', 'mcp-service-account', 'not-the-secret'));
+    $check('a wrong secret is refused', false, 'the server let it in');
+} catch (ConnectionException $e) {
+    $check('a wrong secret is refused', $e->getPrevious() instanceof AuthorizationException, $e->getMessage());
+}
+
+fwrite(\STDOUT, "\nService account with a private key\n");
+
+$privateKey = (new KeycloakAdmin($keycloakUrl, $realm))->issueSigningKey('mcp-service-account-jwt');
+$result = $callAs(OAuth::forServiceAccount('MCP PHP SDK end-to-end job', 'mcp-service-account-jwt')->setPrivateKeyJwt($privateKey, 'ES256'));
+$check('a service account with a private key gets in', str_contains($result, 'authorized'), $result);
+
+// Keycloak checks the signature, so a key it doesn't know proves the assertion is what it verifies.
+$unknown = openssl_pkey_new(['private_key_type' => \OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
+
+if (false === $unknown || !openssl_pkey_export($unknown, $unknownKey)) {
+    throw new RuntimeException('Generating the unknown key failed: '.openssl_error_string());
+}
+
+try {
+    $callAs(OAuth::forServiceAccount('MCP PHP SDK end-to-end job', 'mcp-service-account-jwt')->setPrivateKeyJwt($unknownKey, 'ES256'));
+    $check('a key Keycloak does not know is refused', false, 'the server let it in');
+} catch (ConnectionException $e) {
+    $check('a key Keycloak does not know is refused', str_contains($e->getMessage(), 'invalid_client'), $e->getMessage());
+}
 
 fwrite(\STDOUT, "\n");
 fwrite(\STDOUT, 0 === $failures ? "End-to-end authorization succeeded.\n" : sprintf("%d end-to-end check(s) failed.\n", $failures));
