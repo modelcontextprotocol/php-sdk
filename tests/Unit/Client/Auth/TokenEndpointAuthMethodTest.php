@@ -19,41 +19,64 @@ use PHPUnit\Framework\TestCase;
 final class TokenEndpointAuthMethodTest extends TestCase
 {
     /**
-     * @return iterable<string, array{string[], bool, TokenEndpointAuthMethod}>
+     * @return iterable<string, array{string[], bool, bool, TokenEndpointAuthMethod}>
      */
     public static function negotiationProvider(): iterable
     {
         yield 'a public client can only be public' => [
-            ['client_secret_basic', 'none'], false, TokenEndpointAuthMethod::None,
+            ['client_secret_basic', 'none'], false, false, TokenEndpointAuthMethod::None,
         ];
 
         yield 'a client with a secret prefers the header over the body' => [
-            ['client_secret_post', 'client_secret_basic'], true, TokenEndpointAuthMethod::ClientSecretBasic,
+            ['client_secret_post', 'client_secret_basic'], true, false, TokenEndpointAuthMethod::ClientSecretBasic,
         ];
 
         yield 'a server offering only the body form gets it' => [
-            ['client_secret_post'], true, TokenEndpointAuthMethod::ClientSecretPost,
+            ['client_secret_post'], true, false, TokenEndpointAuthMethod::ClientSecretPost,
         ];
 
         yield 'a server that only takes public clients gets one' => [
-            ['none'], true, TokenEndpointAuthMethod::None,
+            ['none'], true, false, TokenEndpointAuthMethod::None,
+        ];
+
+        yield 'a private key beats a shared secret' => [
+            ['client_secret_basic', 'private_key_jwt'], true, true, TokenEndpointAuthMethod::PrivateKeyJwt,
+        ];
+
+        yield 'a private key without a secret never claims Basic' => [
+            ['client_secret_basic', 'none'], false, true, TokenEndpointAuthMethod::None,
+        ];
+
+        yield 'a silent server gets Basic even when a private key is configured' => [
+            [], true, true, TokenEndpointAuthMethod::ClientSecretBasic,
+        ];
+
+        yield 'a private key is used against a silent server' => [
+            [], false, true, TokenEndpointAuthMethod::PrivateKeyJwt,
         ];
 
         // RFC 6749 makes Basic the one method every server must accept, so it is the
         // right guess for a server that documents nothing.
         yield 'a silent server is assumed to take Basic' => [
-            [], true, TokenEndpointAuthMethod::ClientSecretBasic,
+            [], true, false, TokenEndpointAuthMethod::ClientSecretBasic,
         ];
 
         yield 'a silent server with a public client still gets none' => [
-            [], false, TokenEndpointAuthMethod::None,
+            [], false, false, TokenEndpointAuthMethod::None,
         ];
     }
 
     #[DataProvider('negotiationProvider')]
     #[TestDox('the token endpoint method is negotiated for: $_dataName')]
-    public function testNegotiate(array $supported, bool $hasSecret, TokenEndpointAuthMethod $expected): void
+    public function testNegotiate(array $supported, bool $hasSecret, bool $hasPrivateKey, TokenEndpointAuthMethod $expected): void
     {
-        $this->assertSame($expected, TokenEndpointAuthMethod::negotiate($supported, $hasSecret));
+        $this->assertSame($expected, TokenEndpointAuthMethod::negotiate($supported, $hasSecret, $hasPrivateKey));
+    }
+
+    #[TestDox('a grant that needs client authentication never negotiates a public client')]
+    public function testNegotiateWithoutPublicClient(): void
+    {
+        $this->assertSame(TokenEndpointAuthMethod::PrivateKeyJwt, TokenEndpointAuthMethod::negotiate(['client_secret_basic', 'none'], false, true, false));
+        $this->assertSame(TokenEndpointAuthMethod::ClientSecretPost, TokenEndpointAuthMethod::negotiate(['none', 'client_secret_post'], true, false, false));
     }
 }

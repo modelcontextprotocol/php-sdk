@@ -1,6 +1,3 @@
 client:
   # Elicitation defaults (SEP-1034) are not filled in when accepting.
   - elicitation-sep1034-client-defaults
-  - auth/client-credentials-jwt
-  - auth/client-credentials-basic
-  - auth/cross-app-access-complete-flow

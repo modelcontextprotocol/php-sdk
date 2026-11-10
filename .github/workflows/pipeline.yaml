@@ -268,6 +268,13 @@ jobs:
           --spec-version ${{ matrix.spec-version }}
           --expected-failures ${{ matrix.baseline }}
 
+      # Extension scenarios belong to no spec version, so one leg of the matrix runs them.
+      - name: Run client conformance tests of the authorization extensions
+        if: matrix.spec-version == '2025-11-25'
+        env:
+          CONFORMANCE: npx --yes ${{ env.CONFORMANCE_PKG }}
+        run: tests/Conformance/client-extensions.sh
+
       - name: Show logs on failure
         if: failure()
         run: |

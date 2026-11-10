@@ -293,6 +293,17 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $held = 'insufficient_scope' === $challenge->getError() ? array_diff($stored->scopes ?? [], ['offline_access']) : [];
         $scopes = array_values(array_unique([...$this->requestedScopes, ...$held, ...$scopes]));
 
+        $limit = $this->scopeLimit();
+
+        if (null !== $limit) {
+            $beyond = array_values(array_diff($scopes, $limit));
+
+            if ([] !== $beyond) {
+                $this->logger->warning('Not requesting scopes beyond the configured ones for a client without a user', ['dropped' => $beyond, 'configured' => $limit]);
+                $scopes = array_values(array_intersect($scopes, $limit));
+            }
+        }
+
         if ($this->offlineAccessRefused || !$this->configuration->offlineAccess) {
             return array_values(array_diff($scopes, ['offline_access']));
         }
@@ -320,7 +331,31 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return false;
         }
 
-        return !$token->isExpiringSoon() && $token->covers($scopes);
+        return !$token->isExpiringSoon() && $token->covers($scopes) && $this->isWithinScopeLimit($token);
+    }
+
+    /**
+     * Tokens are stored per server and resource, so a stored one may come from a broader configuration.
+     */
+    private function isWithinScopeLimit(AccessToken $token): bool
+    {
+        $limit = $this->scopeLimit();
+
+        return null === $limit || ([] !== $token->scopes && [] === array_diff($token->scopes, $limit));
+    }
+
+    /**
+     * Without a user to consent, the configured scopes are all a client may hold, whatever a server or a stored token names.
+     *
+     * @return ?string[]
+     */
+    private function scopeLimit(): ?array
+    {
+        if (Grant::AuthorizationCode === $this->configuration->grant || [] === $this->configuration->scopes) {
+            return null;
+        }
+
+        return $this->configuration->scopes;
     }
 
     /**
@@ -351,7 +386,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
                 return $current;
             }
 
-            if (null === $current->refreshToken || !$current->covers($scopes)) {
+            // A refresh keeps the scopes of the grant, so a broader stored one is replaced by a new grant instead.
+            if (null === $current->refreshToken || !$current->covers($scopes) || !$this->isWithinScopeLimit($current)) {
                 return null;
             }
 
@@ -368,7 +404,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     private function spendRefreshToken(AccessToken $stored, string $refreshToken, AuthorizationServerMetadata $metadata, ClientRegistration $client, string $resource): ?AccessToken
     {
         try {
-            $token = $this->tokenEndpoint->request($metadata, $client, self::withoutEmptyValues([
+            $token = $this->requestToken($metadata, $client, self::withoutEmptyValues([
                 'grant_type' => Grant::RefreshToken->value,
                 'refresh_token' => $refreshToken,
                 'resource' => $resource,
@@ -424,6 +460,23 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      */
     private function grant(AuthorizationServerMetadata $metadata, ClientRegistration $client, array $scopes, string $resource): AccessToken
     {
+        if (Grant::JwtBearer === $this->configuration->grant) {
+            return $this->requestToken($metadata, $client, self::withoutEmptyValues([
+                'grant_type' => Grant::JwtBearer->value,
+                'assertion' => $this->requestAuthorizationGrant($metadata, $scopes, $resource),
+                'scope' => implode(' ', $scopes),
+                'resource' => $resource,
+            ]));
+        }
+
+        if (Grant::ClientCredentials === $this->configuration->grant) {
+            return $this->requestToken($metadata, $client, self::withoutEmptyValues([
+                'grant_type' => Grant::ClientCredentials->value,
+                'scope' => implode(' ', $scopes),
+                'resource' => $resource,
+            ]));
+        }
+
         self::assertSupportsPkce($metadata);
         $this->assertIdentifiesItsResponses($metadata);
 
@@ -455,13 +508,56 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         $this->verifyCallback($callback, $state, $metadata);
 
-        return $this->tokenEndpoint->request($metadata, $client, self::withoutEmptyValues([
+        return $this->requestToken($metadata, $client, self::withoutEmptyValues([
             'grant_type' => Grant::AuthorizationCode->value,
             'code' => $callback['code'],
             'redirect_uri' => $this->configuration->redirectUri,
             'code_verifier' => $pkce->verifier,
             'resource' => $resource,
         ]));
+    }
+
+    /**
+     * @param array<string, string> $parameters
+     */
+    private function requestToken(AuthorizationServerMetadata $metadata, ClientRegistration $client, array $parameters): AccessToken
+    {
+        return $this->tokenEndpoint->request($metadata, $client, $parameters, $this->configuration->privateKeyPem, $this->configuration->signingAlgorithm);
+    }
+
+    /**
+     * Trades the identity token for a grant for this resource and authorization server.
+     *
+     * @param string[] $scopes
+     */
+    private function requestAuthorizationGrant(AuthorizationServerMetadata $metadata, array $scopes, string $resource): string
+    {
+        $crossAppAccess = $this->configuration->crossAppAccess;
+        \assert(null !== $crossAppAccess);
+
+        $this->logger->info('Exchanging the enterprise identity for an authorization grant', [
+            'identity_provider' => $crossAppAccess->tokenEndpoint,
+            'audience' => $metadata->issuer,
+            'resource' => $resource,
+        ]);
+
+        $response = $this->tokenEndpoint->post($crossAppAccess->tokenEndpoint, self::withoutEmptyValues([
+            'grant_type' => Grant::TokenExchange->value,
+            'subject_token' => $crossAppAccess->getIdentityToken(),
+            'subject_token_type' => $crossAppAccess->identityTokenType,
+            'requested_token_type' => CrossAppAccess::AUTHORIZATION_GRANT_TOKEN_TYPE,
+            'audience' => $metadata->issuer,
+            'resource' => $resource,
+            'scope' => implode(' ', $scopes),
+            'client_id' => $crossAppAccess->clientId ?? $this->configuration->clientId,
+            'client_secret' => $crossAppAccess->clientSecret,
+        ]));
+
+        if (!\is_string($response['access_token'] ?? null) || CrossAppAccess::AUTHORIZATION_GRANT_TOKEN_TYPE !== ($response['issued_token_type'] ?? null)) {
+            throw new AuthorizationException(\sprintf('The identity provider at "%s" returned no authorization grant.', $crossAppAccess->tokenEndpoint));
+        }
+
+        return $response['access_token'];
     }
 
     /**
@@ -513,6 +609,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
                 TokenEndpointAuthMethod::negotiate(
                     $metadata->tokenEndpointAuthMethodsSupported,
                     null !== $configuration->clientSecret,
+                    null !== $configuration->privateKeyPem,
+                    Grant::ClientCredentials !== $configuration->grant,
                 ),
             );
         }

@@ -24,6 +24,10 @@ takes a minute; afterwards the whole thing is about twenty seconds.
   ok   the protected tool answers
   ok   the credentials were written to disk
   ok   the stored token still opens the server
+  ok   a service account with a secret gets in
+  ok   a wrong secret is refused
+  ok   a service account with a private key gets in
+  ok   a key Keycloak does not know is refused
 ```
 
 Between the first and second line the client does all of this against a real identity
@@ -40,6 +44,12 @@ provider, unattended:
    keys, and its audience against the mapper in the realm.
 7. Writes the token to disk, so the second connection needs no browser.
 
+Then two service accounts get in with the client credentials grant, with no user and
+no browser: one authenticates with a secret, the other with an assertion signed by an
+ES256 key. `KeycloakAdmin` generates that key for each run and registers its
+certificate at Keycloak, as an administrator would, so no private key is committed.
+Keycloak verifies the signature and the `aud` claim, and refuses a key it doesn't know.
+
 ## Layout
 
 | File | What it is |
@@ -48,15 +58,17 @@ provider, unattended:
 | `server.php` | The MCP server: SDK authorization middleware, SDK HTTP transport, real JWT validation |
 | `client.php` | The run itself — the assertions are here |
 | `BrowserAuthorizationHandler.php` | Signs the user in at a real login form, so no human is needed |
+| `KeycloakAdmin.php` | Registers the service account's freshly generated key through Keycloak's admin API |
 | `nginx.conf` | Routes `/mcp` and the well-known paths to `server.php` |
-| `keycloak/realm.json` | The realm Keycloak imports: one public client, one demo user, the audience mapper |
+| `keycloak/realm.json` | The realm Keycloak imports: one public client, two service accounts, one demo user, the audience mapper |
 
 The Keycloak realm in `keycloak/realm.json` is this fixture's own, derived from the one
 [`examples/server/oauth-keycloak`](../../examples/server/oauth-keycloak) ships: one public
 client with loopback redirect URIs, one `demo` / `demo123` user, and a client scope whose
 audience mapper stamps this server's resource identifier into the token. It is a copy
 rather than a mount of the example's, so the example can change its port and audience
-without breaking this run.
+without breaking this run. On top of that, it has two confidential service accounts that
+get the same client scope.
 
 ## In continuous integration
 

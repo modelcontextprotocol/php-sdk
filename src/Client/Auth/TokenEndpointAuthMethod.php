@@ -27,19 +27,28 @@ enum TokenEndpointAuthMethod: string
     /** Client id and secret in the request body. */
     case ClientSecretPost = 'client_secret_post';
 
+    /** A JWT assertion signed with the client's private key (RFC 7523). */
+    case PrivateKeyJwt = 'private_key_jwt';
+
     /**
-     * Pick the method for the advertised list: no list means Basic (RFC 8414), and a client without a secret is public.
+     * Pick the method for the advertised list: no list means Basic (RFC 8414), and a client without a secret or key is public.
      *
-     * @param string[] $supported the server's token_endpoint_auth_methods_supported
+     * @param string[] $supported   the server's token_endpoint_auth_methods_supported
+     * @param bool     $mayBePublic false for a grant that requires client authentication, like client credentials
      */
-    public static function negotiate(array $supported, bool $hasSecret): self
+    public static function negotiate(array $supported, bool $hasSecret, bool $hasPrivateKey = false, bool $mayBePublic = true): self
     {
-        $candidates = $hasSecret
-            ? [self::ClientSecretBasic, self::ClientSecretPost, self::None]
-            : [self::None];
+        $candidates = [
+            ...($hasPrivateKey ? [self::PrivateKeyJwt] : []),
+            ...($hasSecret ? [self::ClientSecretBasic, self::ClientSecretPost] : []),
+        ];
+
+        if ($mayBePublic || [] === $candidates) {
+            $candidates[] = self::None;
+        }
 
         if ([] === $supported) {
-            return $candidates[0];
+            return $hasSecret ? self::ClientSecretBasic : $candidates[0];
         }
 
         foreach ($candidates as $candidate) {

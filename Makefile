@@ -1,4 +1,4 @@
-.PHONY: deps-stable deps-low cs phpstan tests unit-tests integration-tests interop-tests e2e-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client conformance-draft conformance-draft-server conformance-draft-client docs docs-guides docs-api docs-serve
+.PHONY: deps-stable deps-low cs phpstan tests unit-tests integration-tests interop-tests e2e-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client conformance-client-extensions conformance-draft conformance-draft-server conformance-draft-client docs docs-guides docs-api docs-serve
 
 # The 2026-07-28 scenarios ship on the `alpha` dist-tag; `latest` (0.1.x) has
 # none of them. Pinned to the same version CI runs (see
@@ -41,7 +41,7 @@ interop-tests:
 e2e-tests:
 	tests/E2E/run.sh
 
-conformance-tests: conformance-server conformance-client
+conformance-tests: conformance-server conformance-client conformance-client-extensions
 
 conformance-server:
 	docker compose -f tests/Conformance/Fixtures/docker-compose.yml up -d
@@ -56,6 +56,9 @@ conformance-client:
 	rm -rf tests/Conformance/results
 	cd tests/Conformance && $(CONFORMANCE) client --command "php $(CURDIR)/tests/Conformance/client.php" --suite all --spec-version 2025-11-25 --expected-failures conformance-baseline-2025-11-25.yml --output-dir results || true
 	php tests/Conformance/score.php client 2025-11-25
+
+conformance-client-extensions:
+	CONFORMANCE="$(CONFORMANCE)" tests/Conformance/client-extensions.sh
 
 # --- 2026-07-28 (SEP-2575 stateless lifecycle) ------------------------------
 

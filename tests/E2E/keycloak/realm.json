@@ -42,6 +42,39 @@
       }
     },
     {
+      "clientId": "mcp-service-account",
+      "name": "MCP Service Account",
+      "description": "Confidential client for a job that runs without a user, authenticating with a secret",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "mcp-service-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": true,
+      "defaultClientScopes": [
+        "mcp"
+      ],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "mcp-service-account-jwt",
+      "name": "MCP Service Account (private key)",
+      "description": "Confidential client authenticating with a signed assertion; client.php registers its key",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-jwt",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": true,
+      "defaultClientScopes": [
+        "mcp"
+      ],
+      "optionalClientScopes": []
+    },
+    {
       "clientId": "mcp-server",
       "name": "MCP Server Resource",
       "description": "Resource server representing the MCP server",

@@ -11,12 +11,17 @@
 
 require_once dirname(__DIR__, 2).'/vendor/autoload.php';
 
+use Http\Discovery\Psr17FactoryDiscovery;
+use Http\Discovery\Psr18ClientDiscovery;
 use Mcp\Client;
 use Mcp\Client\Auth\AuthenticatorInterface;
+use Mcp\Client\Auth\CrossAppAccess;
 use Mcp\Client\Auth\HeadlessAuthorizationHandler;
+use Mcp\Client\Auth\MetadataDiscovery;
 use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
 use Mcp\Client\Transport\HttpTransport;
+use Mcp\Exception\RuntimeException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ElicitAction;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -43,9 +48,14 @@ $version = ProtocolVersion::tryFrom(getenv('MCP_CONFORMANCE_PROTOCOL_VERSION') ?
 // on the scenario:
 //
 //   toolCalls           http-custom-headers: the exact calls to make
-//   client_id           auth/pre-registration: the credentials and the issuer an
-//   client_secret       administrator would have configured out of band
-//   issuer
+//   client_id           auth/pre-registration, auth/client-credentials-*,
+//   client_secret       auth/enterprise-managed-authorization: the credentials and
+//   issuer              the issuer an administrator would have configured out of band
+//   private_key_pem     auth/client-credentials-jwt: the key to sign the client
+//   signing_algorithm   assertion with, and the algorithm to sign it with
+//   idp_token_endpoint  auth/enterprise-managed-authorization: the identity provider
+//   idp_id_token        the user is already signed in to, the token proving it, and
+//   idp_client_id       this client's identifier there
 $context = json_decode(getenv('MCP_CONFORMANCE_CONTEXT') ?: '[]', true);
 $context = is_array($context) ? $context : [];
 
@@ -96,19 +106,67 @@ if (in_array($scenario, ['elicitation-sep1034-client-defaults', 'sep-2322-client
 }
 
 /**
+ * Reads the issuer from the harness, which starts its authorization server on a random port.
+ *
+ * An application configures this value, since it can't trust the server to name it.
+ */
+function discoverIssuer(string $url): string
+{
+    $discovery = new MetadataDiscovery(Psr18ClientDiscovery::find(), Psr17FactoryDiscovery::findRequestFactory());
+    $issuer = $discovery->discoverProtectedResource($url)?->authorizationServers[0] ?? null;
+
+    if (null === $issuer) {
+        throw new RuntimeException(sprintf('The server at "%s" names no authorization server.', $url));
+    }
+
+    return $issuer;
+}
+
+/**
  * Wires up OAuth for the scenarios that need it.
  *
  * The authorization endpoint of the harness grants without asking a human, so the
  * headless handler stands in for the browser. Everything else -- discovery, PKCE,
  * registration, scope selection -- is the SDK doing what it would do in production.
  */
-function buildAuthenticator(string $scenario, array $context, Psr\Log\LoggerInterface $logger): ?AuthenticatorInterface
+function buildAuthenticator(string $url, string $scenario, array $context, Psr\Log\LoggerInterface $logger): ?AuthenticatorInterface
 {
     if (!str_starts_with($scenario, 'auth/')) {
         return null;
     }
 
     $handler = new HeadlessAuthorizationHandler(logger: $logger);
+
+    // A client authenticating as itself: the harness hands over the credentials the
+    // authorization server already knows about, since nobody can consent to a registration.
+    if (str_starts_with($scenario, 'auth/client-credentials')) {
+        $oauth = OAuth::forServiceAccount(
+            'mcp-conformance-test-client',
+            $context['client_id'] ?? 'conformance-test-client',
+            $context['client_secret'] ?? null,
+        );
+
+        if (isset($context['private_key_pem'])) {
+            $oauth->setPrivateKeyJwt($context['private_key_pem'], $context['signing_algorithm'] ?? 'ES256');
+        }
+
+        return $oauth->setExpectedIssuer(discoverIssuer($url))->setLogger($logger)->build();
+    }
+
+    // Enterprise-managed authorization: the user already signed in at the company
+    // identity provider, so the runner hands over that token instead of a browser.
+    if ('auth/enterprise-managed-authorization' === $scenario) {
+        return OAuth::forApplication('mcp-conformance-test-client')
+            ->setClientCredentials($context['client_id'], $context['client_secret'])
+            ->setCrossAppAccess(new CrossAppAccess(
+                $context['idp_token_endpoint'],
+                $context['idp_id_token'],
+                clientId: $context['idp_client_id'] ?? null,
+            ))
+            ->setExpectedIssuer(discoverIssuer($url))
+            ->setLogger($logger)
+            ->build();
+    }
 
     $oauth = OAuth::forApplication('mcp-conformance-test-client')
         ->setRedirectUri('http://localhost:3000/callback')
@@ -138,7 +196,7 @@ function buildAuthenticator(string $scenario, array $context, Psr\Log\LoggerInte
 }
 
 $client = $builder->build();
-$transport = new HttpTransport($url, logger: $logger, auth: buildAuthenticator($scenario, $context, $logger));
+$transport = new HttpTransport($url, logger: $logger, auth: buildAuthenticator($url, $scenario, $context, $logger));
 
 try {
     $client->connect($transport);
