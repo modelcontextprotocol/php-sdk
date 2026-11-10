@@ -102,6 +102,7 @@ use Mcp\Client\Auth\RedirectAuthorizationHandler;
 function createAuthenticator(): OAuthAuthenticator
 {
     return OAuth::forApplication('Acme Shop')
+        ->setApplicationType('web')
         ->setRedirectUri('https://shop.example.com/oauth/callback')
         ->setAuthorizationHandler(new RedirectAuthorizationHandler())
         ->setCredentialStorage(new FileCredentialStorage('/var/lib/acme/mcp/'.hash('sha256', session_id()).'.json'))
@@ -110,6 +111,8 @@ function createAuthenticator(): OAuthAuthenticator
 ```
 
 Start the PHP session in both routes before you call this function. Without a session, `session_id()` returns an empty string, and all users share one file.
+
+The client registers as a `native` application by default. Authorization servers may refuse an `https` redirect URI for it, so a web application calls `setApplicationType('web')`.
 
 When the client needs a token, the handler throws an `AuthorizationPendingException`. Before that, the SDK stores the `state`, the PKCE verifier and the metadata of the authorization server. Redirect the browser to the URL of the exception:
 
