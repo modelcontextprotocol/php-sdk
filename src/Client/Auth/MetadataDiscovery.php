@@ -39,9 +39,13 @@ final class MetadataDiscovery
      *
      * @param string  $resourceUrl the MCP endpoint being called
      * @param ?string $metadataUrl the location the challenge named, which wins over any guess
+     *
+     * @return ?ProtectedResourceMetadata the first document that covers the endpoint, else the first for another resource, which the caller must refuse
      */
     public function discoverProtectedResource(string $resourceUrl, ?string $metadataUrl = null): ?ProtectedResourceMetadata
     {
+        $unrelated = null;
+
         foreach (null !== $metadataUrl ? [$metadataUrl] : self::protectedResourceCandidates($resourceUrl) as $candidate) {
             if (!AuthorizationServerMetadata::isTransportSecure($candidate)) {
                 $this->logger->error('Refusing protected resource discovery: the metadata URL is neither an HTTPS URL nor a loopback address.', ['url' => $candidate]);
@@ -56,13 +60,25 @@ final class MetadataDiscovery
             }
 
             try {
-                return ProtectedResourceMetadata::fromArray($document);
+                $metadata = ProtectedResourceMetadata::fromArray($document);
             } catch (InvalidArgumentException $e) {
                 $this->logger->warning('Ignoring malformed protected resource metadata', ['url' => $candidate, 'exception' => $e]);
+
+                continue;
             }
+
+            // RFC 9728 section 3.3: the document must not be used, but a later location may describe this resource.
+            if (!$metadata->covers($resourceUrl)) {
+                $this->logger->warning('Ignoring protected resource metadata for another resource', ['url' => $candidate, 'resource' => $metadata->resource]);
+                $unrelated ??= $metadata;
+
+                continue;
+            }
+
+            return $metadata;
         }
 
-        return null;
+        return $unrelated;
     }
 
     /**

@@ -307,6 +307,34 @@ final class MetadataDiscoveryTest extends TestCase
         $this->assertSame(['https://mcp.example.com/custom/location.json'], $client->requested);
     }
 
+    #[TestDox('a document for another resource does not stop a later location')]
+    public function testContinuesAfterAnUnrelatedResource(): void
+    {
+        $path = 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp';
+        $root = 'https://mcp.example.com/.well-known/oauth-protected-resource';
+        $client = new RecordingClient([
+            $path => self::json(['resource' => 'https://mcp.example.com/other']),
+            $root => self::json(['resource' => 'https://mcp.example.com']),
+        ]);
+
+        $metadata = $this->discovery($client)->discoverProtectedResource('https://mcp.example.com/mcp');
+
+        $this->assertSame('https://mcp.example.com', $metadata?->resource);
+        $this->assertSame([$path, $root], $client->requested);
+    }
+
+    #[TestDox('a document for another resource is returned if no location describes the endpoint, for the caller to refuse')]
+    public function testReturnsTheUnrelatedResourceIfNothingElseIsFound(): void
+    {
+        $client = new RecordingClient([
+            'https://mcp.example.com/.well-known/oauth-protected-resource/mcp' => self::json(['resource' => 'https://evil.example.com/mcp']),
+        ]);
+
+        $metadata = $this->discovery($client)->discoverProtectedResource('https://mcp.example.com/mcp');
+
+        $this->assertSame('https://evil.example.com/mcp', $metadata?->resource);
+    }
+
     #[TestDox('an invalid resource identifier does not stop a later location')]
     public function testContinuesAfterAnInvalidResource(): void
     {

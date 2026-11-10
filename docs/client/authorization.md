@@ -274,7 +274,7 @@ The client treats the MCP server and its metadata as untrusted input. It stops w
 
 | Input | Reason |
 | --- | --- |
-| The protected resource metadata names a `resource` that doesn't cover the endpoint | The token would be issued for another server |
+| No location of the protected resource metadata names a `resource` that covers the endpoint | The token would be issued for another server |
 | The authorization server metadata names another `issuer` than the one it was fetched for | The document describes another server |
 | The MCP server URL, an authorization server URL or an endpoint doesn't use `https` on a host that isn't loopback | Credentials would travel without encryption |
 | One of these URLs names `0.0.0.0`, `::`, an IPv4 address within IPv6 or an IPv4 address in another form than four decimal numbers (e.g. `127.1`), or writes its host with percent-encoding or non-ASCII characters | The request could reach a local service or a private network without looking like it |
