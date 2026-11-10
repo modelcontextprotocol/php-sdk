@@ -31,6 +31,7 @@ use Mcp\Client\Auth\TokenEndpointAuthMethod;
 use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\AuthorizationPendingException;
 use Mcp\Exception\OAuthErrorException;
+use Mcp\Exception\RuntimeException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -1440,6 +1441,64 @@ final class OAuthAuthenticatorTest extends TestCase
         $request = $authenticator->authenticate($this->request());
 
         $this->assertSame('refresh_token', $server->token['grant_type'] ?? null);
+        $this->assertSame('Bearer access-token-1', $request->getHeaderLine('Authorization'));
+    }
+
+    #[TestDox('a storage failure during the refresh before sending keeps the token until it expires')]
+    public function testStorageFailureBeforeSendingKeepsTheToken(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $server->expiresIn = 10;
+        $storage = new class implements CredentialStorageInterface {
+            public bool $broken = false;
+
+            private readonly InMemoryCredentialStorage $storage;
+
+            public function __construct()
+            {
+                $this->storage = new InMemoryCredentialStorage();
+            }
+
+            public function getClientRegistration(string $issuer): ?ClientRegistration
+            {
+                return $this->storage->getClientRegistration($issuer);
+            }
+
+            public function saveClientRegistration(string $issuer, ClientRegistration $registration): void
+            {
+                $this->storage->saveClientRegistration($issuer, $registration);
+            }
+
+            public function getToken(string $issuer, string $resource): ?AccessToken
+            {
+                return $this->storage->getToken($issuer, $resource);
+            }
+
+            public function saveToken(string $issuer, string $resource, AccessToken $token): void
+            {
+                $this->storage->saveToken($issuer, $resource, $token);
+            }
+
+            public function forget(?string $issuer = null): void
+            {
+                $this->storage->forget($issuer);
+            }
+
+            public function synchronize(callable $operation): mixed
+            {
+                if ($this->broken) {
+                    throw new RuntimeException('Could not open the credential lock file.');
+                }
+
+                return $this->storage->synchronize($operation);
+            }
+        };
+        $authenticator = $this->authenticator($server, storage: $storage);
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+        $storage->broken = true;
+
+        $request = $authenticator->authenticate($this->request());
+
         $this->assertSame('Bearer access-token-1', $request->getHeaderLine('Authorization'));
     }
 

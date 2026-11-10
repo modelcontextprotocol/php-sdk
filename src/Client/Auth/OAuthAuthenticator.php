@@ -14,6 +14,7 @@ namespace Mcp\Client\Auth;
 use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\AuthorizationPendingException;
 use Mcp\Exception\OAuthErrorException;
+use Mcp\Exception\RuntimeException;
 use Mcp\Exception\TokenEndpointUnavailableException;
 use Mcp\Server\Transport\Http\OAuth\SecureUrl;
 use Psr\Http\Message\RequestInterface;
@@ -488,7 +489,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         try {
             $refreshed = $this->refresh($token, $this->metadata, $client, array_values(array_diff($token->scopes, ['offline_access'])), $resource, $request);
-        } catch (AuthorizationException $e) {
+        } catch (AuthorizationException|RuntimeException $e) {
             $this->logger->info('Refreshing the access token before sending failed; leaving it to the server\'s challenge.', ['exception' => $e]);
 
             return $token;
