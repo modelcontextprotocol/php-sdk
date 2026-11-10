@@ -229,9 +229,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             ]));
         } catch (AuthorizationException $e) {
             if (self::isForgottenClient($e, $client)) {
-                if ($client->clientId === $this->storage->getClientRegistration($metadata->issuer)?->clientId) {
-                    $this->storage->forget($metadata->issuer);
-                }
+                $this->forgetRefusedClient($metadata->issuer, $client);
 
                 throw $e;
             }

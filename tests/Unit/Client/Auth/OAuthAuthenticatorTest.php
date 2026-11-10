@@ -24,6 +24,7 @@ use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Auth\OAuthAuthenticator;
 use Mcp\Client\Auth\OAuthConfiguration;
 use Mcp\Client\Auth\PendingAuthorization;
+use Mcp\Client\Auth\PendingAuthorizationStorageInterface;
 use Mcp\Client\Auth\RedirectAuthorizationHandler;
 use Mcp\Client\Auth\TokenEndpoint;
 use Mcp\Client\Auth\TokenEndpointAuthMethod;
@@ -824,6 +825,86 @@ final class OAuthAuthenticatorTest extends TestCase
         }
 
         $this->assertSame('newer-client', $storage->getClientRegistration('https://auth.example.com')?->clientId);
+    }
+
+    #[TestDox('a refused callback checks and drops the registration under the storage lock')]
+    public function testDeferredAuthorizationForgetsUnderTheLock(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new class implements PendingAuthorizationStorageInterface {
+            /** @var array<string, bool> */
+            public array $synchronized = [];
+
+            private readonly InMemoryCredentialStorage $storage;
+
+            private bool $locked = false;
+
+            public function __construct()
+            {
+                $this->storage = new InMemoryCredentialStorage();
+            }
+
+            public function savePendingAuthorization(PendingAuthorization $authorization): void
+            {
+                $this->storage->savePendingAuthorization($authorization);
+            }
+
+            public function consumePendingAuthorization(string $state): ?PendingAuthorization
+            {
+                return $this->storage->consumePendingAuthorization($state);
+            }
+
+            public function getClientRegistration(string $issuer): ?ClientRegistration
+            {
+                $this->synchronized['get'] = $this->locked;
+
+                return $this->storage->getClientRegistration($issuer);
+            }
+
+            public function saveClientRegistration(string $issuer, ClientRegistration $registration): void
+            {
+                $this->storage->saveClientRegistration($issuer, $registration);
+            }
+
+            public function getToken(string $issuer, string $resource): ?AccessToken
+            {
+                return $this->storage->getToken($issuer, $resource);
+            }
+
+            public function saveToken(string $issuer, string $resource, AccessToken $token): void
+            {
+                $this->storage->saveToken($issuer, $resource, $token);
+            }
+
+            public function forget(?string $issuer = null): void
+            {
+                $this->synchronized['forget'] = $this->locked;
+                $this->storage->forget($issuer);
+            }
+
+            public function synchronize(callable $operation): mixed
+            {
+                $this->locked = true;
+
+                try {
+                    return $operation();
+                } finally {
+                    $this->locked = false;
+                }
+            }
+        };
+        $callback = $this->startPending($server, $storage);
+        $server->unknownClient = 'registered-client';
+
+        try {
+            $this->authenticator($server, storage: $storage)->finishAuthorization($callback);
+            $this->fail('Expected invalid_client.');
+        } catch (OAuthErrorException $e) {
+            $this->assertSame('invalid_client', $e->error);
+        }
+
+        $this->assertSame(['get' => true, 'forget' => true], $storage->synchronized);
+        $this->assertNull($storage->getClientRegistration('https://auth.example.com'));
     }
 
     #[TestDox('a registration the authorization server forgot is dropped when the callback is refused')]
