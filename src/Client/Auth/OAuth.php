@@ -281,6 +281,11 @@ final class OAuth
 
     public function build(): OAuthAuthenticator
     {
+        // The pending authorization would be lost with the request that started it.
+        if ($this->authorizationHandler instanceof RedirectAuthorizationHandler && null === $this->storage) {
+            throw new InvalidArgumentException('RedirectAuthorizationHandler finishes the authorization in a later request, so it needs a persistent storage. Call OAuth::setCredentialStorage().');
+        }
+
         $httpClient = null === $this->httpClient ? NoRedirects::discover() : NoRedirects::apply($this->httpClient);
         $requestFactory = $this->requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $streamFactory = $this->streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();

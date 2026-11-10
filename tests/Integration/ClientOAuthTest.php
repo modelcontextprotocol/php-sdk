@@ -16,8 +16,10 @@ use Mcp\Client\Auth\FileCredentialStorage;
 use Mcp\Client\Auth\HeadlessAuthorizationHandler;
 use Mcp\Client\Auth\InMemoryCredentialStorage;
 use Mcp\Client\Auth\OAuth;
+use Mcp\Client\Auth\RedirectAuthorizationHandler;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Exception\AuthorizationException;
+use Mcp\Exception\AuthorizationPendingException;
 use Mcp\Exception\ConnectionException;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -67,11 +69,7 @@ final class ClientOAuthTest extends TestCase
         $this->authorizationServer->stop();
         $this->resourceServer->stop();
 
-        foreach (glob($this->workingDirectory.'/*') ?: [] as $file) {
-            is_dir($file) ? $this->removeDirectory($file) : unlink($file);
-        }
-
-        @rmdir($this->workingDirectory);
+        $this->removeDirectory($this->workingDirectory);
     }
 
     #[TestDox('a client with no credentials at all ends up calling a protected tool')]
@@ -80,7 +78,7 @@ final class ClientOAuthTest extends TestCase
         $client = $this->connect();
 
         $this->assertSame(['whoami'], array_map(static fn ($tool) => $tool->name, $client->listTools()->tools));
-        $this->assertStringContainsString('the token was accepted', (string) json_encode($client->callTool('whoami', [])->content));
+        $this->assertStringContainsString('the token was accepted', (string) json_encode($client->callTool('whoami', [])->content, \JSON_THROW_ON_ERROR));
 
         $client->disconnect();
     }
@@ -200,6 +198,48 @@ final class ClientOAuthTest extends TestCase
         (new HeadlessAuthorizationHandler())->authorize($this->authorizationServerUrl.'/nothing-here', 'http://127.0.0.1:8765/callback');
     }
 
+    #[TestDox('an authorization started in one process is finished in another, and only once')]
+    public function testCompletesRedirectAuthorizationInAnotherProcess(): void
+    {
+        $path = $this->workingDirectory.'/credentials.json';
+        $auth = OAuth::forApplication('Integration Test Client')
+            ->setAuthorizationHandler(new RedirectAuthorizationHandler())
+            ->setCredentialStorage(new FileCredentialStorage($path))
+            ->build();
+        $client = Client::builder()->setClientInfo('integration-client', '1.0.0')->setInitTimeout(5)->build();
+
+        try {
+            $client->connect(new HttpTransport($this->resourceServerUrl.'/mcp', auth: $auth));
+            $this->fail('Expected authorization to pause for a redirect.');
+        } catch (AuthorizationPendingException $e) {
+            $callback = (new HeadlessAuthorizationHandler())->authorize($e->authorizationUrl, 'http://127.0.0.1:8765/callback');
+        }
+
+        unset($client, $auth);
+        $command = [\PHP_BINARY, __DIR__.'/Fixture/oauth/finish-authorization.php', $path, json_encode($callback, \JSON_THROW_ON_ERROR)];
+        $process = new Process($command);
+        $competitor = new Process($command);
+        $process->start();
+        $competitor->start();
+        $process->wait();
+        $competitor->wait();
+        $this->assertNotSame($process->isSuccessful(), $competitor->isSuccessful());
+        $winner = $process->isSuccessful() ? $process : $competitor;
+        $loser = $process->isSuccessful() ? $competitor : $process;
+        $this->assertSame('authorized', $winner->getOutput());
+        $this->assertStringContainsString('does not match a pending authorization', $loser->getErrorOutput().$loser->getOutput());
+
+        $client = $this->connect(new FileCredentialStorage($path));
+        $this->assertStringContainsString('the token was accepted', json_encode($client->callTool('whoami', [])->content, \JSON_THROW_ON_ERROR));
+        $client->disconnect();
+        $this->assertSame([], json_decode((string) file_get_contents($path), true)['pending']);
+
+        $replay = new Process($command);
+        $replay->run();
+        $this->assertFalse($replay->isSuccessful());
+        $this->assertStringContainsString('does not match a pending authorization', $replay->getErrorOutput().$replay->getOutput());
+    }
+
     private function connect(?FileCredentialStorage $storage = null): Client
     {
         $client = Client::builder()
@@ -275,7 +315,8 @@ final class ClientOAuthTest extends TestCase
 
     private function removeDirectory(string $directory): void
     {
-        foreach (glob($directory.'/*') ?: [] as $file) {
+        foreach (array_diff(scandir($directory) ?: [], ['.', '..']) as $name) {
+            $file = $directory.'/'.$name;
             is_dir($file) ? $this->removeDirectory($file) : unlink($file);
         }
 

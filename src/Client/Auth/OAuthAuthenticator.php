@@ -12,6 +12,7 @@
 namespace Mcp\Client\Auth;
 
 use Mcp\Exception\AuthorizationException;
+use Mcp\Exception\AuthorizationPendingException;
 use Mcp\Exception\OAuthErrorException;
 use Mcp\Exception\TokenEndpointUnavailableException;
 use Mcp\Server\Transport\Http\OAuth\SecureUrl;
@@ -165,6 +166,82 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->audience = $resource;
 
         return true;
+    }
+
+    /**
+     * Completes an authorization that RedirectAuthorizationHandler sent to the browser.
+     *
+     * @param array<string, string> $callback the query parameters of the request to the redirect URI
+     *
+     * @throws AuthorizationPendingException when the authorization has to start again without offline_access
+     * @throws AuthorizationException        when the callback does not complete a pending authorization of this storage
+     */
+    public function finishAuthorization(array $callback): void
+    {
+        foreach (['state', 'iss', 'code', 'error', 'error_description'] as $key) {
+            if (\array_key_exists($key, $callback) && !\is_string($callback[$key])) {
+                throw new AuthorizationException(\sprintf('The authorization response parameter "%s" must be a string.', $key));
+            }
+        }
+
+        $state = $callback['state'] ?? '';
+
+        if ('' === $state || !$this->storage instanceof PendingAuthorizationStorageInterface) {
+            throw new AuthorizationException('No pending authorization is available for this callback.');
+        }
+
+        // Consumed before anything is checked, so a callback can't be tried twice.
+        $pending = $this->storage->consumePendingAuthorization($state);
+
+        if (null === $pending || $pending->expiresAt <= time()) {
+            throw new AuthorizationException('The authorization response does not match a pending authorization.');
+        }
+
+        $metadata = $pending->metadata;
+
+        if (null !== $this->configuration->expectedIssuer && $metadata->issuer !== $this->configuration->expectedIssuer) {
+            throw new AuthorizationException(\sprintf('The pending authorization belongs to the authorization server "%s", but only "%s" is expected.', $metadata->issuer, $this->configuration->expectedIssuer));
+        }
+
+        // Another flow may have replaced the registration of the issuer; a configured client is resolved again.
+        $client = $pending->registration ?? $this->resolveClient($metadata, $pending->scopes, null);
+
+        if ($client->clientId !== $pending->clientId) {
+            throw new AuthorizationException(\sprintf('The client "%s" of the pending authorization is no longer the client for "%s"; start the authorization again.', $pending->clientId, $metadata->issuer));
+        }
+
+        $this->token = null;
+        $this->audience = null;
+        $this->requestedScopes = [];
+        $this->issuer = $metadata->issuer;
+        $this->resource = $pending->resource;
+        $this->offlineAccessRefused = $pending->offlineAccessRefused;
+        $scopes = $pending->scopes;
+
+        try {
+            $this->verifyCallback($callback, $pending->state, $metadata);
+            $token = $this->requestToken($metadata, $client, self::withoutEmptyValues([
+                'grant_type' => Grant::AuthorizationCode->value,
+                'code' => $callback['code'],
+                'redirect_uri' => $pending->redirectUri,
+                'code_verifier' => $pending->codeVerifier,
+                'resource' => $pending->resource,
+            ]));
+        } catch (AuthorizationException $e) {
+            if (self::isForgottenClient($e, $client)) {
+                $this->forgetRefusedClient($metadata->issuer, $client);
+
+                throw $e;
+            }
+
+            $scopes = $this->reduceScopes($scopes, $e);
+            $token = $this->grant($metadata, $client, $scopes, $pending->resource);
+        }
+
+        $this->token = $token->withGrantedScopes($scopes);
+        $this->requestedScopes = $scopes;
+        $this->audience = $pending->resource;
+        $this->storage->saveToken($metadata->issuer, $pending->resource, $this->token);
     }
 
     /**
@@ -452,17 +529,29 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         try {
             return [$this->grant($metadata, $client, $scopes, $resource), $scopes];
         } catch (AuthorizationException $e) {
-            $reduced = array_values(array_diff($scopes, ['offline_access']));
-
-            if ($reduced === $scopes || !$e instanceof OAuthErrorException || !\in_array($e->error, ['invalid_scope', 'not_allowed'], true)) {
-                throw $e;
-            }
-
-            $this->logger->info('The authorization server refused the offline_access scope; retrying without it, at the cost of a refresh token.', ['exception' => $e]);
-            $this->offlineAccessRefused = true;
+            $reduced = $this->reduceScopes($scopes, $e);
 
             return [$this->grant($metadata, $client, $reduced, $resource), $reduced];
         }
+    }
+
+    /**
+     * @param string[] $scopes
+     *
+     * @return string[]
+     */
+    private function reduceScopes(array $scopes, AuthorizationException $e): array
+    {
+        $reduced = array_values(array_diff($scopes, ['offline_access']));
+
+        if ($reduced === $scopes || !$e instanceof OAuthErrorException || !\in_array($e->error, ['invalid_scope', 'not_allowed'], true)) {
+            throw $e;
+        }
+
+        $this->logger->info('The authorization server refused the offline_access scope; retrying without it, at the cost of a refresh token.', ['exception' => $e]);
+        $this->offlineAccessRefused = true;
+
+        return $reduced;
     }
 
     /**
@@ -514,7 +603,28 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         $this->logger->info('Starting the authorization code flow', ['authorization_endpoint' => $metadata->authorizationEndpoint, 'scope' => $parameters['scope'] ?? null]);
 
-        $callback = $this->authorizationHandler->authorize($url, $this->configuration->redirectUri);
+        try {
+            $callback = $this->authorizationHandler->authorize($url, $this->configuration->redirectUri);
+        } catch (AuthorizationPendingException $e) {
+            if (!$this->storage instanceof PendingAuthorizationStorageInterface) {
+                throw new AuthorizationException('A pending authorization requires PendingAuthorizationStorageInterface.');
+            }
+
+            $this->storage->savePendingAuthorization(new PendingAuthorization(
+                state: $state,
+                codeVerifier: $pkce->verifier,
+                redirectUri: $this->configuration->redirectUri,
+                resource: $resource,
+                scopes: $scopes,
+                metadata: $metadata,
+                clientId: $client->clientId,
+                expiresAt: time() + 600,
+                offlineAccessRefused: $this->offlineAccessRefused,
+                registration: $client->dynamic ? $client : null,
+            ));
+
+            throw $e;
+        }
 
         $this->verifyCallback($callback, $state, $metadata);
 

@@ -16,13 +16,35 @@ namespace Mcp\Client\Auth;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class InMemoryCredentialStorage implements CredentialStorageInterface
+final class InMemoryCredentialStorage implements PendingAuthorizationStorageInterface
 {
     /** @var array<string, ClientRegistration> */
     private array $registrations = [];
 
     /** @var array<string, array<string, AccessToken>> */
     private array $tokens = [];
+
+    /** @var array<string, PendingAuthorization> */
+    private array $pending = [];
+
+    public function savePendingAuthorization(PendingAuthorization $authorization): void
+    {
+        foreach ($this->pending as $state => $pending) {
+            if ($pending->expiresAt <= time()) {
+                unset($this->pending[$state]);
+            }
+        }
+
+        $this->pending[$authorization->state] = $authorization;
+    }
+
+    public function consumePendingAuthorization(string $state): ?PendingAuthorization
+    {
+        $pending = $this->pending[$state] ?? null;
+        unset($this->pending[$state]);
+
+        return $pending;
+    }
 
     public function getClientRegistration(string $issuer): ?ClientRegistration
     {
@@ -49,11 +71,18 @@ final class InMemoryCredentialStorage implements CredentialStorageInterface
         if (null === $issuer) {
             $this->registrations = [];
             $this->tokens = [];
+            $this->pending = [];
 
             return;
         }
 
         unset($this->registrations[$issuer], $this->tokens[$issuer]);
+
+        foreach ($this->pending as $state => $pending) {
+            if ($pending->metadata->issuer === $issuer) {
+                unset($this->pending[$state]);
+            }
+        }
     }
 
     public function synchronize(callable $operation): mixed

@@ -24,6 +24,7 @@ use Mcp\Client\State\ClientState;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\AuthorizationException;
+use Mcp\Exception\AuthorizationPendingException;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
@@ -168,6 +169,41 @@ final class HttpTransportTest extends TestCase
         } catch (ConnectionException $e) {
             $this->assertInstanceOf(AuthorizationException::class, $e->getPrevious());
             $this->assertStringContainsString('Bearer realm="mcp"', $e->getMessage());
+        }
+
+        $this->assertCount(1, $httpClient->requests);
+    }
+
+    #[TestDox('connect() hands a pending authorization over as it is, without retrying or logging an error')]
+    public function testConnectHandsOverAPendingAuthorization(): void
+    {
+        $httpClient = RecordingHttpClient::queued([new Response(401, ['WWW-Authenticate' => 'Bearer realm="mcp"'])]);
+        $auth = new class implements AuthenticatorInterface {
+            public function authenticate(RequestInterface $request): RequestInterface
+            {
+                return $request;
+            }
+
+            public function handleChallenge(RequestInterface $request, ResponseInterface $response): bool
+            {
+                throw new AuthorizationPendingException('https://auth.example.com/authorize?state=abc');
+            }
+        };
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->never())->method('error');
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setInitTimeout(1)
+            ->setMaxRetries(2)
+            ->setLogger($logger)
+            ->build();
+
+        try {
+            $client->connect(new HttpTransport('https://example.test/mcp', [], $httpClient, $this->factory, $this->factory, $logger, auth: $auth));
+            $this->fail('The client should not have connected.');
+        } catch (AuthorizationPendingException $e) {
+            $this->assertSame('https://auth.example.com/authorize?state=abc', $e->authorizationUrl);
         }
 
         $this->assertCount(1, $httpClient->requests);

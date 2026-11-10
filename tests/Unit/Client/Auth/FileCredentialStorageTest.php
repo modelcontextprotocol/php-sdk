@@ -12,8 +12,10 @@
 namespace Mcp\Tests\Unit\Client\Auth;
 
 use Mcp\Client\Auth\AccessToken;
+use Mcp\Client\Auth\AuthorizationServerMetadata;
 use Mcp\Client\Auth\ClientRegistration;
 use Mcp\Client\Auth\FileCredentialStorage;
+use Mcp\Client\Auth\PendingAuthorization;
 use Mcp\Client\Auth\TokenEndpointAuthMethod;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -123,6 +125,66 @@ final class FileCredentialStorageTest extends TestCase
         $this->assertSame('0600', substr(\sprintf('%o', fileperms($this->path)), -4));
         $this->assertSame('second', $storage->getToken('https://auth.example.com', 'https://mcp.example.com/mcp')?->accessToken);
         $this->assertCount(1, glob(\dirname($this->path).'/*') ?: [], 'The temporary file should not survive the write.');
+    }
+
+    #[TestDox('a pending authorization is consumed once, whichever instance reads it')]
+    public function testPendingAuthorizationsAreConsumedAcrossInstances(): void
+    {
+        $first = new FileCredentialStorage($this->path);
+        $second = new FileCredentialStorage($this->path);
+        $first->savePendingAuthorization($this->pending('one'));
+        $second->savePendingAuthorization($this->pending('two'));
+        $first->saveToken('https://auth.example.com', 'https://mcp.example.com/mcp', new AccessToken('token'));
+
+        $this->assertEquals($this->pending('one'), $second->consumePendingAuthorization('one'));
+        $this->assertNull($first->consumePendingAuthorization('one'));
+        $this->assertSame('two', $first->consumePendingAuthorization('two')?->state);
+        $this->assertSame('token', $second->getToken('https://auth.example.com', 'https://mcp.example.com/mcp')?->accessToken);
+    }
+
+    #[TestDox('forgetting an authorization server drops only its pending authorizations')]
+    public function testForgetRemovesOnlyTheIssuersPendingAuthorizations(): void
+    {
+        $storage = new FileCredentialStorage($this->path);
+        $storage->savePendingAuthorization($this->pending('one'));
+        $storage->savePendingAuthorization($this->pending('two', 'https://other.example.com'));
+        $storage->forget('https://auth.example.com');
+
+        $this->assertNull($storage->consumePendingAuthorization('one'));
+        $this->assertSame('two', $storage->consumePendingAuthorization('two')?->state);
+        $storage->savePendingAuthorization($this->pending('three'));
+        $storage->forget();
+        $this->assertNull($storage->consumePendingAuthorization('three'));
+    }
+
+    #[TestDox('a malformed pending authorization is discarded')]
+    public function testMalformedPendingAuthorizationIsDiscarded(): void
+    {
+        $storage = new FileCredentialStorage($this->path);
+        $storage->savePendingAuthorization($this->pending('one'));
+        $data = json_decode((string) file_get_contents($this->path), true);
+        unset($data['pending']['one']['code_verifier']);
+
+        foreach ([$data['pending']['one'], 'corrupt record'] as $record) {
+            $data['pending']['one'] = $record;
+            file_put_contents($this->path, json_encode($data));
+
+            $this->assertNull($storage->consumePendingAuthorization('one'));
+        }
+    }
+
+    private function pending(string $state, string $issuer = 'https://auth.example.com'): PendingAuthorization
+    {
+        return new PendingAuthorization(
+            state: $state,
+            codeVerifier: 'verifier',
+            redirectUri: 'https://app.example.com/callback',
+            resource: 'https://mcp.example.com/mcp',
+            scopes: ['mcp:read'],
+            metadata: new AuthorizationServerMetadata($issuer, $issuer.'/authorize', $issuer.'/token', codeChallengeMethodsSupported: ['S256'], issuerParameterSupported: true),
+            clientId: 'client',
+            expiresAt: 4102444800,
+        );
     }
 
     #[TestDox('a corrupted file costs one authorization, not a crash')]

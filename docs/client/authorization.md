@@ -89,6 +89,63 @@ The file contains tokens and client secrets. The SDK creates it with the mode `0
 
 The storage keys everything by the issuer of the authorization server. If a server moves to another authorization server, the client registers again and doesn't send its old client ID to the new one. It also registers again if you change the redirect URI, if it needs scopes that its registration doesn't include, or if the token endpoint answers `invalid_client` for a client that it registered.
 
+## Finishing the Authorization in a Later Request
+
+A web application can't wait for the browser within one request. It redirects the user to the authorization server, which sends the user back to a callback route of the application. Use `RedirectAuthorizationHandler` for this, with one storage per user session:
+
+```php
+use Mcp\Client\Auth\FileCredentialStorage;
+use Mcp\Client\Auth\OAuth;
+use Mcp\Client\Auth\OAuthAuthenticator;
+use Mcp\Client\Auth\RedirectAuthorizationHandler;
+
+function createAuthenticator(): OAuthAuthenticator
+{
+    return OAuth::forApplication('Acme Shop')
+        ->setApplicationType('web')
+        ->setRedirectUri('https://shop.example.com/oauth/callback')
+        ->setAuthorizationHandler(new RedirectAuthorizationHandler())
+        ->setCredentialStorage(new FileCredentialStorage('/var/lib/acme/mcp/'.hash('sha256', session_id()).'.json'))
+        ->build();
+}
+```
+
+Start the PHP session in both routes before you call this function. Without a session, `session_id()` returns an empty string, and all users share one file.
+
+The client registers as a `native` application by default. Authorization servers may refuse an `https` redirect URI for it, so a web application calls `setApplicationType('web')`.
+
+When the client needs a token, the handler throws an `AuthorizationPendingException`. Before that, the SDK stores the `state`, the PKCE verifier and the metadata of the authorization server. Redirect the browser to the URL of the exception:
+
+```php
+use Mcp\Client\Transport\HttpTransport;
+use Mcp\Exception\AuthorizationPendingException;
+
+try {
+    $client->connect(new HttpTransport('https://mcp.example.com/mcp', auth: createAuthenticator()));
+} catch (AuthorizationPendingException $e) {
+    header('Location: '.$e->authorizationUrl);
+    exit;
+}
+```
+
+`connect()` and the requests after it throw this exception directly. In the callback route, pass the query parameters to `finishAuthorization()` of an authenticator with the same configuration and storage:
+
+```php
+createAuthenticator()->finishAuthorization($_GET);
+
+// back to the page that needs the MCP server
+header('Location: /orders');
+```
+
+The SDK checks the callback like any other, exchanges the code and stores the token. The next `connect()` with this storage uses it. If the authorization server refuses `offline_access`, `finishAuthorization()` throws an `AuthorizationPendingException` again, to authorize without that scope.
+
+A pending authorization expires after 10 minutes. The SDK removes it before it checks the callback, so each callback works once. If `finishAuthorization()` throws an `AuthorizationException`, send the user through the authorization again.
+
+!!! warning
+    The SDK finds the pending authorization by the `state` parameter of the callback. Select the storage from the user session, never from the callback. With a storage that all users share, one user can finish an authorization that another user started.
+
+`build()` throws an `InvalidArgumentException` if you use `RedirectAuthorizationHandler` without `setCredentialStorage()`. For your own storage, implement `PendingAuthorizationStorageInterface`. Its `consumePendingAuthorization()` method must read and remove the entry in one step, so two requests can't use the same callback.
+
 ## Using a Pre-registered Client
 
 If an administrator created a client for you, or if the authorization server doesn't support dynamic registration, pass the client ID:
@@ -257,5 +314,7 @@ try {
     }
 }
 ```
+
+An `AuthorizationPendingException` is never wrapped, see [Finishing the Authorization in a Later Request](#finishing-the-authorization-in-a-later-request).
 
 After `connect()`, requests throw the `AuthorizationException` directly. The client doesn't retry a failed authorization. If the token endpoint is unavailable during a refresh, the request fails and the client keeps the refresh token. Pass a PSR-3 logger with `setLogger()` to see each step.

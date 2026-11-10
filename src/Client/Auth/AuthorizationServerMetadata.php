@@ -21,7 +21,7 @@ use Mcp\Server\Transport\Http\OAuth\SecureUrl;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class AuthorizationServerMetadata
+final class AuthorizationServerMetadata implements \JsonSerializable
 {
     /**
      * @param string    $issuer                            the issuer identifier, which must match how the document was found
@@ -109,6 +109,25 @@ final class AuthorizationServerMetadata
             true === ($data['client_id_metadata_document_supported'] ?? null),
             true === ($data['authorization_response_iss_parameter_supported'] ?? null),
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return array_filter([
+            'issuer' => $this->issuer,
+            'authorization_endpoint' => $this->authorizationEndpoint,
+            'token_endpoint' => $this->tokenEndpoint,
+            'registration_endpoint' => $this->registrationEndpoint,
+            'scopes_supported' => $this->scopesSupported,
+            'grant_types_supported' => $this->grantTypesSupported,
+            'token_endpoint_auth_methods_supported' => $this->tokenEndpointAuthMethodsSupported,
+            'code_challenge_methods_supported' => $this->codeChallengeMethodsSupported,
+            'client_id_metadata_document_supported' => $this->clientIdMetadataDocumentSupported,
+            'authorization_response_iss_parameter_supported' => $this->issuerParameterSupported,
+        ], static fn (mixed $value): bool => null !== $value);
     }
 
     /**
