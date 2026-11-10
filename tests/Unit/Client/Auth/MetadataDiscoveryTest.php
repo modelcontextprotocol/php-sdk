@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Client\Auth;
 
 use Mcp\Client\Auth\MetadataDiscovery;
+use Mcp\Exception\AuthorizationException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -323,16 +324,17 @@ final class MetadataDiscoveryTest extends TestCase
         $this->assertSame([$path, $root], $client->requested);
     }
 
-    #[TestDox('a document for another resource is returned if no location describes the endpoint, for the caller to refuse')]
-    public function testReturnsTheUnrelatedResourceIfNothingElseIsFound(): void
+    #[TestDox('documents only for other resources are refused, rather than taken as no metadata')]
+    public function testRefusesWhenOnlyUnrelatedResourcesAreFound(): void
     {
         $client = new RecordingClient([
             'https://mcp.example.com/.well-known/oauth-protected-resource/mcp' => self::json(['resource' => 'https://evil.example.com/mcp']),
         ]);
 
-        $metadata = $this->discovery($client)->discoverProtectedResource('https://mcp.example.com/mcp');
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('declares the unrelated resource "https://evil.example.com/mcp"');
 
-        $this->assertSame('https://evil.example.com/mcp', $metadata?->resource);
+        $this->discovery($client)->discoverProtectedResource('https://mcp.example.com/mcp');
     }
 
     #[TestDox('an invalid resource identifier does not stop a later location')]

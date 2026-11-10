@@ -290,11 +290,6 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return [$endpoint, $this->discoverLegacyServer($endpoint), null];
         }
 
-        if (!$metadata->covers($endpoint)) {
-            // A token for another resource would be sent to this one: a confused deputy.
-            throw new AuthorizationException(\sprintf('The protected resource metadata for "%s" declares the unrelated resource "%s"; refusing to authorize against it.', $endpoint, $metadata->resource));
-        }
-
         $issuer = $this->selectIssuer($endpoint, $metadata->authorizationServers);
 
         // Checked before the fetch, as even the request is made on the server's behalf.

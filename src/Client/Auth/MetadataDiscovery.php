@@ -11,6 +11,7 @@
 
 namespace Mcp\Client\Auth;
 
+use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\InvalidArgumentException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
@@ -40,7 +41,9 @@ final class MetadataDiscovery
      * @param string  $resourceUrl the MCP endpoint being called
      * @param ?string $metadataUrl the location the challenge named, which wins over any guess
      *
-     * @return ?ProtectedResourceMetadata the first document that covers the endpoint, else the first for another resource, which the caller must refuse
+     * @return ?ProtectedResourceMetadata the first document that covers the endpoint, null if there is none
+     *
+     * @throws AuthorizationException if documents were found, but only for other resources
      */
     public function discoverProtectedResource(string $resourceUrl, ?string $metadataUrl = null): ?ProtectedResourceMetadata
     {
@@ -78,7 +81,12 @@ final class MetadataDiscovery
             return $metadata;
         }
 
-        return $unrelated;
+        if (null !== $unrelated) {
+            // A token for another resource would be sent to this one: a confused deputy.
+            throw new AuthorizationException(\sprintf('The protected resource metadata for "%s" declares the unrelated resource "%s"; refusing to authorize against it.', $resourceUrl, $unrelated->resource));
+        }
+
+        return null;
     }
 
     /**
