@@ -9,7 +9,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 * The SDK is split into the `Mcp\Schema`, `Mcp\Client` and `Mcp\Server` namespaces, ahead of separate packages: most imports change
 * PHP 8.2 or higher is required, and JSON-RPC batches are gone
-* The client authorizes with OAuth: authorization code, client credentials, `private_key_jwt` and cross-app access
+* The client authorizes with OAuth: authorization code, client credentials, `private_key_jwt` and experimental cross-app access
 * Handshake-era servers over HTTP run without sessions unless `Builder::setSession()` is called, and sessions belong to the principal that opened them
 * Request handlers run under an event loop (Revolt, ReactPHP) and stream their responses
 * Tool arguments keep their JSON types, and arguments that don't fit are answered with `-32602`
@@ -118,7 +118,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 * Authorization
   * Add OAuth authorization: pass `OAuth::forApplication('My App')->build()` as `auth` and the client answers a `401` with discovery, dynamic or pre-registered client identity, the authorization code flow with PKCE and a retry. It refreshes tokens, handles step-up challenges and treats the server's metadata as untrusted input. See [Authorization](docs/client/authorization.md).
-  * Add `OAuth::forServiceAccount()` for the client credentials grant, `setPrivateKeyJwt()` for `private_key_jwt` client authentication, `setCrossAppAccess()` to reach a server through an enterprise identity, and `setClientMetadataUrl()` for a client ID metadata document. `setExpectedIssuer()` is required with `setClientCredentials()`, so a hostile MCP server can't receive the secret or an authorization code.
+  * Add `OAuth::forServiceAccount()` for the client credentials grant, `setPrivateKeyJwt()` for `private_key_jwt` client authentication, the experimental `setCrossAppAccess()` to reach a server through an enterprise identity, and `setClientMetadataUrl()` for a client ID metadata document. `setExpectedIssuer()` is required with `setClientCredentials()`, so a hostile MCP server can't receive the secret or an authorization code.
   * Add `LoopbackAuthorizationHandler`, `HeadlessAuthorizationHandler`, `ConsoleAuthorizationHandler` for a shell without a browser, and `RedirectAuthorizationHandler` with `OAuthAuthenticator::finishAuthorization()` to finish in a later request, such as a web callback. Credentials go to `InMemoryCredentialStorage` or `FileCredentialStorage`, which also implements `PendingAuthorizationStorageInterface`.
   * Add the `auth` parameter of `HttpTransport` and `AuthenticatorInterface`, to authenticate every request and retry the ones the server refuses. `BearerToken` sends a token you already have, and `AuthenticatingHttpClient` offers the same as a PSR-18 decorator.
   * [BC Break] A `401` or `403` answer to a request, a notification or a stream resumption fails with an `AuthorizationException` holding the `WWW-Authenticate` header, instead of a `RequestException`. `Client::connect()` wraps it in a `ConnectionException`, without a retry.
