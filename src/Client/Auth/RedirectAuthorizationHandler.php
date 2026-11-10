@@ -14,7 +14,7 @@ namespace Mcp\Client\Auth;
 use Mcp\Exception\AuthorizationPendingException;
 
 /**
- * @author PHP MCP SDK contributors
+ * @author bbdu3 <ergouyang854@gamil.com>
  */
 final class RedirectAuthorizationHandler implements AuthorizationHandlerInterface
 {

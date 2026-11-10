@@ -12,7 +12,7 @@
 namespace Mcp\Exception;
 
 /**
- * @author PHP MCP SDK contributors
+ * @author bbdu3 <ergouyang854@gamil.com>
  */
 final class AuthorizationPendingException extends AuthorizationException
 {

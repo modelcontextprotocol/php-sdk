@@ -14,7 +14,7 @@ namespace Mcp\Client\Auth;
 use Mcp\Exception\InvalidArgumentException;
 
 /**
- * @author PHP MCP SDK contributors
+ * @author bbdu3 <ergouyang854@gamil.com>
  */
 final class PendingAuthorization implements \JsonSerializable
 {
