@@ -23,15 +23,17 @@ use Mcp\Exception\InvalidArgumentException;
 final class OAuthConfiguration
 {
     /**
-     * @param ClientMetadata $clientMetadata  what the client says about itself when registering
-     * @param string         $redirectUri     where the authorization server sends the user back
-     * @param ?string        $clientId        a client id issued out of band, skipping registration
-     * @param ?string        $clientSecret    the matching secret, when there is one
-     * @param string[]       $scopes          scopes to request regardless of what is advertised
-     * @param bool           $offlineAccess   whether to ask for a refresh token where the server offers one
-     * @param bool           $legacyDiscovery whether to fall back to pre-2025-06-18 discovery when a
-     *                                        server publishes no protected resource metadata
-     * @param ?string        $expectedIssuer  the only authorization server to authorize with
+     * @param ClientMetadata $clientMetadata    what the client says about itself when registering
+     * @param string         $redirectUri       where the authorization server sends the user back
+     * @param ?string        $clientId          a client id issued out of band, skipping registration
+     * @param ?string        $clientSecret      the matching secret, when there is one
+     * @param ?string        $clientMetadataUrl a URL serving the client metadata document, usable as a
+     *                                          client id against servers that accept one
+     * @param string[]       $scopes            scopes to request regardless of what is advertised
+     * @param bool           $offlineAccess     whether to ask for a refresh token where the server offers one
+     * @param bool           $legacyDiscovery   whether to fall back to pre-2025-06-18 discovery when a
+     *                                          server publishes no protected resource metadata
+     * @param ?string        $expectedIssuer    the only authorization server to authorize with
      *
      * @throws InvalidArgumentException when the redirect URI is insecure, or a client id is set without an expected issuer
      */
@@ -40,6 +42,7 @@ final class OAuthConfiguration
         public readonly string $redirectUri = OAuth::DEFAULT_REDIRECT_URI,
         public readonly ?string $clientId = null,
         public readonly ?string $clientSecret = null,
+        public readonly ?string $clientMetadataUrl = null,
         public readonly array $scopes = [],
         public readonly bool $offlineAccess = true,
         public readonly bool $legacyDiscovery = false,

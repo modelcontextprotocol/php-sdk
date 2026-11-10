@@ -21,6 +21,7 @@ use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\InvalidArgumentException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
@@ -99,6 +100,43 @@ final class OAuthTest extends TestCase
         $configuration = $this->configurationOf(OAuth::forApplication('My App'));
 
         $this->assertNull($configuration->expectedIssuer);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function invalidClientMetadataUrlProvider(): iterable
+    {
+        yield 'plain http' => ['http://app.example.com/client.json'];
+        yield 'no path' => ['https://app.example.com'];
+        yield 'the root path' => ['https://app.example.com/'];
+        yield 'not a URL' => ['client.json'];
+        yield 'a space in the host' => ['https://app example.com/client.json'];
+        yield 'a fragment' => ['https://app.example.com/client.json#main'];
+        yield 'a username' => ['https://user@app.example.com/client.json'];
+        yield 'a password' => ['https://user:secret@app.example.com/client.json'];
+        yield 'a single-dot segment' => ['https://app.example.com/./client.json'];
+        yield 'a double-dot segment' => ['https://app.example.com/a/../client.json'];
+        yield 'an encoded dot segment' => ['https://app.example.com/a/%2e%2e/client.json'];
+        yield 'a backslash dot segment' => ['https://app.example.com/a\\..\\client.json'];
+        yield 'plain http on loopback' => ['http://localhost/client.json'];
+    }
+
+    #[DataProvider('invalidClientMetadataUrlProvider')]
+    #[TestDox('an invalid client metadata URL is refused: $_dataName')]
+    public function testRejectsAnInvalidClientMetadataUrl(string $url): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        OAuth::forApplication('My App')->setClientMetadataUrl($url);
+    }
+
+    #[TestDox('a client metadata URL may contain dots and a query')]
+    public function testAcceptsAValidClientMetadataUrl(): void
+    {
+        $url = 'https://app.example.com/v1.2/client.json?tenant=acme';
+
+        $this->assertSame($url, $this->configurationOf(OAuth::forApplication('My App')->setClientMetadataUrl($url))->clientMetadataUrl);
     }
 
     #[TestWith(['http://app.example.com/callback'])]

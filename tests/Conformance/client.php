@@ -129,6 +129,11 @@ function buildAuthenticator(string $scenario, array $context, Psr\Log\LoggerInte
         $oauth->setLegacyDiscovery(true);
     }
 
+    // The harness never fetches the document.
+    if ('auth/basic-cimd' === $scenario) {
+        $oauth->setClientMetadataUrl('https://conformance-test.local/client-metadata.json');
+    }
+
     return $oauth->build();
 }
 

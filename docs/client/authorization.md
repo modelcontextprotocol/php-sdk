@@ -47,9 +47,10 @@ $auth = OAuth::forApplication('My App')
     ->build();
 ```
 
-The SDK contains two handlers:
+The SDK contains three handlers:
 
 - `LoopbackAuthorizationHandler` is the default. It opens the system browser and listens on the port of the redirect URI until the browser returns. It also writes the URL to `STDERR`, so you can open it yourself if no browser starts. Use it for desktop and command line applications.
+- `ConsoleAuthorizationHandler` prints the authorization URL and reads the URL of the redirect from the standard input. Use it in a remote shell or a container without a browser. The user must paste the whole URL, because the SDK checks its `state` and `iss`.
 - `HeadlessAuthorizationHandler` requests the authorization URL with an HTTP client and reads the code from the redirect. It only works if the authorization server grants access without asking the user (e.g. a test server).
 
 For anything else, implement `AuthorizationHandlerInterface`. It has one method:
@@ -103,6 +104,18 @@ OAuth::forApplication('My App')
 The MCP server names its authorization server. Without an expected issuer, a hostile MCP server could name its own and receive your secret. It could also send the user to your authorization server with your client ID and receive the authorization code. Pass the `issuer` value from the metadata of your authorization server. If you set a client ID without an expected issuer, `build()` throws an `InvalidArgumentException`.
 
 The client reads from the metadata of the authorization server how to send the secret.
+
+## Using a URL as the Client ID
+
+If you publish a client ID metadata document, the authorization server can read your client's metadata from its URL. You then don't need a registration per server. The URL must use `https` and have a path. It can't contain a fragment, credentials or dot segments:
+
+```php
+OAuth::forApplication('My App')->setClientMetadataUrl('https://app.example.com/client-metadata.json');
+```
+
+The document must be a JSON object whose `client_id` is exactly this URL. It must also contain `client_name` and `redirect_uris`, and `redirect_uris` must list the redirect URI of the client (by default `http://127.0.0.1:8765/callback`). The authorization server must be able to fetch the document.
+
+The client only uses this URL if the authorization server supports these documents. Otherwise, it registers. A client ID that you pass with `setClientCredentials()` takes precedence.
 
 ## Choosing Scopes
 

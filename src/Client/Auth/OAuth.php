@@ -14,6 +14,7 @@ namespace Mcp\Client\Auth;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Client\Transport\NoRedirects;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Transport\Http\OAuth\SecureUrl;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
@@ -36,6 +37,7 @@ final class OAuth
     private ?string $clientId = null;
     private ?string $clientSecret = null;
     private ?string $expectedIssuer = null;
+    private ?string $clientMetadataUrl = null;
     private string $applicationType = 'native';
     private ?string $clientUri = null;
     private ?string $softwareId = null;
@@ -99,6 +101,32 @@ final class OAuth
     public function setExpectedIssuer(string $issuer): self
     {
         $this->expectedIssuer = $issuer;
+
+        return $this;
+    }
+
+    /**
+     * Use the URL of a client ID metadata document as the client id where the server supports it.
+     */
+    public function setClientMetadataUrl(string $url): self
+    {
+        try {
+            $parts = SecureUrl::parse($url, 'client metadata URL');
+        } catch (InvalidArgumentException) {
+            $parts = null;
+        }
+
+        if (null === $parts
+            || false === filter_var($url, \FILTER_VALIDATE_URL)
+            || 'https' !== strtolower($parts['scheme'])
+            || '' === trim($parts['path'] ?? '', '/')
+            || isset($parts['fragment']) || isset($parts['user']) || isset($parts['pass'])
+            || [] !== array_intersect(explode('/', rawurldecode($parts['path'] ?? '')), ['.', '..'])
+        ) {
+            throw new InvalidArgumentException(\sprintf('The client metadata URL must be an https URL with a path, and without a fragment, credentials or dot segments, got "%s".', $url));
+        }
+
+        $this->clientMetadataUrl = $url;
 
         return $this;
     }
@@ -221,6 +249,7 @@ final class OAuth
             $this->redirectUri,
             $this->clientId,
             $this->clientSecret,
+            $this->clientMetadataUrl,
             $this->scopes,
             $this->offlineAccess,
             $this->legacyDiscovery,
