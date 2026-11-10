@@ -7,6 +7,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Server
 
+* [BC Break] Refuse an OAuth URL whose host is `0.0.0.0`, `::`, an IPv4 address within IPv6 or an IPv4 address in a non-standard form (e.g. `127.1`), or that holds percent-encoding or non-ASCII characters (an internationalized name must be given in punycode), for the issuer, the `jwks_uri` and the resource.
 * [BC Break] Return HTTP `503` with `Retry-After` and without a Bearer challenge when `JwtTokenValidator` cannot fetch the signing keys or reaches the limit of the new `RateLimitedJwksClient`, which replaces the `rateLimit` of `CachedKeySet`.
 * `CorsMiddleware` exposes `Retry-After` by default.
 * [BC Break] Remove JSON-RPC batch support: a JSON array is refused with `-32600`, and HTTP status `400` over HTTP, for every protocol revision. This includes `2025-03-26`, which requires batches and which the server still negotiates. Batching was removed from MCP in `2025-06-18`.
@@ -86,6 +87,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Client
 
+* [BC Break] Refuse OAuth URLs whose host is `0.0.0.0`, `::`, an IPv4 address within IPv6 or an IPv4 address in a non-standard form (e.g. `127.1`), or that holds percent-encoding or non-ASCII characters (an internationalized name must be given in punycode).
 * [BC Break] Start a stdio server on Windows without `cmd.exe`, as it corrupted arguments containing `"`, `%` or `!`. A batch file like `npx` now needs `command: 'cmd'` and `args: ['/c', 'npx', ...]`.
 * Fix the stdio client hanging on Windows while the server stays silent, without enforcing its timeouts: `StdioTransport` now reads only once `stream_select()` reports output. Requires PHP 8.5, as `stream_select()` on Windows reports an idle pipe as readable before that.
 * [BC Break] Remove JSON-RPC batch support: a JSON array from the server is dropped with a warning. Batching was removed from MCP in `2025-06-18`.

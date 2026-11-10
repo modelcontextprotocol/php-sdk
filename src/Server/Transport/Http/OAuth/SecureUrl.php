@@ -39,9 +39,18 @@ final class SecureUrl
             throw new InvalidArgumentException(\sprintf('The %s must be an absolute URL.', $label));
         }
 
+        // Browsers and IDNA decode these into another host, e.g. "%31%32%37.1" or "１２７.0.0.1" into a loopback address.
+        if (1 === preg_match('/[%\x80-\xff]/', $parts['host'])) {
+            throw new InvalidArgumentException(\sprintf('The %s "%s" must write its host in ASCII without percent-encoding, an internationalized name in punycode.', $label, $url));
+        }
+
         $scheme = strtolower($parts['scheme']);
         if ('https' !== $scheme && ('http' !== $scheme || !self::isLoopbackHost($parts['host']))) {
             throw new InvalidArgumentException(\sprintf('The %s "%s" must use https; plain http is only accepted for loopback hosts.', $label, $url));
+        }
+
+        if (self::hidesItsAddress($parts['host'])) {
+            throw new InvalidArgumentException(\sprintf('The %s "%s" must use a host name or an IP address in standard form; unspecified addresses and IPv4 within IPv6 are refused.', $label, $url));
         }
 
         return $parts;
@@ -57,9 +66,27 @@ final class SecureUrl
         return \is_string($host) && self::isLoopbackHost($host);
     }
 
+    // Each of these can reach this machine or a private network without looking like it.
+    private static function hidesItsAddress(string $host): bool
+    {
+        $host = self::normalizeHost($host);
+
+        if (false !== filter_var($host, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4)) {
+            return '0.0.0.0' === $host;
+        }
+
+        if (false !== filter_var($host, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV6)) {
+            $bytes = (string) inet_pton($host);
+
+            return '::1' !== $host && str_starts_with($bytes, str_repeat("\0", 10)) && \in_array(substr($bytes, 10, 2), ["\0\0", "\xff\xff"], true);
+        }
+
+        return 1 === preg_match('/^(?:0x[0-9a-f]*|[0-9]+)(?:\.(?:0x[0-9a-f]*|[0-9]+)){0,3}\.?$/', $host);
+    }
+
     private static function isLoopbackHost(string $host): bool
     {
-        $host = strtolower(trim($host, '[]'));
+        $host = self::normalizeHost($host);
         if ('::1' === $host) {
             return true;
         }
@@ -73,5 +100,16 @@ final class SecureUrl
         }
 
         return 1 === preg_match('/^(?:[a-z0-9_-]+\.)*localhost$/', $host);
+    }
+
+    private static function normalizeHost(string $host): string
+    {
+        $host = strtolower(trim($host, '[]'));
+
+        if (false !== filter_var($host, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV6)) {
+            return (string) inet_ntop((string) inet_pton($host));
+        }
+
+        return $host;
     }
 }
