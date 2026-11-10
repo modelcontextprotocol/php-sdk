@@ -11,7 +11,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * PHP 8.2 or higher is required, and JSON-RPC batches are gone
 * The client authorizes with OAuth: authorization code, client credentials, `private_key_jwt` and experimental cross-app access
 * Handshake-era servers over HTTP run without sessions unless `Builder::setSession()` is called, and sessions belong to the principal that opened them
-* Request handlers run under an event loop (Revolt, ReactPHP) and stream their responses
+* Request handlers can run under an event loop (Revolt, ReactPHP) with the opt-in `Builder::setFiberScheduler()`, and stream their responses
 * Tool arguments keep their JSON types, and arguments that don't fit are answered with `-32602`
 * stdio works on Windows, in the server and the client
 
