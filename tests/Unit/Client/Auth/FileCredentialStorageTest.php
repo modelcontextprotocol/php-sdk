@@ -172,7 +172,16 @@ final class FileCredentialStorageTest extends TestCase
 
     private function pending(string $state, string $issuer = 'https://auth.example.com'): PendingAuthorization
     {
-        return new PendingAuthorization($state, 'verifier', 'https://app.example.com/callback', 'https://mcp.example.com/mcp', 'https://mcp.example.com/mcp', ['mcp:read'], new AuthorizationServerMetadata($issuer, $issuer.'/authorize', $issuer.'/token', issuerParameterSupported: true), new ClientRegistration('client', 'secret'), 4102444800);
+        return new PendingAuthorization(
+            state: $state,
+            codeVerifier: 'verifier',
+            redirectUri: 'https://app.example.com/callback',
+            resource: 'https://mcp.example.com/mcp',
+            scopes: ['mcp:read'],
+            metadata: new AuthorizationServerMetadata($issuer, $issuer.'/authorize', $issuer.'/token', codeChallengeMethodsSupported: ['S256'], issuerParameterSupported: true),
+            clientId: 'client',
+            expiresAt: 4102444800,
+        );
     }
 
     #[TestDox('a corrupted file costs one authorization, not a crash')]

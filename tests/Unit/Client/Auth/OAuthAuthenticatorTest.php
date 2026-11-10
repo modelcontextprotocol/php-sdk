@@ -730,6 +730,77 @@ final class OAuthAuthenticatorTest extends TestCase
         $authenticator->handleChallenge($this->request(), $server->challenge());
     }
 
+    #[TestDox('the secret of a configured client stays out of a pending authorization')]
+    public function testDeferredAuthorizationDoesNotStoreTheClientSecret(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'mcp-pending-');
+        $server = new FakeOAuthServer(tokenEndpointAuthMethods: ['client_secret_post']);
+        $configuration = OAuth::forApplication('test')->setClientCredentials('known-client', 'known-secret')->setExpectedIssuer('https://auth.example.com');
+
+        try {
+            $callback = $this->startPending($server, new FileCredentialStorage($path), $configuration);
+            $this->assertStringNotContainsString('known-secret', (string) file_get_contents($path));
+
+            $this->authenticator($server, storage: new FileCredentialStorage($path), configuration: $configuration)->finishAuthorization($callback);
+            $this->assertSame('known-client', $server->token['client_id'] ?? null);
+            $this->assertSame('known-secret', $server->token['client_secret'] ?? null);
+        } finally {
+            array_map('unlink', glob($path.'*') ?: []);
+        }
+    }
+
+    #[TestDox('a pending authorization is not finished with an authorization server other than the expected one')]
+    public function testDeferredAuthorizationChecksTheExpectedIssuer(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $callback = $this->startPending($server, $storage);
+        $configuration = OAuth::forApplication('test')->setClientCredentials('known-client')->setExpectedIssuer('https://other.example.com');
+
+        try {
+            $this->authenticator($server, storage: $storage, configuration: $configuration)->finishAuthorization($callback);
+            $this->fail('Expected the pending authorization to be refused.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('only "https://other.example.com" is expected', $e->getMessage());
+            $this->assertNotContains('https://auth.example.com/token', $server->requested);
+        }
+    }
+
+    #[TestDox('a pending authorization started with another client is not finished')]
+    public function testDeferredAuthorizationRefusesAnotherClient(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $callback = $this->startPending($server, $storage, OAuth::forApplication('test')->setClientCredentials('known-client')->setExpectedIssuer('https://auth.example.com'));
+        $configuration = OAuth::forApplication('test')->setClientCredentials('other-client')->setExpectedIssuer('https://auth.example.com');
+
+        try {
+            $this->authenticator($server, storage: $storage, configuration: $configuration)->finishAuthorization($callback);
+            $this->fail('Expected the pending authorization to be refused.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('"known-client"', $e->getMessage());
+            $this->assertNotContains('https://auth.example.com/token', $server->requested);
+        }
+    }
+
+    #[TestDox('a registration the authorization server forgot is dropped when the callback is refused')]
+    public function testDeferredAuthorizationForgetsARefusedRegistration(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $callback = $this->startPending($server, $storage);
+        $server->unknownClient = 'registered-client';
+
+        try {
+            $this->authenticator($server, storage: $storage)->finishAuthorization($callback);
+            $this->fail('Expected invalid_client.');
+        } catch (OAuthErrorException $e) {
+            $this->assertSame('invalid_client', $e->error);
+        }
+
+        $this->assertNull($storage->getClientRegistration('https://auth.example.com'));
+    }
+
     /**
      * @return array<string, string>
      */
