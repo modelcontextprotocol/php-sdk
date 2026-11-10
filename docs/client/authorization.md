@@ -72,42 +72,6 @@ final class AcmeAuthorizationHandler implements AuthorizationHandlerInterface
 
 The default redirect URI is `http://127.0.0.1:8765/callback`. Change it with `setRedirectUri()` if the port is in use or if the authorization server expects another one. The URI must use `https` or a loopback host (e.g. `127.0.0.1`), and must not have a fragment or userinfo. Otherwise, `build()` throws an `InvalidArgumentException`. The loopback handler listens on the host and port of this URI, so it only works with `http` on a loopback host. For an `https` URI, implement your own handler.
 
-### Web application callbacks
-
-For a callback that arrives in a later HTTP request, use `RedirectAuthorizationHandler`
-with persistent storage scoped to the browser session that starts the flow:
-
-```php
-use Mcp\Client\Auth\FileCredentialStorage;
-use Mcp\Client\Auth\OAuth;
-use Mcp\Client\Auth\RedirectAuthorizationHandler;
-use Mcp\Exception\AuthorizationPendingException;
-
-$auth = OAuth::forApplication('My Web App')
-    ->setRedirectUri('https://app.example.com/oauth/callback')
-    ->setAuthorizationHandler(new RedirectAuthorizationHandler())
-    ->setCredentialStorage(new FileCredentialStorage($sessionCredentialPath))
-    ->build();
-```
-
-Catch `AuthorizationPendingException` around the MCP operation and redirect the browser
-to `$e->authorizationUrl`. The SDK saves the state, PKCE verifier and authorization
-context before the exception reaches your application. In the callback route, rebuild
-the authenticator with the same configuration and session storage and call
-`$auth->finishAuthorization($callbackParameters)`, then retry the MCP operation.
-The callback may also throw `AuthorizationPendingException` if the server refuses
-`offline_access` and authorization needs to restart without that scope.
-
-Pending flows expire after ten minutes and are consumed once, before issuer/code
-validation and token exchange; restart authorization if completion fails. Custom
-storage must implement `PendingAuthorizationStorageInterface` with atomic consumption.
-`InMemoryCredentialStorage` cannot persist state across independent PHP requests.
-Resolve the storage from the current browser session, never from callback parameters,
-and do not share it between users. In long-running workers, create an authenticator
-per user request; tokens are also held in the authenticator's memory.
-
-### The redirect URI
-
 ## Storing Credentials
 
 By default, the client keeps its tokens in memory. A command line application then sends the user to the browser on every run. Use `FileCredentialStorage` to keep them between runs:
@@ -124,6 +88,58 @@ $auth = OAuth::forApplication('My App')
 The file contains tokens and client secrets. The SDK creates it with the mode `0600` in a directory with the mode `0700`, and doesn't encrypt it. Windows ignores these modes, so store the file in a directory that only you can read (e.g. your user profile). The SDK also creates two lock files next to it, so processes can share the file and only one of them refreshes a token at a time. To use a keychain or a secrets manager, implement `CredentialStorageInterface`. Its `synchronize()` method must run one operation at a time across all processes that share the storage.
 
 The storage keys everything by the issuer of the authorization server. If a server moves to another authorization server, the client registers again and doesn't send its old client ID to the new one. It also registers again if you change the redirect URI, if it needs scopes that its registration doesn't include, or if the token endpoint answers `invalid_client` for a client that it registered.
+
+## Finishing the Authorization in a Later Request
+
+A web application can't wait for the browser within one request. It redirects the user to the authorization server, which sends the user back to a callback route of the application. Use `RedirectAuthorizationHandler` for this, with one storage per user session:
+
+```php
+use Mcp\Client\Auth\FileCredentialStorage;
+use Mcp\Client\Auth\OAuth;
+use Mcp\Client\Auth\OAuthAuthenticator;
+use Mcp\Client\Auth\RedirectAuthorizationHandler;
+
+function createAuthenticator(): OAuthAuthenticator
+{
+    return OAuth::forApplication('Acme Shop')
+        ->setRedirectUri('https://shop.example.com/oauth/callback')
+        ->setAuthorizationHandler(new RedirectAuthorizationHandler())
+        ->setCredentialStorage(new FileCredentialStorage('/var/lib/acme/mcp/'.hash('sha256', session_id()).'.json'))
+        ->build();
+}
+```
+
+When the client needs a token, the handler throws an `AuthorizationPendingException`. Before that, the SDK stores the `state`, the PKCE verifier and the metadata of the authorization server. Redirect the browser to the URL of the exception:
+
+```php
+use Mcp\Client\Transport\HttpTransport;
+use Mcp\Exception\AuthorizationPendingException;
+
+try {
+    $client->connect(new HttpTransport('https://mcp.example.com/mcp', auth: createAuthenticator()));
+} catch (AuthorizationPendingException $e) {
+    header('Location: '.$e->authorizationUrl);
+    exit;
+}
+```
+
+`connect()` and the requests after it throw this exception directly. In the callback route, pass the query parameters to `finishAuthorization()` of an authenticator with the same configuration and storage:
+
+```php
+createAuthenticator()->finishAuthorization($_GET);
+
+// back to the page that needs the MCP server
+header('Location: /orders');
+```
+
+The SDK checks the callback like any other, exchanges the code and stores the token. The next `connect()` with this storage uses it. If the authorization server refuses `offline_access`, `finishAuthorization()` throws an `AuthorizationPendingException` again, to authorize without that scope.
+
+A pending authorization expires after 10 minutes. The SDK removes it before it checks the callback, so each callback works once. If `finishAuthorization()` throws an `AuthorizationException`, send the user through the authorization again.
+
+!!! warning
+    The SDK finds the pending authorization by the `state` parameter of the callback. Select the storage from the user session, never from the callback. With a storage that all users share, one user can finish an authorization that another user started.
+
+`build()` throws an `InvalidArgumentException` if you use `RedirectAuthorizationHandler` without `setCredentialStorage()`. For your own storage, implement `PendingAuthorizationStorageInterface`. Its `consumePendingAuthorization()` method must read and remove the entry in one step, so two requests can't use the same callback.
 
 ## Using a Pre-registered Client
 
@@ -293,5 +309,7 @@ try {
     }
 }
 ```
+
+An `AuthorizationPendingException` is never wrapped, see [Finishing the Authorization in a Later Request](#finishing-the-authorization-in-a-later-request).
 
 After `connect()`, requests throw the `AuthorizationException` directly. The client doesn't retry a failed authorization. If the token endpoint is unavailable during a refresh, the request fails and the client keeps the refresh token. Pass a PSR-3 logger with `setLogger()` to see each step.
