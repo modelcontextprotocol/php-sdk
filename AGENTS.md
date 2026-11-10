@@ -99,6 +99,8 @@ reference concrete extension types.
 ## Conventions
 
 - Throw `Mcp\Exception\*` (all implement `ExceptionInterface`), never native SPL exceptions.
+- No `suggest` in `composer.json`: code that needs an optional package or extension checks for it and throws an
+  exception that names what to install.
 - Add an `@author` tag to newly introduced classes.
 - Define array shapes for parameters and return types.
 - Prefer classic `if` statements over short-circuit evaluation when possible.

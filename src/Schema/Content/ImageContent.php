@@ -83,7 +83,7 @@ class ImageContent extends Content
         }
 
         $data = base64_encode($contents);
-        $detectedMime = $mimeType ?? mime_content_type($path) ?: 'image/png';
+        $detectedMime = $mimeType ?? MimeType::guess($path) ?? 'image/png';
 
         return new self($data, $detectedMime, $annotations);
     }

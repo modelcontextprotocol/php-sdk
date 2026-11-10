@@ -83,7 +83,7 @@ class BlobResourceContents extends ResourceContents
      * */
     public static function fromSplFileInfo(string $uri, \SplFileInfo $file, ?string $explicitMimeType = null, ?array $meta = null): self
     {
-        $mimeType = $explicitMimeType ?? (mime_content_type($file->getPathname()) ?: null);
+        $mimeType = $explicitMimeType ?? MimeType::guess($file->getPathname());
         $blob = file_get_contents($file->getPathname());
         if (false === $blob) {
             throw new InvalidArgumentException(\sprintf('Could not read file: "%s".', $file->getPathname()));
