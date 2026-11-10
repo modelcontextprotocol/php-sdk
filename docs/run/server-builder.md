@@ -508,6 +508,7 @@ $server = Server::builder()
 | `setReferenceHandler()` | referenceHandler | Replace the class that calls the handlers of tools, resources and prompts |
 | `setRegistry()` | registry | Use your own registry. It is loaded when the server is built, unless you call `setLazyLoading()` |
 | `setLazyLoading()` | lazyLoading? | Load elements on the first registry read, which is at the latest when a client asks for the capabilities (default without `setRegistry()`), or, with `false`, when the server is built. Your own registry stays empty until the server first reads it |
+| `addSource()` | source | Add an element source, see [Element sources](../servers/registration.md#element-sources) |
 | `addLoader()` | loader | Add a custom loader that registers elements |
 | `addLoaders()` | loaders | Add several custom loaders |
 | `addRequestHandler()` | handler | Prepend a single custom request handler |

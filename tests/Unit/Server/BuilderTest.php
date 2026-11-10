@@ -23,10 +23,14 @@ use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
 use Mcp\Server\Builder;
 use Mcp\Server\Capability\Discovery\DiscovererInterface;
+use Mcp\Server\Capability\Discovery\DiscoveryState;
 use Mcp\Server\Capability\Registry;
 use Mcp\Server\Capability\Registry\ElementReference;
 use Mcp\Server\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Server\Capability\Registry\Source\ElementCollection;
+use Mcp\Server\Capability\Registry\Source\ElementSourceInterface;
+use Mcp\Server\Capability\Registry\ToolReference;
 use Mcp\Server\Capability\RegistryInterface;
 use Mcp\Server\Exception\InvalidArgumentException as ServerInvalidArgumentException;
 use Mcp\Server\Exception\LogicException;
@@ -693,6 +697,66 @@ final class BuilderTest extends TestCase
         $this->assertTrue($capabilities->prompts);
         $this->assertFalse($capabilities->tools);
         $this->assertFalse($capabilities->resources);
+    }
+
+    public function testASourceThatFailsLeavesTheOtherElementsServable(): void
+    {
+        $registry = new Registry();
+        $source = $this->createStub(ElementSourceInterface::class);
+        $source->method('provide')->willThrowException(new RuntimeException('database down'));
+
+        $server = Server::builder()
+            ->setRegistry($registry)
+            ->addSource($source)
+            ->addTool(static fn (): string => 'ok', 'alpha')
+            ->build();
+
+        $this->assertTrue($registry->hasTool('alpha'));
+        $this->assertTrue($this->extractServerCapabilities($server)->tools);
+    }
+
+    public function testASourceAdvertisesOnlyWhatItProvides(): void
+    {
+        $tool = new Tool(name: 'alpha', title: null, inputSchema: ['type' => 'object', 'properties' => [], 'required' => null], description: null, annotations: null);
+        $source = $this->createStub(ElementSourceInterface::class);
+        $source->method('provide')->willReturn(new ElementCollection(tools: [new ToolReference($tool, 'handler')]));
+
+        $capabilities = $this->extractServerCapabilities(Server::builder()->addSource($source)->build());
+
+        $this->assertTrue($capabilities->tools);
+        $this->assertFalse($capabilities->resources);
+        $this->assertFalse($capabilities->prompts);
+    }
+
+    public function testAFailingSourceAdvertisesAllKindsAndIsCalledOncePerRequest(): void
+    {
+        $source = $this->createMock(ElementSourceInterface::class);
+        $source->expects($this->once())->method('provide')->willThrowException(new RuntimeException('database down'));
+
+        $capabilities = $this->extractServerCapabilities(Server::builder()->addSource($source)->build());
+
+        $this->assertTrue($capabilities->tools);
+        $this->assertTrue($capabilities->resources);
+        $this->assertTrue($capabilities->prompts);
+    }
+
+    public function testDiscoveredElementsDoNotOverwriteThoseOfASource(): void
+    {
+        $registry = new Registry();
+        $discoverer = $this->createStub(DiscovererInterface::class);
+        $tool = new Tool(name: 'alpha', title: null, inputSchema: ['type' => 'object', 'properties' => [], 'required' => null], description: null, annotations: null);
+        $discoverer->method('discover')->willReturn(new DiscoveryState(tools: ['alpha' => new ToolReference($tool, 'discovered')]));
+        $source = $this->createStub(ElementSourceInterface::class);
+        $source->method('provide')->willReturn(new ElementCollection(tools: [new ToolReference($tool, 'provided')]));
+
+        Server::builder()
+            ->setRegistry($registry)
+            ->setDiscovery(__DIR__)
+            ->setDiscoverer($discoverer)
+            ->addSource($source)
+            ->build();
+
+        $this->assertSame('provided', $registry->getTool('alpha')->handler);
     }
 }
 

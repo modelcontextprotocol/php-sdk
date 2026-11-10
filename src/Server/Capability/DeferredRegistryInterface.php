@@ -21,7 +21,7 @@ use Mcp\Server\Capability\Registry\Loader\LoaderInterface;
 interface DeferredRegistryInterface
 {
     /**
-     * Runs a pending load, if there is one. A failed load stays pending.
+     * Runs a pending load, if there is one. A load that fails or is incomplete stays pending.
      */
     public function load(): void;
 

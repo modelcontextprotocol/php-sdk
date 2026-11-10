@@ -16,6 +16,7 @@ use Mcp\Server\Capability\Registry;
 use Mcp\Server\Capability\Registry\LazyRegistry;
 use Mcp\Server\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Exception\PartialLoadException;
 use Mcp\Server\Exception\RuntimeException;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Subscription\PublishingEventDispatcher;
@@ -184,6 +185,20 @@ final class LazyRegistryTest extends TestCase
         $registry = new LazyRegistry($inner, $this->writing($this->tool('alpha')));
 
         $this->assertTrue($registry->hasTools());
+    }
+
+    public function testIncompleteLoadStaysPendingWithoutFailingTheReader(): void
+    {
+        $loader = $this->createMock(LoaderInterface::class);
+        $loader->expects($this->exactly(2))
+            ->method('load')
+            ->willThrowException(new PartialLoadException());
+
+        $registry = new LazyRegistry(new Registry(), $loader);
+
+        $this->assertSame([], $registry->getTools()->references);
+        $this->assertFalse($registry->isLoaded());
+        $this->assertSame([], $registry->getTools()->references);
     }
 
     private function tool(string $name): Tool

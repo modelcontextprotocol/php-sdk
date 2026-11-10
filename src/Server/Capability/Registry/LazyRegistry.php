@@ -19,6 +19,7 @@ use Mcp\Schema\Tool;
 use Mcp\Server\Capability\DeferredRegistryInterface;
 use Mcp\Server\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Exception\PartialLoadException;
 
 /**
  * Defers a loader over any registry to the first read, leaving the registry itself unaware of it.
@@ -49,6 +50,8 @@ final class LazyRegistry implements RegistryInterface, DeferredRegistryInterface
             try {
                 $this->loadFrom($this->loader);
                 $this->loaded = true;
+            } catch (PartialLoadException) {
+                // what loaded is served, and the load stays pending
             } finally {
                 $this->loading = false;
             }

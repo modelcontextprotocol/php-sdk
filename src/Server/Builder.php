@@ -26,7 +26,6 @@ use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server\Capability\Completion\ProviderInterface;
-use Mcp\Server\Capability\DeferredRegistryInterface;
 use Mcp\Server\Capability\Discovery\CachedDiscoverer;
 use Mcp\Server\Capability\Discovery\Discoverer;
 use Mcp\Server\Capability\Discovery\DiscovererInterface;
@@ -37,12 +36,14 @@ use Mcp\Server\Capability\Registry\Container;
 use Mcp\Server\Capability\Registry\ElementReference;
 use Mcp\Server\Capability\Registry\LazyRegistry;
 use Mcp\Server\Capability\Registry\Loader\ChainLoader;
-use Mcp\Server\Capability\Registry\Loader\DiscoveryLoader;
 use Mcp\Server\Capability\Registry\Loader\ExplicitElementLoader;
 use Mcp\Server\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Server\Capability\Registry\Loader\ReflectedElementLoader;
+use Mcp\Server\Capability\Registry\Loader\SourceLoader;
 use Mcp\Server\Capability\Registry\ReferenceHandler;
 use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Server\Capability\Registry\Source\DiscoverySource;
+use Mcp\Server\Capability\Registry\Source\ElementSourceInterface;
 use Mcp\Server\Capability\RegistryInterface;
 use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Exception\LogicException;
@@ -275,6 +276,11 @@ final class Builder
      * @var LoaderInterface[]
      */
     private array $loaders = [];
+
+    /**
+     * @var ElementSourceInterface[]
+     */
+    private array $sources = [];
 
     private bool $hasCustomRegistry = false;
 
@@ -939,6 +945,17 @@ final class Builder
     }
 
     /**
+     * Register an element source. Its elements win over those of custom loaders and discovery,
+     * and lose to elements registered on the builder. A failing source is logged and skipped.
+     */
+    public function addSource(ElementSourceInterface $source): self
+    {
+        $this->sources[] = $source;
+
+        return $this;
+    }
+
+    /**
      * Stop serving multi round-trip handlers to handshake-era clients.
      *
      * A handler that returns an {@see \Mcp\Schema\Result\InputRequiredResult}
@@ -1143,10 +1160,9 @@ final class Builder
             $this->gcDivisor,
         );
 
-        // ExplicitElementLoader and ReflectedElementLoader run before DiscoveryLoader so manual entries are seen first;
-        // DiscoveryLoader's identity check then preserves them against same-name discovered entries.
         $loaders = [
             ...$this->loaders,
+            ...array_map(static fn (ElementSourceInterface $source): SourceLoader => new SourceLoader($source), $this->sources),
             new ExplicitElementLoader(
                 $this->explicitTools,
                 $this->explicitResources,
@@ -1158,25 +1174,22 @@ final class Builder
 
         if (null !== $this->discoveryBasePath) {
             $discoverer = $this->discoverer ?? $this->createDiscoverer($logger);
-            $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $discoverer, $this->discoveryNamePatterns, $logger);
+            $loaders[] = new SourceLoader(
+                new DiscoverySource($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $discoverer, $this->discoveryNamePatterns),
+                true,
+                $logger,
+            );
         }
 
-        $chainLoader = new ChainLoader($loaders);
+        $chainLoader = new ChainLoader($loaders, $logger);
 
-        if ($this->hasCustomRegistry && true === $this->lazyLoading) {
-            $registry = new LazyRegistry($this->registry, $chainLoader);
-        } elseif ($this->hasCustomRegistry) {
-            $registry = $this->registry;
-            if ($registry instanceof DeferredRegistryInterface) {
-                $registry->loadFrom($chainLoader);
-            } else {
-                $chainLoader->load($registry);
-            }
-        } else {
-            $registry = new Registry($eventDispatcher, $logger, loader: $chainLoader);
-            if (false === $this->lazyLoading) {
-                $registry->load();
-            }
+        $registry = $this->hasCustomRegistry
+            ? new LazyRegistry($this->registry, $chainLoader)
+            : new Registry($eventDispatcher, $logger, loader: $chainLoader);
+
+        // A supplied registry is read directly by its owner, so it only waits when that is asked for.
+        if ($this->hasCustomRegistry ? true !== $this->lazyLoading : false === $this->lazyLoading) {
+            $registry->load();
         }
 
         $messageFactory = MessageFactory::make(additional: $this->extensionMessages);

@@ -27,6 +27,7 @@ use Mcp\Server\Event\ResourceListChangedEvent;
 use Mcp\Server\Event\ResourceTemplateListChangedEvent;
 use Mcp\Server\Event\ToolListChangedEvent;
 use Mcp\Server\Exception\InvalidCursorException;
+use Mcp\Server\Exception\PartialLoadException;
 use Mcp\Server\Exception\PromptNotFoundException;
 use Mcp\Server\Exception\ResourceNotFoundException;
 use Mcp\Server\Exception\ToolNotFoundException;
@@ -90,7 +91,11 @@ final class Registry implements RegistryInterface, DeferredRegistryInterface
             return;
         }
 
-        $this->loadFrom($this->loader);
+        try {
+            $this->loadFrom($this->loader);
+        } catch (PartialLoadException) {
+            return;
+        }
 
         $this->loaded = true;
     }

@@ -13,12 +13,15 @@ namespace Mcp\Server\Capability\Registry\Loader;
 
 use Mcp\Server\Capability\Discovery\DiscovererInterface;
 use Mcp\Server\Capability\Discovery\DiscoveryState;
+use Mcp\Server\Capability\Registry\Source\DiscoverySource;
 use Mcp\Server\Capability\RegistryInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
  * @internal
+ *
+ * @deprecated use {@see SourceLoader} over a {@see DiscoverySource} with `onlyMissing: true`
  *
  * @author Antoine Bluchet <soyuka@gmail.com>
  */
