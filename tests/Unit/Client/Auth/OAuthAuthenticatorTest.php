@@ -2104,7 +2104,7 @@ final class OAuthAuthenticatorTest extends TestCase
     {
         $server = new FakeOAuthServer();
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('broader', 'Bearer', time() + 3600, null, $storedScopes));
+        $storage->saveToken('https://auth.example.com', self::tokenKey('client_credentials', 'job-client'), new AccessToken('broader', 'Bearer', time() + 3600, null, $storedScopes));
         $authenticator = $this->authenticator($server, storage: $storage, configuration: OAuth::forServiceAccount('job', 'job-client', 'job-secret')
             ->setExpectedIssuer('https://auth.example.com')
             ->setScopes('mcp:read'));
@@ -2120,7 +2120,7 @@ final class OAuthAuthenticatorTest extends TestCase
     {
         $server = new FakeOAuthServer(refreshTokens: true);
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('broader', 'Bearer', time() - 60, 'broader-refresh', ['mcp:read', 'admin']));
+        $storage->saveToken('https://auth.example.com', self::tokenKey('client_credentials', 'job-client'), new AccessToken('broader', 'Bearer', time() - 60, 'broader-refresh', ['mcp:read', 'admin']));
         $authenticator = $this->authenticator($server, storage: $storage, configuration: OAuth::forServiceAccount('job', 'job-client', 'job-secret')
             ->setExpectedIssuer('https://auth.example.com')
             ->setScopes('mcp:read'));
@@ -2166,7 +2166,7 @@ final class OAuthAuthenticatorTest extends TestCase
             ->setScopes('mcp:read'));
         $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read']));
         $current = $authenticator->authenticate($this->request());
-        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('broader', 'Bearer', time() + $expiresIn, null, ['mcp:read', 'admin']));
+        $storage->saveToken('https://auth.example.com', self::tokenKey('client_credentials', 'job-client'), new AccessToken('broader', 'Bearer', time() + $expiresIn, null, ['mcp:read', 'admin']));
         $server->token = [];
 
         $retry = $authenticator->handleChallenge($current, $server->challenge(['admin'], 403, 'insufficient_scope'));
