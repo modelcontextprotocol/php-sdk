@@ -5,6 +5,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.10.0
 ------
 
+* [BC Break] Require PHP 8.2 or higher, as PHP 8.1 reached its end of life.
+
 ### Server
 
 * [BC Break] Refuse an OAuth URL whose host is `0.0.0.0`, `::`, an IPv4 address within IPv6 or an IPv4 address in a non-standard form (e.g. `127.1`), or that holds percent-encoding or non-ASCII characters (an internationalized name must be given in punycode), for the issuer, the `jwks_uri` and the resource.

@@ -16,7 +16,7 @@ jobs:
     continue-on-error: ${{ matrix.php == '8.6' }}
     strategy:
       matrix:
-        php: ['8.1', '8.2', '8.3', '8.4', '8.5', '8.6']
+        php: ['8.2', '8.3', '8.4', '8.5', '8.6']
         dependencies: ['lowest', 'highest']
         symfony-version: ['']
         include:
@@ -97,7 +97,7 @@ jobs:
     continue-on-error: ${{ matrix.php == '8.6' }}
     strategy:
       matrix:
-        php: ['8.1', '8.2', '8.3', '8.4', '8.5', '8.6']
+        php: ['8.2', '8.3', '8.4', '8.5', '8.6']
 
     steps:
       - name: Checkout
@@ -323,7 +323,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.1'
+          php-version: '8.2'
           coverage: "none"
 
       - name: Composer Validation

@@ -6,7 +6,7 @@ The SDK ships as a single Composer package:
 composer require mcp/sdk
 ```
 
-It requires **PHP 8.1+** and the `fileinfo` extension. Most of what it pulls in is PSR
+It requires **PHP 8.2+** and the `fileinfo` extension. Most of what it pulls in is PSR
 interface packages (`psr/container`, `psr/log`, `psr/http-message`, …); the rest is
 `opis/json-schema` for schema validation, `symfony/uid` for session identifiers,
 `phpdocumentor/reflection-docblock` for reading descriptions out of your docblocks,
