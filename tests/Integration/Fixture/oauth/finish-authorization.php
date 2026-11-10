@@ -17,8 +17,8 @@ require dirname(__DIR__, 4).'/vendor/autoload.php';
 
 $auth = OAuth::forApplication('Integration Test Client')
     ->setAuthorizationHandler(new RedirectAuthorizationHandler())
-    ->setCredentialStorage(new FileCredentialStorage($argv[1]))
+    ->setCredentialStorage(new FileCredentialStorage($_SERVER['argv'][1]))
     ->build();
-$auth->finishAuthorization(json_decode($argv[2], true, flags: \JSON_THROW_ON_ERROR));
+$auth->finishAuthorization(json_decode($_SERVER['argv'][2], true, flags: \JSON_THROW_ON_ERROR));
 
 echo 'authorized';

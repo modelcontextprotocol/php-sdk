@@ -552,6 +552,7 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('known-client', $server->authorization['client_id'] ?? null);
     }
 
+    #[TestDox('an authorization sent to the browser is finished by another authenticator')]
     public function testFinishesAuthorizationInAnotherRequest(): void
     {
         $path = tempnam(sys_get_temp_dir(), 'mcp-pending-');
@@ -567,7 +568,7 @@ final class OAuthAuthenticatorTest extends TestCase
             }
 
             unset($authenticator);
-            $saved = json_decode(file_get_contents($path), true);
+            $saved = json_decode((string) file_get_contents($path), true);
             $this->assertCount(1, $saved['pending']);
             $resumed = $this->authenticator($server, storage: new FileCredentialStorage($path));
             $resumed->finishAuthorization([
@@ -582,7 +583,7 @@ final class OAuthAuthenticatorTest extends TestCase
             $this->assertSame($server->authorization['resource'], $server->token['resource']);
             $stored = (new FileCredentialStorage($path))->getToken('https://auth.example.com', self::ENDPOINT);
             $this->assertSame(['mcp:read'], $stored?->scopes);
-            $this->assertSame([], json_decode(file_get_contents($path), true)['pending']);
+            $this->assertSame([], json_decode((string) file_get_contents($path), true)['pending']);
         } finally {
             unlink($path);
             @unlink($path.'.lock');
@@ -590,6 +591,7 @@ final class OAuthAuthenticatorTest extends TestCase
     }
 
     #[DataProvider('invalidDeferredCallbacks')]
+    #[TestDox('a callback that does not match the pending authorization is refused before the code is spent ($_dataName)')]
     public function testRejectsInvalidDeferredCallbacks(array $replacement): void
     {
         $server = new FakeOAuthServer(serverScopes: ['mcp:read', 'offline_access']);
@@ -624,6 +626,7 @@ final class OAuthAuthenticatorTest extends TestCase
         yield 'scope error in issuer' => [['iss' => 'https://invalid_scope.example.com']];
     }
 
+    #[TestDox('a callback finishes its authorization only once')]
     public function testDeferredCallbackCanOnlyBeConsumedOnce(): void
     {
         $server = new FakeOAuthServer();
@@ -636,12 +639,14 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->authenticator($server, storage: $storage)->finishAuthorization($callback);
     }
 
+    #[TestDox('an expired pending authorization is not finished')]
     public function testDeferredAuthorizationExpires(): void
     {
         $server = new FakeOAuthServer();
         $storage = new InMemoryCredentialStorage();
         $callback = $this->startPending($server, $storage);
         $pending = $storage->consumePendingAuthorization($callback['state']);
+        $this->assertNotNull($pending);
         $data = $pending->jsonSerialize();
         $data['expires_at'] = time() - 1;
         $storage->savePendingAuthorization(PendingAuthorization::fromArray($data));
@@ -650,6 +655,7 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->authenticator($server, storage: $storage)->finishAuthorization($callback);
     }
 
+    #[TestDox('a callback is not finished with the storage of another user')]
     public function testCallbackCannotBeCompletedWithAnotherUsersStorage(): void
     {
         $server = new FakeOAuthServer();
@@ -660,6 +666,7 @@ final class OAuthAuthenticatorTest extends TestCase
     }
 
     #[DataProvider('offlineAccessRefusals')]
+    #[TestDox('a refused offline_access starts the authorization again without it ($_dataName)')]
     public function testDeferredOfflineAccessFallback(bool $atCallback): void
     {
         $server = new FakeOAuthServer(resourceScopes: ['mcp:read'], serverScopes: ['mcp:read', 'offline_access'], refuseOfflineAccess: !$atCallback);
@@ -691,6 +698,7 @@ final class OAuthAuthenticatorTest extends TestCase
         yield 'token endpoint' => [false];
     }
 
+    #[TestDox('a handler that returns the callback still reports a refusal')]
     public function testSynchronousAuthorizationPreservesErrorResponses(): void
     {
         $server = new FakeOAuthServer();
@@ -706,6 +714,7 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->authenticator($server, $handler)->handleChallenge($this->request(), $server->challenge());
     }
 
+    #[TestDox('a storage without pending authorizations still works with a handler that returns the callback')]
     public function testSynchronousAuthorizationSupportsExistingCredentialStorage(): void
     {
         $server = new FakeOAuthServer();
@@ -718,6 +727,7 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('Bearer access-token-1', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
     }
 
+    #[TestDox('the redirect handler needs a storage that keeps pending authorizations')]
     public function testDeferredAuthorizationRequiresPendingStorage(): void
     {
         $server = new FakeOAuthServer();

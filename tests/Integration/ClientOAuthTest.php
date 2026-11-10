@@ -82,7 +82,7 @@ final class ClientOAuthTest extends TestCase
         $client = $this->connect();
 
         $this->assertSame(['whoami'], array_map(static fn ($tool) => $tool->name, $client->listTools()->tools));
-        $this->assertStringContainsString('the token was accepted', (string) json_encode($client->callTool('whoami', [])->content));
+        $this->assertStringContainsString('the token was accepted', (string) json_encode($client->callTool('whoami', [])->content, \JSON_THROW_ON_ERROR));
 
         $client->disconnect();
     }
@@ -202,6 +202,7 @@ final class ClientOAuthTest extends TestCase
         (new HeadlessAuthorizationHandler())->authorize($this->authorizationServerUrl.'/nothing-here', 'http://127.0.0.1:8765/callback');
     }
 
+    #[TestDox('an authorization started in one process is finished in another, and only once')]
     public function testCompletesRedirectAuthorizationInAnotherProcess(): void
     {
         $path = $this->workingDirectory.'/credentials.json';
@@ -219,7 +220,7 @@ final class ClientOAuthTest extends TestCase
         }
 
         unset($client, $auth);
-        $command = [\PHP_BINARY, __DIR__.'/Fixture/oauth/finish-authorization.php', $path, json_encode($callback)];
+        $command = [\PHP_BINARY, __DIR__.'/Fixture/oauth/finish-authorization.php', $path, json_encode($callback, \JSON_THROW_ON_ERROR)];
         $process = new Process($command);
         $competitor = new Process($command);
         $process->start();
@@ -233,9 +234,9 @@ final class ClientOAuthTest extends TestCase
         $this->assertStringContainsString('does not match a pending authorization', $loser->getErrorOutput().$loser->getOutput());
 
         $client = $this->connect(new FileCredentialStorage($path));
-        $this->assertStringContainsString('the token was accepted', json_encode($client->callTool('whoami', [])->content));
+        $this->assertStringContainsString('the token was accepted', json_encode($client->callTool('whoami', [])->content, \JSON_THROW_ON_ERROR));
         $client->disconnect();
-        $this->assertSame([], json_decode(file_get_contents($path), true)['pending']);
+        $this->assertSame([], json_decode((string) file_get_contents($path), true)['pending']);
 
         $replay = new Process($command);
         $replay->run();

@@ -127,6 +127,7 @@ final class FileCredentialStorageTest extends TestCase
         $this->assertCount(1, glob(\dirname($this->path).'/*') ?: [], 'The temporary file should not survive the write.');
     }
 
+    #[TestDox('a pending authorization is consumed once, whichever instance reads it')]
     public function testPendingAuthorizationsAreConsumedAcrossInstances(): void
     {
         $first = new FileCredentialStorage($this->path);
@@ -141,6 +142,7 @@ final class FileCredentialStorageTest extends TestCase
         $this->assertSame('token', $second->getToken('https://auth.example.com', 'https://mcp.example.com/mcp')?->accessToken);
     }
 
+    #[TestDox('forgetting an authorization server drops only its pending authorizations')]
     public function testForgetRemovesOnlyTheIssuersPendingAuthorizations(): void
     {
         $storage = new FileCredentialStorage($this->path);
@@ -155,11 +157,12 @@ final class FileCredentialStorageTest extends TestCase
         $this->assertNull($storage->consumePendingAuthorization('three'));
     }
 
+    #[TestDox('a malformed pending authorization is discarded')]
     public function testMalformedPendingAuthorizationIsDiscarded(): void
     {
         $storage = new FileCredentialStorage($this->path);
         $storage->savePendingAuthorization($this->pending('one'));
-        $data = json_decode(file_get_contents($this->path), true);
+        $data = json_decode((string) file_get_contents($this->path), true);
         unset($data['pending']['one']['code_verifier']);
 
         foreach ([$data['pending']['one'], 'corrupt record'] as $record) {
