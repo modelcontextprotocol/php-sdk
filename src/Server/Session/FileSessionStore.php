@@ -25,7 +25,7 @@ use Symfony\Component\Uid\Uuid;
  */
 class FileSessionStore implements SessionStoreInterface
 {
-    private const WINDOWS_MOVE_ATTEMPTS = 10;
+    private const WINDOWS_MOVE_BUDGET_NS = 1_000_000_000;
 
     public function __construct(
         private readonly string $directory,
@@ -259,18 +259,21 @@ class FileSessionStore implements SessionStoreInterface
 
     private function moveIntoPlace(string $tmp, string $path): bool
     {
-        // Overlapping writers of a session can briefly deny each other the replace on Windows.
-        $attempts = 'Windows' === \PHP_OS_FAMILY ? self::WINDOWS_MOVE_ATTEMPTS : 1;
-
-        for ($attempt = 1; $attempt < $attempts; ++$attempt) {
-            if (@rename($tmp, $path)) {
-                return true;
-            }
-
-            usleep($attempt * 1000);
+        if ('Windows' !== \PHP_OS_FAMILY) {
+            return @rename($tmp, $path);
         }
 
-        return @rename($tmp, $path);
+        // Windows refuses to replace a file while anyone, even a reader, holds it open.
+        $deadline = hrtime(true) + self::WINDOWS_MOVE_BUDGET_NS;
+        while (!@rename($tmp, $path)) {
+            if (hrtime(true) >= $deadline) {
+                return false;
+            }
+
+            usleep(1000);
+        }
+
+        return true;
     }
 
     private function isTemporaryFile(string $entry): bool
