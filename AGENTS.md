@@ -2,7 +2,7 @@
 
 This file provides guidance to AI coding agents working with code in this repository.
 
-`mcp/sdk` is the official PHP SDK for the Model Context Protocol — server and client, framework-agnostic, PHP `^8.1`.
+`mcp/sdk` is the official PHP SDK for the Model Context Protocol — server and client, framework-agnostic, PHP `^8.2`.
 It is a PHP Foundation × Symfony collaboration and follows Symfony's coding standards and BC promise.
 
 ## Commands
@@ -25,7 +25,7 @@ vendor/bin/phpunit tests/Unit/Server/ProtocolTest.php        # single file
 vendor/bin/phpunit --filter testMethodName                   # single test
 ```
 
-CI runs PHP 8.1–8.6 with lowest and highest dependencies (8.6 is non-blocking while in pre-release); code must stay valid on PHP 8.1.
+CI runs PHP 8.2–8.6 with lowest and highest dependencies (8.6 is non-blocking while in pre-release); code must stay valid on PHP 8.2.
 PHPUnit fails on warnings, risky tests and unexpected output.
 
 Integration and interop tests snapshot their output. A missing snapshot is written on first run and marks the test

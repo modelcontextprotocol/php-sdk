@@ -16,7 +16,7 @@ collaboration between [the PHP Foundation](https://thephp.foundation/) and the
 
 ## Development setup
 
-Requires PHP 8.1+.
+Requires PHP 8.2+.
 
 ```bash
 composer install

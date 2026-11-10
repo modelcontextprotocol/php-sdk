@@ -20,7 +20,7 @@ This is the official PHP SDK for it, a collaboration between
 
 ## Requirements
 
-PHP 8.1+.
+PHP 8.2+.
 
 ## Installation
 

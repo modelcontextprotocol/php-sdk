@@ -41,10 +41,6 @@ abstract class HttpClientExampleTestCase extends ClientExampleTestCase
 
     protected function setUp(): void
     {
-        if ($this->getServerWorkers() > 1 && \PHP_VERSION_ID < 80200) {
-            $this->markTestSkipped('php -S does not reliably fork multiple workers on PHP 8.1 (PHP_CLI_SERVER_WORKERS); see php/php-src#9400.');
-        }
-
         $port = ServerProcess::findFreePort();
 
         $this->server = new Process(
