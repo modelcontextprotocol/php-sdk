@@ -58,6 +58,9 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     /** Whether the current over-length line is still being drained and discarded. */
     private bool $discardingLine = false;
 
+    /** Start of a line whose newline has not arrived yet, as a large message takes several reads. */
+    private string $partialLine = '';
+
     /** @var positive-int */
     private readonly int $maxLineBytes;
 
@@ -156,7 +159,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
         $this->logger->info('StdioTransport is listening for messages on STDIN...');
         stream_set_blocking($this->input, false);
 
-        while (!feof($this->input) && RunnerState::RUNNING === $this->runnerControl->getState()) {
+        while ((!feof($this->input) || '' !== $this->partialLine) && RunnerState::RUNNING === $this->runnerControl->getState()) {
             $this->processInput();
             $this->processFibers();
             $this->processStreams();
@@ -179,12 +182,17 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             return;
         }
 
-        $line = fgets($this->input, $this->maxLineBytes + 1);
+        $line = fgets($this->input, max(2, $this->maxLineBytes + 1 - \strlen($this->partialLine)));
         if (false === $line) {
-            // Selecting may have failed, and then nothing else keeps an idle run loop from spinning.
-            if (!feof($this->input)) {
-                usleep(50000);
+            if (feof($this->input)) {
+                $this->routeLine($this->partialLine);
+                $this->partialLine = '';
+
+                return;
             }
+
+            // Selecting may have failed, and then nothing else keeps an idle run loop from spinning.
+            usleep(50000);
 
             return;
         }
@@ -200,9 +208,12 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             return;
         }
 
-        // A full read with no trailing newline means the line exceeds the cap. Discard it rather
-        // than buffering it, and keep discarding the remainder on later ticks.
-        if (!$lineComplete && \strlen($line) >= $this->maxLineBytes) {
+        $this->partialLine .= $line;
+
+        // A full read with no trailing newline, counting the buffered part, means the line exceeds the cap.
+        // Discard it rather than buffering it, and keep discarding the remainder on later ticks.
+        if (!$lineComplete && \strlen($this->partialLine) >= $this->maxLineBytes) {
+            $this->partialLine = '';
             $this->discardingLine = true;
             $this->logger->warning('StdioTransport discarded an input line exceeding the maximum length.', [
                 'max_line_bytes' => $this->maxLineBytes,
@@ -211,6 +222,17 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             return;
         }
 
+        if (!$lineComplete) {
+            return;
+        }
+
+        $line = $this->partialLine;
+        $this->partialLine = '';
+        $this->routeLine($line);
+    }
+
+    private function routeLine(string $line): void
+    {
         $trimmedLine = trim($line);
         if (!empty($trimmedLine)) {
             $this->route($trimmedLine);

@@ -63,6 +63,42 @@ final class StdioTransportTest extends TestCase
         $this->assertSame(['{"jsonrpc":"2.0","id":1}'], $messages);
     }
 
+    #[TestDox('a line arriving in several reads is dispatched as one message')]
+    public function testLineArrivingInPartsIsDispatchedWhole(): void
+    {
+        // A message larger than the pipe buffer reaches the server in several reads, like these two.
+        $messages = $this->readFromChild('echo "{\"jsonrpc\":\"2.0\","; usleep(100000); echo "\"id\":1}\n";');
+
+        $this->assertSame(['{"jsonrpc":"2.0","id":1}'], $messages);
+    }
+
+    #[TestDox('a line exceeding the byte cap over several reads is discarded')]
+    public function testOverlongLineArrivingInPartsIsDiscarded(): void
+    {
+        $messages = $this->readFromChild('echo str_repeat("a", 10); usleep(100000); echo str_repeat("a", 10)."\n{\"valid\":1}\n";', maxLineBytes: 16);
+
+        $this->assertSame(['{"valid":1}'], $messages);
+    }
+
+    #[TestDox('a part of a line still waiting for its newline is dispatched at the end of the input')]
+    public function testPartOfALineIsDispatchedAtEof(): void
+    {
+        $messages = $this->readFromChild('echo "{\"jsonrpc\":\"2.0\","; usleep(100000); echo "\"id\":1}";');
+
+        $this->assertSame(['{"jsonrpc":"2.0","id":1}'], $messages);
+    }
+
+    #[TestDox('a last line without a newline is dispatched')]
+    public function testLastLineWithoutNewlineIsDispatched(): void
+    {
+        $messages = [];
+        $transport = $this->createTransport('{"jsonrpc":"2.0","id":1}', $messages);
+
+        $this->pumpToEof($transport);
+
+        $this->assertSame(['{"jsonrpc":"2.0","id":1}'], $messages);
+    }
+
     #[TestDox('a line arriving on an idle input is read as soon as it arrives')]
     public function testIdleInputWakesOnArrival(): void
     {
@@ -236,12 +272,38 @@ final class StdioTransportTest extends TestCase
         return $stream;
     }
 
+    /**
+     * @return list<string>
+     */
+    private function readFromChild(string $code, int $maxLineBytes = 4 * 1024 * 1024): array
+    {
+        if (!\function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open() is needed to feed the transport from a real pipe.');
+        }
+
+        $process = proc_open([\PHP_BINARY, '-r', $code], [1 => ['pipe', 'w']], $pipes);
+        $this->assertIsResource($process);
+        stream_set_blocking($pipes[1], false);
+
+        $messages = [];
+        $transport = new StdioTransport(input: $pipes[1], output: $this->stream(''), maxLineBytes: $maxLineBytes);
+        $transport->onMessage(static function ($transport, string $payload) use (&$messages): void {
+            $messages[] = $payload;
+        });
+
+        $this->pumpToEof($transport);
+        proc_close($process);
+
+        return $messages;
+    }
+
     private function pumpToEof(StdioTransport $transport): void
     {
         $processInput = new \ReflectionMethod($transport, 'processInput');
         $input = (new \ReflectionProperty($transport, 'input'))->getValue($transport);
+        $partialLine = new \ReflectionProperty($transport, 'partialLine');
 
-        for ($i = 0; $i < 1000 && !feof($input); ++$i) {
+        for ($i = 0; $i < 1000 && (!feof($input) || '' !== $partialLine->getValue($transport)); ++$i) {
             $processInput->invoke($transport);
         }
     }
