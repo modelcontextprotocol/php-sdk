@@ -2,6 +2,14 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.11.0
+------
+
+### Server
+
+* Handle `notifications/cancelled` on handshake-era servers by dropping the suspended handler fiber (for example one waiting on elicitation or sampling) and not answering the cancelled request. Unknown, already-finished and un-cancellable ids are ignored. 2026-07-28 stdio cancellation of `subscriptions/listen` is unchanged.
+* [BC Break] Add `TransportInterface::setCancellationChecker()`. Transports that extend `BaseTransport` get it automatically; a custom implementor must add the setter and drop a cancelled fiber from the polling loop without sending a response.
+
 0.10.0
 ------
 

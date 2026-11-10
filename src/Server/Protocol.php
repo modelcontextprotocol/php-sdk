@@ -19,6 +19,7 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\MessageFactory;
+use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Schema\Request\ResourceSubscribeRequest;
 use Mcp\Schema\Request\ResourceUnsubscribeRequest;
@@ -88,6 +89,12 @@ class Protocol
     /** Session key for the fingerprint of the principal that opened the session, null when it was opened without one */
     private const SESSION_PRINCIPAL = '_mcp.principal';
 
+    /** Session key for handshake-era requests whose handler is suspended in a fiber of some worker */
+    private const SESSION_IN_FLIGHT_REQUESTS = '_mcp.in_flight_requests';
+
+    /** Session key for in-flight requests a notifications/cancelled named, so the worker holding the fiber can drop it */
+    private const SESSION_CANCELLED_REQUESTS = '_mcp.cancelled_requests';
+
     /** Requests whose effect has to outlast them, which a server without sessions cannot keep. */
     private const SESSION_SCOPED_REQUESTS = [
         ResourceSubscribeRequest::class,
@@ -134,6 +141,20 @@ class Protocol
      */
     private array $droppedAwaitedRequestIds = [];
 
+    /**
+     * The incoming request id of each suspended handler fiber, so a notifications/cancelled can find it.
+     *
+     * @var \WeakMap<McpFiber, string|int>
+     */
+    private \WeakMap $incomingRequestIds;
+
+    /**
+     * Incoming request keys cancelled in this process, so a polling loop does not need to reload the session.
+     *
+     * @var array<string, true>
+     */
+    private array $cancelledRequestKeys = [];
+
     private readonly ?SessionLockInterface $sessionLock;
 
     /**
@@ -158,6 +179,7 @@ class Protocol
     ) {
         $this->sessionLock = null !== $sessionLock && null !== $fiberScheduler ? new EventLoopSessionLock($sessionLock, $fiberScheduler) : $sessionLock;
         $this->awaitedRequestIds = new \WeakMap();
+        $this->incomingRequestIds = new \WeakMap();
         $this->fiberOutgoingMessages = new \WeakMap();
     }
 
@@ -187,6 +209,8 @@ class Protocol
         ]);
 
         $transport->setPendingRequestsProvider(fn (Uuid $sessionId, \Fiber $fiber): array => $this->getAwaitedPendingRequests($fiber, $sessionId));
+
+        $transport->setCancellationChecker(fn (Uuid $sessionId, \Fiber $fiber): bool => $this->isHandlerCancelled($fiber, $sessionId));
 
         $transport->setResponseFinder($this->checkResponse(...));
 
@@ -462,6 +486,7 @@ class Protocol
                 $dispatchResult = $this->dispatchResult(...);
                 $errorForThrowable = $this->errorForThrowable(...);
                 $saveResumedSession = $this->saveResumedSession(...);
+                $clearIncomingRequest = $this->clearIncomingRequest(...);
                 // Weak: the fiber's state keeping this protocol alive segfaults PHP 8.1 when both are freed.
                 $protocol = \WeakReference::create($this);
                 /** @var bool $suspended set by reference once the fiber first suspended */
@@ -471,7 +496,7 @@ class Protocol
                 // re-enters inside it each round rather than needing a new one.
                 // Handled in the fiber, as the transport resumes it outside the catch below.
                 /** @var McpFiber $fiber */
-                $fiber = HandlerFibers::create(static function () use ($handler, $request, $session, $shim, $codec, $dispatchResult, $errorForThrowable, $saveResumedSession, &$suspended): Response|Error {
+                $fiber = HandlerFibers::create(static function () use ($handler, $request, $session, $shim, $codec, $dispatchResult, $errorForThrowable, $saveResumedSession, $clearIncomingRequest, &$suspended): Response|Error {
                     try {
                         $result = $handler->handle($request, $session);
                         $result = $shim?->fulfill($result, $handler, $request, $session, $codec) ?? $result;
@@ -492,6 +517,7 @@ class Protocol
                     // A fiber that never suspended is saved by doProcessInput(); after a resume nothing else saves it.
                     if ($suspended) {
                         $saveResumedSession($session);
+                        $clearIncomingRequest($request->getId(), $session);
                     }
 
                     return $result;
@@ -518,7 +544,11 @@ class Protocol
                     // The transport resumes the fiber from what the session holds: it must
                     // not get the fiber if the request the fiber awaits was not stored. A
                     // later save must not store that request either, nobody would resume it.
+                    // The in-flight mark must be in that save, so another worker can honour a
+                    // notifications/cancelled for this request.
                     if (!$session instanceof EphemeralSessionInterface) {
+                        $this->markIncomingRequestInFlight($request->getId(), $session);
+
                         try {
                             $saved = $session->save();
                         } catch (\Throwable $e) {
@@ -536,6 +566,7 @@ class Protocol
 
                     $suspended = true;
 
+                    $this->incomingRequestIds[$fiber] = $request->getId();
                     $this->trackAwaitedRequest($fiber, $awaitedRequestId);
                     $transport->attachFiberToSession($fiber, $session->getId());
 
@@ -603,6 +634,10 @@ class Protocol
         $event = $this->dispatchEvent(new NotificationEvent($notification, $session));
         $notification = $event->getNotification();
 
+        if ($notification instanceof CancelledNotification) {
+            $this->cancelIncomingRequest($notification, $session);
+        }
+
         foreach ($this->notificationHandlers as $handler) {
             if (!$handler->supports($notification)) {
                 continue;
@@ -614,6 +649,163 @@ class Protocol
                 $this->logger->error(\sprintf('Error while handling notification: %s', $e->getMessage()), ['exception' => $e]);
             }
         }
+    }
+
+    /**
+     * Drops a suspended handler for $notification's request, if one is still in flight.
+     *
+     * Unknown, already finished or un-cancellable requests are ignored, as is a
+     * malformed notification that never becomes a {@see CancelledNotification}.
+     */
+    private function cancelIncomingRequest(CancelledNotification $notification, SessionInterface $session): void
+    {
+        $requestId = $notification->requestId;
+        $key = self::requestKey($requestId);
+
+        $this->logger->debug('Received a cancellation notification.', [
+            'request_id' => $requestId,
+            'reason' => $notification->reason,
+        ]);
+
+        $fiber = $this->fiberForIncomingRequest($requestId);
+        if (null === $fiber && !$this->hasInFlightIncomingRequest($session, $key)) {
+            $this->logger->debug('Ignored a cancellation for an unknown or finished request.', [
+                'request_id' => $requestId,
+            ]);
+
+            return;
+        }
+
+        $this->logger->info('Cancelled an in-flight request.', ['request_id' => $requestId]);
+
+        $this->cancelledRequestKeys[$key] = true;
+
+        if (!$session instanceof EphemeralSessionInterface) {
+            $session->set(self::SESSION_CANCELLED_REQUESTS.'.'.$key, true);
+        }
+
+        if (null !== $fiber) {
+            $this->dropSuspendedHandler($fiber, $session);
+        }
+    }
+
+    /**
+     * Whether a transport must drop $fiber without sending a response for its request.
+     *
+     * @param McpFiber $fiber
+     */
+    private function isHandlerCancelled(\Fiber $fiber, Uuid $sessionId): bool
+    {
+        if (!isset($this->incomingRequestIds[$fiber])) {
+            return false;
+        }
+
+        $requestId = $this->incomingRequestIds[$fiber];
+        $key = self::requestKey($requestId);
+
+        if (!isset($this->cancelledRequestKeys[$key])) {
+            if (!$this->sessionManager->exists($sessionId)) {
+                return false;
+            }
+
+            $session = $this->sessionManager->createWithId($sessionId);
+            if (true !== $session->get(self::SESSION_CANCELLED_REQUESTS.'.'.$key)) {
+                return false;
+            }
+
+            $this->cancelledRequestKeys[$key] = true;
+        } else {
+            $session = $this->sessionManager->exists($sessionId) ? $this->sessionManager->createWithId($sessionId) : null;
+        }
+
+        if (null !== $session) {
+            $this->dropSuspendedHandler($fiber, $session);
+            $this->clearIncomingRequest($requestId, $session);
+            if (!$session instanceof EphemeralSessionInterface) {
+                try {
+                    $session->save();
+                } catch (\Throwable $e) {
+                    $this->logger->error(\sprintf('Failed to save the session of a cancelled request: %s', $e->getMessage()), ['exception' => $e]);
+                }
+            }
+        } else {
+            $this->dropSuspendedHandler($fiber, null);
+            unset($this->incomingRequestIds[$fiber], $this->cancelledRequestKeys[$key]);
+        }
+
+        return true;
+    }
+
+    /**
+     * @param McpFiber $fiber
+     */
+    private function dropSuspendedHandler(\Fiber $fiber, ?SessionInterface $session): void
+    {
+        $awaited = $this->awaitedRequestIds[$fiber] ?? null;
+        unset($this->awaitedRequestIds[$fiber]);
+
+        if (null === $awaited || null === $session || $session instanceof EphemeralSessionInterface) {
+            return;
+        }
+
+        $id = $awaited->toRfc4122();
+        $session->forget(self::SESSION_PENDING_REQUESTS.'.'.$id);
+        $session->set(self::SESSION_RESPONSES.'.'.$id, null);
+        $session->forget(self::SESSION_RESPONSES.'.'.$id);
+    }
+
+    /**
+     * @return McpFiber|null
+     */
+    private function fiberForIncomingRequest(string|int $requestId): ?\Fiber
+    {
+        foreach ($this->incomingRequestIds as $fiber => $id) {
+            if ($id === $requestId) {
+                return $fiber;
+            }
+        }
+
+        return null;
+    }
+
+    private function hasInFlightIncomingRequest(SessionInterface $session, string $key): bool
+    {
+        return !$session instanceof EphemeralSessionInterface && true === $session->get(self::SESSION_IN_FLIGHT_REQUESTS.'.'.$key);
+    }
+
+    private function markIncomingRequestInFlight(string|int $requestId, SessionInterface $session): void
+    {
+        $key = self::requestKey($requestId);
+        // A later request may reuse this id; it must not inherit a cancellation meant for the previous one.
+        $session->forget(self::SESSION_CANCELLED_REQUESTS.'.'.$key);
+        $session->set(self::SESSION_IN_FLIGHT_REQUESTS.'.'.$key, true);
+    }
+
+    private function clearIncomingRequest(string|int $requestId, SessionInterface $session): void
+    {
+        $key = self::requestKey($requestId);
+        unset($this->cancelledRequestKeys[$key]);
+
+        foreach ($this->incomingRequestIds as $fiber => $id) {
+            if ($id === $requestId) {
+                unset($this->incomingRequestIds[$fiber]);
+            }
+        }
+
+        if ($session instanceof EphemeralSessionInterface) {
+            return;
+        }
+
+        $session->forget(self::SESSION_IN_FLIGHT_REQUESTS.'.'.$key);
+        $session->forget(self::SESSION_CANCELLED_REQUESTS.'.'.$key);
+    }
+
+    /**
+     * A session-key segment for a JSON-RPC request id, unique for int vs string ids.
+     */
+    private static function requestKey(string|int $requestId): string
+    {
+        return (\is_int($requestId) ? 'i:' : 's:').strtr(base64_encode((string) $requestId), '+/', '-_');
     }
 
     /**
