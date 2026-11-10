@@ -459,7 +459,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     }
 
     /**
-     * Tokens are stored per server and resource, so a stored one may come from a broader configuration.
+     * Configurations with the same grant and client share stored tokens, so a stored one may come from a broader configuration.
      */
     private function isWithinScopeLimit(AccessToken $token): bool
     {
