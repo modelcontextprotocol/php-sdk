@@ -1,0 +1,382 @@
+<?php
+
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Mcp\Server\Skill;
+
+use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\ResourceReadException;
+use Mcp\Schema\Extension\Skills\McpSkills;
+use Mcp\Schema\Extension\Skills\Skill;
+use Mcp\Schema\Extension\Skills\SkillMetadata;
+use Mcp\Schema\Extension\Skills\SkillResource;
+use Mcp\Server\Builder;
+
+/**
+ * Exposes a directory of skills as `skill://` resources on a {@see Builder}, and registers each
+ * skill's complete, digest-and-size manifest into a {@see SkillRegistry} so it can be served
+ * through `skills/list` and `skills/get`.
+ *
+ * Each immediate or nested folder containing a `SKILL.md` is registered as a skill. The directory
+ * path relative to the base directory becomes the skill path (its final segment must match the
+ * `name` in the SKILL.md frontmatter), and every file within the folder is exposed as a resource:
+ *
+ *   skills/code-review/SKILL.md                  → skill://code-review/SKILL.md
+ *   skills/code-review/references/SECURITY.md    → skill://code-review/references/SECURITY.md
+ *   skills/acme/billing/refunds/SKILL.md         → skill://acme/billing/refunds/SKILL.md
+ *
+ * @author Johannes Wachter <johannes@sulu.io>
+ */
+final class SkillProvider
+{
+    /** Resources per skill this extension fixes as the limit every conforming host must accept. */
+    private const MAX_RESOURCES_PER_SKILL = 512;
+
+    /** Total file size per skill this extension fixes as the limit every conforming host must accept. */
+    private const MAX_TOTAL_SIZE_PER_SKILL = 16_777_216;
+
+    /** Longest skill name the Agent Skills specification allows. */
+    private const MAX_NAME_LENGTH = 64;
+
+    /** Longest `compatibility` value the Agent Skills specification allows. */
+    private const MAX_COMPATIBILITY_LENGTH = 500;
+
+    /** Longest skill description the Agent Skills specification allows. */
+    private const MAX_DESCRIPTION_LENGTH = 1024;
+
+    public function __construct(
+        private readonly FrontmatterParser $frontmatter = new FrontmatterParser(),
+    ) {
+    }
+
+    /**
+     * Walks $baseDirectory, registers every discovered skill (and its supporting files) as
+     * `skill://` resources on $builder, and records each skill's manifest in $registry.
+     *
+     * @return Skill[] the discovered skills
+     *
+     * @throws InvalidArgumentException if the directory is missing, a skill violates the spec, a skill
+     *                                  path is already registered, or a skill exceeds the extension's
+     *                                  per-skill resource/size limits
+     */
+    public function registerInto(Builder $builder, SkillRegistry $registry, string $baseDirectory): array
+    {
+        $base = realpath($baseDirectory);
+        if (false === $base || !is_dir($base)) {
+            throw new InvalidArgumentException(\sprintf('Skills directory "%s" does not exist or is not a directory.', $baseDirectory));
+        }
+
+        $manifests = $this->findSkillManifests($base);
+
+        // A SKILL.md without frontmatter inside another skill is not a skill, e.g. a template the
+        // skill ships. The spec treats such content as supporting content, so it is served as a file.
+        $skillManifests = [];
+        foreach ($manifests as $manifestPath) {
+            if ($this->frontmatter->hasFrontmatter((string) file_get_contents($manifestPath)) || !$this->isInsideAnotherSkill($manifestPath, $manifests)) {
+                $skillManifests[$manifestPath] = true;
+            }
+        }
+
+        $skills = [];
+
+        foreach (array_keys($skillManifests) as $manifestPath) {
+            $skill = $this->registerSkill($builder, $registry, $base, $manifestPath, $skillManifests);
+            $registry->add($skill);
+            $skills[] = $skill;
+        }
+
+        return $skills;
+    }
+
+    /**
+     * @param array<string, true> $skillManifests the SKILL.md files that are skills, by path
+     */
+    private function registerSkill(Builder $builder, SkillRegistry $registry, string $base, string $manifestPath, array $skillManifests): Skill
+    {
+        $skillDir = \dirname($manifestPath);
+        $skillPath = $this->relativePath($base, $skillDir);
+
+        $content = (string) file_get_contents($manifestPath);
+        $metadata = $this->frontmatter->parseMetadata($content);
+
+        $lastSegment = basename($skillPath);
+        if ($lastSegment !== $metadata->name) {
+            throw new InvalidArgumentException(\sprintf('Skill at "%s": frontmatter name "%s" must match the final path segment "%s".', $skillPath, $metadata->name, $lastSegment));
+        }
+
+        $this->validateMetadata($skillPath, $metadata);
+
+        $entryUri = \sprintf('%s://%s/%s', McpSkills::URI_SCHEME, $this->encodePath($skillPath), McpSkills::ENTRY_POINT);
+
+        $entrySize = \strlen($content);
+        $entryDigest = 'sha256:'.hash('sha256', $content);
+
+        // Collected first, so a collision is found before anything is registered on the builder.
+        $resources = [new SkillResource($entryUri, $entryDigest, $entrySize)];
+        $files = [];
+
+        foreach ($this->findSupportingFiles($skillDir, $manifestPath) as $filePath) {
+            $relative = $this->relativePath($skillDir, $filePath);
+            $uri = \sprintf('%s://%s/%s', McpSkills::URI_SCHEME, $this->encodePath($skillPath), $this->encodePath($relative));
+            $size = (int) filesize($filePath);
+            $digest = 'sha256:'.hash_file('sha256', $filePath);
+
+            // A nested skill's own SKILL.md is a supporting file of this skill's manifest too
+            // (the spec allows the same file in both entries), but it must be registered as a
+            // resource exactly once, by its own registerSkill() call below with its own
+            // frontmatter — registering it again here, generically, would make which metadata
+            // wins depend on filesystem walk order instead of always being the nested skill's own.
+            if (!isset($skillManifests[$filePath])) {
+                $files[] = [$filePath, $uri, $size, $digest];
+            }
+
+            $resources[] = new SkillResource($uri, $digest, $size);
+        }
+
+        $this->checkLimits($skillPath, $resources);
+
+        // Two packages shipping the same path would overwrite each other, and a file only one of
+        // them has would stay served without being listed. That includes a file of one skill that
+        // lands on the URI of another skill's file, e.g. `acme/billing/x.md` and `acme/billing/SKILL.md`.
+        // The one exception is the same file reached through two skills: a nested skill's supporting
+        // file is part of the manifest of both, and the spec allows that.
+        $files = array_values(array_filter($files, static fn (array $file): bool => realpath($file[0]) !== $registry->servedPath($file[1])));
+
+        foreach ([$entryUri, ...array_column($files, 1)] as $uri) {
+            if ($registry->isServed($uri)) {
+                throw new InvalidArgumentException(\sprintf('Skill "%s" at "%s" collides with an already registered skill: %s is served twice. Skill paths must be unique, so rename one of the skill folders.', $metadata->name, $manifestPath, $uri));
+            }
+        }
+
+        $this->registerFile(
+            $builder,
+            $base,
+            $manifestPath,
+            $entryUri,
+            name: $metadata->name,
+            mimeType: McpSkills::MIME_TYPE,
+            description: $metadata->description,
+            size: $entrySize,
+            digest: $entryDigest,
+            meta: $this->metaFor($metadata),
+        );
+        $registry->markServed($entryUri, (string) realpath($manifestPath));
+
+        foreach ($files as [$filePath, $uri, $size, $digest]) {
+            $this->registerFile(
+                $builder,
+                $base,
+                $filePath,
+                $uri,
+                name: basename($filePath),
+                mimeType: $this->guessMimeType($filePath),
+                description: null,
+                size: $size,
+                digest: $digest,
+                meta: null,
+            );
+            $registry->markServed($uri, (string) realpath($filePath));
+        }
+
+        return new Skill($entryUri, $metadata, $resources);
+    }
+
+    /**
+     * @param list<string> $manifests every SKILL.md found under the base directory
+     */
+    private function isInsideAnotherSkill(string $manifestPath, array $manifests): bool
+    {
+        $directory = \dirname($manifestPath).\DIRECTORY_SEPARATOR;
+
+        foreach ($manifests as $other) {
+            if ($other !== $manifestPath && str_starts_with($directory, \dirname($other).\DIRECTORY_SEPARATOR)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Enforces the Agent Skills naming rules the extension requires of the skill name, and the
+     * description length limit.
+     */
+    private function validateMetadata(string $skillPath, SkillMetadata $metadata): void
+    {
+        if (\strlen($metadata->name) > self::MAX_NAME_LENGTH || 1 !== preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $metadata->name)) {
+            throw new InvalidArgumentException(\sprintf('Skill at "%s": name "%s" must be 1-%d characters of lowercase letters, digits and single hyphens, and must not start or end with a hyphen.', $skillPath, $metadata->name, self::MAX_NAME_LENGTH));
+        }
+
+        // The Agent Skills specification: `compatibility` is a string of 1 to 500 characters.
+        if (\array_key_exists('compatibility', $metadata->extra)) {
+            $compatibility = $metadata->extra['compatibility'];
+            $length = \is_string($compatibility) ? (\function_exists('mb_strlen') ? mb_strlen($compatibility) : \strlen($compatibility)) : 0;
+            if (!\is_string($compatibility) || $length < 1 || $length > self::MAX_COMPATIBILITY_LENGTH) {
+                throw new InvalidArgumentException(\sprintf('Skill at "%s": compatibility must be a string of 1-%d characters.', $skillPath, self::MAX_COMPATIBILITY_LENGTH));
+            }
+        }
+
+        $descriptionLength = \function_exists('mb_strlen') ? mb_strlen($metadata->description) : \strlen($metadata->description);
+        if ($descriptionLength > self::MAX_DESCRIPTION_LENGTH) {
+            throw new InvalidArgumentException(\sprintf('Skill at "%s": description has %d characters, exceeding the limit of %d.', $skillPath, $descriptionLength, self::MAX_DESCRIPTION_LENGTH));
+        }
+    }
+
+    /**
+     * Percent-encodes each segment of a slash separated path, so a file name like `my file.md` or
+     * `a#b.md` still yields a valid URI.
+     */
+    private function encodePath(string $path): string
+    {
+        return implode('/', array_map(rawurlencode(...), explode('/', $path)));
+    }
+
+    /**
+     * @param SkillResource[] $resources
+     */
+    private function checkLimits(string $skillPath, array $resources): void
+    {
+        if (\count($resources) > self::MAX_RESOURCES_PER_SKILL) {
+            throw new InvalidArgumentException(\sprintf('Skill "%s" has %d resources, exceeding the %d this extension fixes as the per-skill limit.', $skillPath, \count($resources), self::MAX_RESOURCES_PER_SKILL));
+        }
+
+        $totalSize = array_sum(array_map(static fn (SkillResource $r): int => $r->size, $resources));
+        if ($totalSize > self::MAX_TOTAL_SIZE_PER_SKILL) {
+            throw new InvalidArgumentException(\sprintf('Skill "%s" totals %d bytes, exceeding the %d bytes this extension fixes as the per-skill limit.', $skillPath, $totalSize, self::MAX_TOTAL_SIZE_PER_SKILL));
+        }
+    }
+
+    /**
+     * @return array<string, mixed>|null the `_meta` map for the skill's SKILL.md resource, each
+     *                                   extra frontmatter field under its own {@see McpSkills::META_PREFIX}-prefixed key
+     */
+    private function metaFor(SkillMetadata $metadata): ?array
+    {
+        if ([] === $metadata->extra) {
+            return null;
+        }
+
+        $meta = [];
+        foreach ($metadata->extra as $key => $value) {
+            $meta[McpSkills::META_PREFIX.$key] = $value;
+        }
+
+        return $meta;
+    }
+
+    /**
+     * @param array<string, mixed>|null $meta
+     */
+    private function registerFile(Builder $builder, string $base, string $filePath, string $uri, string $name, string $mimeType, ?string $description, int $size, string $digest, ?array $meta): void
+    {
+        $absolute = realpath($filePath);
+        if (false === $absolute || !str_starts_with($absolute, $base.\DIRECTORY_SEPARATOR)) {
+            throw new InvalidArgumentException(\sprintf('Skill file "%s" resolves outside the skills directory.', $filePath));
+        }
+
+        $builder->addResource(
+            static function () use ($absolute, $uri, $digest): \SplFileInfo {
+                // The manifest was built once. Serving bytes that no longer match its digest would make
+                // every host fail the verification, and a refresh through skills/get cannot fix that
+                // until the server restarts, so the read says so instead.
+                if (!is_file($absolute) || 'sha256:'.hash_file('sha256', $absolute) !== $digest) {
+                    throw new ResourceReadException(\sprintf('The file behind "%s" changed or went missing since the skill was registered. Restart the server to serve the new version.', $uri));
+                }
+
+                return new \SplFileInfo($absolute);
+            },
+            $uri,
+            name: $name,
+            description: $description,
+            mimeType: $mimeType,
+            size: $size,
+            meta: $meta,
+        );
+    }
+
+    /**
+     * @return list<string> absolute paths to every SKILL.md under $base
+     */
+    private function findSkillManifests(string $base): array
+    {
+        return $this->iterateFiles($base, static fn (string $path): bool => McpSkills::ENTRY_POINT === basename($path));
+    }
+
+    /**
+     * @return list<string> absolute paths to all files in $skillDir except the manifest
+     */
+    private function findSupportingFiles(string $skillDir, string $manifestPath): array
+    {
+        return $this->iterateFiles($skillDir, static fn (string $path): bool => $path !== $manifestPath);
+    }
+
+    /**
+     * Lists the files below $directory in a stable order, skipping hidden files and folders (`.env`,
+     * `.git/`). The same walk runs whichever optional packages are installed, so a skill's manifest
+     * never depends on the environment it was built in.
+     *
+     * @param callable(string): bool $accept
+     *
+     * @return list<string>
+     */
+    private function iterateFiles(string $directory, callable $accept): array
+    {
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveCallbackFilterIterator(
+                new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+                static fn (\SplFileInfo $file): bool => !str_starts_with($file->getFilename(), '.'),
+            ),
+        );
+
+        $paths = [];
+        foreach ($iterator as $file) {
+            if ($file instanceof \SplFileInfo && $file->isFile() && $accept($file->getPathname())) {
+                $paths[] = $file->getPathname();
+            }
+        }
+
+        sort($paths);
+
+        return $paths;
+    }
+
+    /**
+     * Returns $path relative to $base, using forward slashes.
+     */
+    private function relativePath(string $base, string $path): string
+    {
+        $relative = ltrim(substr($path, \strlen($base)), \DIRECTORY_SEPARATOR);
+
+        return str_replace(\DIRECTORY_SEPARATOR, '/', $relative);
+    }
+
+    private function guessMimeType(string $path): string
+    {
+        $byExtension = [
+            'md' => 'text/markdown',
+            'markdown' => 'text/markdown',
+            'json' => 'application/json',
+            'txt' => 'text/plain',
+            'csv' => 'text/csv',
+            'yaml' => 'application/yaml',
+            'yml' => 'application/yaml',
+        ];
+
+        $extension = strtolower(pathinfo($path, \PATHINFO_EXTENSION));
+        if (isset($byExtension[$extension])) {
+            return $byExtension[$extension];
+        }
+
+        $finfo = new \finfo(\FILEINFO_MIME_TYPE);
+        $detected = $finfo->file($path);
+
+        return \is_string($detected) && '' !== $detected ? $detected : 'application/octet-stream';
+    }
+}

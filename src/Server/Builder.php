@@ -15,6 +15,7 @@ use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Extension\AbstractExtension;
 use Mcp\Schema\Extension\ExtensionInterface;
+use Mcp\Schema\Extension\Skills\McpSkills;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\MessageFactory;
@@ -61,6 +62,8 @@ use Mcp\Server\Session\SessionLockInterface;
 use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Session\SessionStoreInterface;
+use Mcp\Server\Skill\SkillProvider;
+use Mcp\Server\Skill\SkillRegistry;
 use Mcp\Server\Stateless\RequestStateBinderInterface;
 use Mcp\Server\Stateless\RequestStateCodec;
 use Mcp\Server\Stateless\StandardHeaderValidator;
@@ -268,6 +271,12 @@ final class Builder
      * @var array<string, array<string, mixed>>
      */
     private array $extensions = [];
+
+    /**
+     * The registry backing {@see McpSkills} once {@see self::addSkillsFromDirectory()} has been
+     * called at least once, shared across calls so multiple directories accumulate into one extension.
+     */
+    private ?SkillRegistry $skillRegistry = null;
 
     /**
      * @var LoaderInterface[]
@@ -529,6 +538,28 @@ final class Builder
                 }
             }
         }
+
+        return $this;
+    }
+
+    /**
+     * Expose a directory of skills (SEP-2640) as `skill://` resources.
+     *
+     * Enables the {@see McpSkills} extension (unless already enabled) and registers every
+     * `SKILL.md` found under $directory — together with its supporting files — as resources,
+     * making them servable through `skills/list` and `skills/get`. Calling this more than once
+     * accumulates every directory's skills into the same extension.
+     *
+     * @see SkillProvider
+     */
+    public function addSkillsFromDirectory(string $directory, ?SkillProvider $provider = null): self
+    {
+        if (null === $this->skillRegistry) {
+            $this->skillRegistry = new SkillRegistry();
+            $this->enableExtension(new McpSkills($this->skillRegistry));
+        }
+
+        ($provider ?? new SkillProvider())->registerInto($this, $this->skillRegistry, $directory);
 
         return $this;
     }
@@ -1182,6 +1213,12 @@ final class Builder
         // `server/discover` exists in the modern era only.
         $modernMessageFactory = MessageFactory::make(additional: [...$this->extensionMessages, DiscoverRequest::class]);
 
+        // SEP-2640: a server declaring the skills extension MUST also declare `resources`, because
+        // every skill file is served through resources/read.
+        if (null !== $this->serverCapabilities && isset($this->extensions[McpSkills::EXTENSION_ID]) && true !== $this->serverCapabilities->resources) {
+            throw new LogicException('The skills extension serves skills as resources, so the capabilities passed to setCapabilities() must declare "resources".');
+        }
+
         $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded);
 
         // Extensions enabled via enableExtension() are folded into caller-supplied
@@ -1245,7 +1282,7 @@ final class Builder
         $listChanged = null !== $this->notificationBus && $registry->publishesListChanges();
 
         if ($eagerlyLoaded) {
-            $hasResources = $registry->hasResources() || $registry->hasResourceTemplates();
+            $hasResources = $registry->hasResources() || $registry->hasResourceTemplates() || isset($this->extensions[McpSkills::EXTENSION_ID]);
 
             return new ServerCapabilities(
                 tools: $registry->hasTools(),
@@ -1262,7 +1299,7 @@ final class Builder
         }
 
         $hasOpaqueSources = [] !== $this->loaders || null !== $this->discoveryBasePath;
-        $hasResources = [] !== $this->resources || [] !== $this->explicitResources || [] !== $this->resourceTemplates || [] !== $this->explicitResourceTemplates || $hasOpaqueSources;
+        $hasResources = [] !== $this->resources || [] !== $this->explicitResources || [] !== $this->resourceTemplates || [] !== $this->explicitResourceTemplates || $hasOpaqueSources || isset($this->extensions[McpSkills::EXTENSION_ID]);
 
         return new ServerCapabilities(
             tools: [] !== $this->tools || [] !== $this->explicitTools || $hasOpaqueSources,
