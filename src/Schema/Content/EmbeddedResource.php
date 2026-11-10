@@ -90,7 +90,7 @@ class EmbeddedResource extends Content
             throw new RuntimeException(\sprintf('Could not read file: "%s".', $path));
         }
 
-        $guessedMimeType = $explicitMimeType ?? mime_content_type($path) ?: 'application/octet-stream';
+        $guessedMimeType = $explicitMimeType ?? MimeType::guess($path) ?? 'application/octet-stream';
 
         if (self::isTextMimeTypeHeuristic($guessedMimeType) && mb_check_encoding($content, 'UTF-8')) {
             $resourceContent = new TextResourceContents($uri, $guessedMimeType, $content);
@@ -121,7 +121,7 @@ class EmbeddedResource extends Content
             throw new RuntimeException(\sprintf('Could not read file: "%s".', $file->getPathname()));
         }
 
-        return new self(new BlobResourceContents($uri, $explicitMimeType ?? (mime_content_type($file->getPathname()) ?: null), base64_encode($content)), $annotations);
+        return new self(new BlobResourceContents($uri, $explicitMimeType ?? MimeType::guess($file->getPathname()), base64_encode($content)), $annotations);
     }
 
     /**

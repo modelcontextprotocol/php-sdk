@@ -78,7 +78,7 @@ class AudioContent extends Content
             throw new RuntimeException(\sprintf('Could not read audio file: "%s".', $path));
         }
         $data = base64_encode($content);
-        $detectedMime = $mimeType ?? mime_content_type($path) ?: 'application/octet-stream';
+        $detectedMime = $mimeType ?? MimeType::guess($path) ?? 'application/octet-stream';
 
         return new self($data, $detectedMime, $annotations);
     }
