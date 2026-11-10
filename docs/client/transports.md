@@ -149,6 +149,10 @@ The transport turns off redirects on a `symfony/http-client` client that it disc
 it also turns them off on a `symfony/http-client` client that you pass as `httpClient`. Any other
 client keeps its own configuration.
 
+Guzzle doesn't follow redirects through PSR-18. An HTTPlug adapter around a Guzzle client with the
+default handler stack (e.g. `php-http/guzzle7-adapter`), HTTPlug's `RedirectPlugin` and Symfony's
+`HttplugClient` do.
+
 Such a client *must not* follow redirects to another origin. If it does, your headers and the
 request body reach that origin, and the transport accepts its answer as the server's. With `auth`,
 it *must not* follow any redirect, because a redirect on the same origin also receives the token.

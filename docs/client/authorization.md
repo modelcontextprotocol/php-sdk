@@ -291,7 +291,7 @@ The client treats the MCP server and its metadata as untrusted input. It stops w
 These checks only look at how a URL writes its host. A DNS name that points at loopback or a private network still gets through. If you run the client on a server, block requests to private networks in your HTTP client or proxy (e.g. with Symfony's `NoPrivateNetworkHttpClient`) and pass that client to `setHttpClient()`. Pass it to `HeadlessAuthorizationHandler` as well, which sends its own request to the authorization endpoint.
 
 !!! warning
-    A client that you pass to `setHttpClient()` *must not* follow redirects. The client only turns them off on a `Psr18Client` of `symfony/http-client` 6.2 or later. With redirects on, an authorization server can send the authorization code and the client credentials to any address.
+    A client that you pass to `setHttpClient()` *must not* follow redirects. The client only turns them off on a `Psr18Client` of `symfony/http-client` 6.2 or later. Guzzle doesn't follow redirects through PSR-18, but an HTTPlug adapter around a Guzzle client with the default handler stack, HTTPlug's `RedirectPlugin` and Symfony's `HttplugClient` do. With redirects on, an authorization server can send the authorization code and the client credentials to any address.
 
 The client ignores a `resource_metadata` URL on another origin than the MCP server and looks at the well-known URLs instead. It only sends a token to the resource it was issued for.
 
