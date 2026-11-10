@@ -139,7 +139,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             }
 
             $this->logger->info('The authorization server no longer knows this client; registering it again.', ['issuer' => $metadata->issuer]);
-            $this->storage->forget($metadata->issuer);
+            $this->forgetRefusedClient($metadata->issuer, $client);
             $token = null;
             $client = $this->resolveClient($metadata, $scopes, $scopesSupported);
         }
@@ -150,7 +150,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             } catch (AuthorizationException $e) {
                 // The user already went through the browser once, so only the next attempt registers again.
                 if (self::isForgottenClient($e, $client)) {
-                    $this->storage->forget($metadata->issuer);
+                    $this->forgetRefusedClient($metadata->issuer, $client);
                 }
 
                 throw $e;
@@ -204,6 +204,16 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         }
 
         return [$metadata->resource, $server, $metadata->scopesSupported];
+    }
+
+    private function forgetRefusedClient(string $issuer, ClientRegistration $client): void
+    {
+        // Under the registration lock, so a client that another worker registered after this one is kept.
+        $this->storage->synchronize(function () use ($issuer, $client): void {
+            if ($client->clientId === $this->storage->getClientRegistration($issuer)?->clientId) {
+                $this->storage->forget($issuer);
+            }
+        });
     }
 
     private static function isForgottenClient(AuthorizationException $e, ClientRegistration $client): bool
