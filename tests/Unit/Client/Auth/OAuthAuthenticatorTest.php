@@ -809,6 +809,53 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('newer-client', $storage->getClientRegistration('https://auth.example.com')?->clientId);
     }
 
+    #[TestDox('the token of a pending authorization finished after a re-registration is not used by the new client')]
+    public function testTheNewClientDoesNotUseTheTokenOfTheReplacedOne(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $storage = new InMemoryCredentialStorage();
+        $callback = $this->startPending($server, $storage);
+        $storage->saveClientRegistration('https://auth.example.com', new ClientRegistration('newer-client', 'newer-secret', TokenEndpointAuthMethod::ClientSecretPost, true, scopes: ['mcp:read', 'mcp:write']));
+        $this->authenticator($server, storage: $storage)->finishAuthorization($callback);
+        $this->assertSame('registered-client', $storage->getToken('https://auth.example.com', self::tokenKey())?->clientId);
+        $server->authorization = [];
+
+        $authenticator = $this->authenticator($server, storage: $storage);
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertNotSame([], $server->authorization);
+        $this->assertSame('newer-client', $server->token['client_id'] ?? null);
+        $this->assertSame('newer-client', $storage->getToken('https://auth.example.com', self::tokenKey())?->clientId);
+    }
+
+    #[TestDox('a stored refresh token of another client is not spent')]
+    public function testDoesNotRefreshATokenOfAnotherRegistration(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveClientRegistration('https://auth.example.com', new ClientRegistration('newer-client', 'newer-secret', TokenEndpointAuthMethod::ClientSecretPost, true, scopes: ['mcp:read', 'mcp:write']));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('expired', 'Bearer', time() - 60, 'older-refresh-token', [], 'older-client'));
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('authorization_code', $server->token['grant_type'] ?? null);
+        $this->assertNotSame([], $server->authorization);
+    }
+
+    #[TestDox('a stored token without a client is used as before')]
+    public function testUsesAStoredTokenOfAnUnknownClient(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('stored', 'Bearer', time() + 3600));
+
+        $authenticator = $this->authenticator($server, storage: $storage);
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame([], $server->authorization);
+        $this->assertSame('Bearer stored', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
+    }
+
     #[TestDox('a refused callback keeps the registration of another flow')]
     public function testDeferredAuthorizationKeepsANewerRegistrationOnInvalidClient(): void
     {

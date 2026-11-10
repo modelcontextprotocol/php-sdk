@@ -118,6 +118,13 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->resource = $resource;
 
         $stored = $this->storage->getToken($metadata->issuer, $this->tokenKey($resource));
+
+        // A dynamic registration may have been replaced since the token was issued, and its successor can't use it.
+        if (null !== $stored && !$stored->isIssuedTo($this->knownClient($metadata)?->clientId)) {
+            $this->logger->info('Ignoring a stored token of another client', ['issuer' => $metadata->issuer, 'resource' => $resource]);
+            $stored = null;
+        }
+
         $scopes = $this->selectScopes($challenge, $scopesSupported, $metadata, $stored);
         // The resource never requires offline_access, which only gets a refresh token.
         $needed = array_values(array_diff($scopes, ['offline_access']));
@@ -525,7 +532,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             // Another process may have refreshed the token while this one waited.
             $current = $this->storage->getToken($metadata->issuer, $this->tokenKey($resource));
 
-            if (null === $current) {
+            if (null === $current || !$current->isIssuedTo($client->clientId)) {
                 return null;
             }
 
@@ -574,6 +581,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             $token->expiresAt,
             $token->refreshToken ?? $refreshToken,
             [] === $token->scopes ? $stored->scopes : $token->scopes,
+            $token->clientId,
         );
     }
 
@@ -702,7 +710,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      */
     private function requestToken(AuthorizationServerMetadata $metadata, ClientRegistration $client, array $parameters): AccessToken
     {
-        return $this->tokenEndpoint->request($metadata, $client, $parameters, $this->configuration->privateKeyPem, $this->configuration->signingAlgorithm);
+        return $this->tokenEndpoint->request($metadata, $client, $parameters, $this->configuration->privateKeyPem, $this->configuration->signingAlgorithm)->withClientId($client->clientId);
     }
 
     /**
