@@ -16,6 +16,7 @@ use Mcp\Client\Auth\AuthenticatingHttpClient;
 use Mcp\Client\Auth\AuthenticatorInterface;
 use Mcp\Client\MonotonicClock;
 use Mcp\Exception\AuthorizationException;
+use Mcp\Exception\AuthorizationPendingException;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
@@ -266,6 +267,9 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         try {
             $response = $this->httpClient->sendRequest($request);
+        } catch (AuthorizationPendingException $e) {
+            // Not an error: the application sends the user to the authorization server.
+            throw $e;
         } catch (AuthorizationException $e) {
             // Not a connection problem, and not one a second attempt would solve: the
             // authenticator already did everything it could.
