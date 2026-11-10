@@ -710,6 +710,7 @@ final class OAuthAuthenticatorTest extends TestCase
     {
         $server = new FakeOAuthServer();
         $storage = $this->createMock(CredentialStorageInterface::class);
+        $storage->method('synchronize')->willReturnCallback(static fn (callable $operation): mixed => $operation());
         $storage->expects($this->once())->method('saveToken')->with('https://auth.example.com', self::ENDPOINT, $this->isInstanceOf(AccessToken::class));
 
         $authenticator = $this->authenticator($server, storage: $storage);
@@ -720,7 +721,9 @@ final class OAuthAuthenticatorTest extends TestCase
     public function testDeferredAuthorizationRequiresPendingStorage(): void
     {
         $server = new FakeOAuthServer();
-        $authenticator = $this->authenticator($server, new RedirectAuthorizationHandler(), $this->createStub(CredentialStorageInterface::class));
+        $storage = $this->createStub(CredentialStorageInterface::class);
+        $storage->method('synchronize')->willReturnCallback(static fn (callable $operation): mixed => $operation());
+        $authenticator = $this->authenticator($server, new RedirectAuthorizationHandler(), $storage);
 
         $this->expectException(AuthorizationException::class);
         $this->expectExceptionMessage('requires PendingAuthorizationStorageInterface');
