@@ -102,7 +102,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->issuer = $metadata->issuer;
         $this->resource = $resource;
 
-        $stored = $this->storage->getToken($metadata->issuer, $resource);
+        $stored = $this->storage->getToken($metadata->issuer, $this->tokenKey($resource));
         $scopes = $this->selectScopes($challenge, $scopesSupported, $metadata, $stored);
         // The resource never requires offline_access, which only gets a refresh token.
         $needed = array_values(array_diff($scopes, ['offline_access']));
@@ -159,7 +159,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
             $token = $token->withGrantedScopes($scopes);
             $this->requestedScopes = $scopes;
-            $this->storage->saveToken($metadata->issuer, $resource, $token);
+            $this->storage->saveToken($metadata->issuer, $this->tokenKey($resource), $token);
         }
 
         $this->token = $token;
@@ -241,7 +241,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->token = $token->withGrantedScopes($scopes);
         $this->requestedScopes = $scopes;
         $this->audience = $pending->resource;
-        $this->storage->saveToken($metadata->issuer, $pending->resource, $this->token);
+        $this->storage->saveToken($metadata->issuer, $this->tokenKey($pending->resource), $this->token);
     }
 
     /**
@@ -463,7 +463,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         return $this->storage->synchronize(function () use ($metadata, $client, $scopes, $resource, $request): ?AccessToken {
             // Another process may have refreshed the token while this one waited.
-            $current = $this->storage->getToken($metadata->issuer, $resource);
+            $current = $this->storage->getToken($metadata->issuer, $this->tokenKey($resource));
 
             if (null === $current) {
                 return null;
@@ -481,7 +481,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             $token = $this->spendRefreshToken($current, $current->refreshToken, $metadata, $client, $resource);
 
             if (null !== $token) {
-                $this->storage->saveToken($metadata->issuer, $resource, $token);
+                $this->storage->saveToken($metadata->issuer, $this->tokenKey($resource), $token);
             }
 
             return $token;
@@ -768,6 +768,16 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
             return $registration;
         });
+    }
+
+    /**
+     * Where a token is stored: configurations sharing a storage must not take over each other's tokens.
+     */
+    private function tokenKey(string $resource): string
+    {
+        $client = $this->configuration->clientId ?? $this->configuration->clientMetadataUrl;
+
+        return $resource.'#'.$this->configuration->grant->value.(null === $client ? '' : ' '.$client);
     }
 
     /**

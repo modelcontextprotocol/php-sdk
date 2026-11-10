@@ -89,6 +89,8 @@ The file contains tokens and client secrets. The SDK creates it with the mode `0
 
 The storage keys everything by the issuer of the authorization server. If a server moves to another authorization server, the client registers again and doesn't send its old client ID to the new one. It also registers again if you change the redirect URI, if it needs scopes that its registration doesn't include, or if the token endpoint answers `invalid_client` for a client that it registered.
 
+Tokens are also stored per resource, grant and client ID. So you can share one storage between a service account and an application for users, or between clients with different client IDs. None of them uses a token of another.
+
 ## Finishing the Authorization in a Later Request
 
 A web application can't wait for the browser within one request. It redirects the user to the authorization server, which sends the user back to a callback route of the application. Use `RedirectAuthorizationHandler` for this, with one storage per user session:

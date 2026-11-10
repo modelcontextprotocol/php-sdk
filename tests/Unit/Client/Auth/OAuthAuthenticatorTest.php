@@ -251,7 +251,7 @@ final class OAuthAuthenticatorTest extends TestCase
     {
         $server = new FakeOAuthServer(resourceScopes: ['mcp:read'], serverScopes: ['mcp:read', 'offline_access'], refreshTokens: true);
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired-token', 'Bearer', time() - 60, 'refresh-token', ['mcp:read']));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('expired-token', 'Bearer', time() - 60, 'refresh-token', ['mcp:read']));
 
         $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
 
@@ -582,7 +582,7 @@ final class OAuthAuthenticatorTest extends TestCase
             $this->assertSame($server->authorization['code_challenge'], rtrim(strtr(base64_encode(hash('sha256', $server->token['code_verifier'], true)), '+/', '-_'), '='));
             $this->assertSame($server->authorization['redirect_uri'], $server->token['redirect_uri']);
             $this->assertSame($server->authorization['resource'], $server->token['resource']);
-            $stored = (new FileCredentialStorage($path))->getToken('https://auth.example.com', self::ENDPOINT);
+            $stored = (new FileCredentialStorage($path))->getToken('https://auth.example.com', self::tokenKey());
             $this->assertSame(['mcp:read'], $stored?->scopes);
             $this->assertSame([], json_decode((string) file_get_contents($path), true)['pending']);
         } finally {
@@ -605,7 +605,7 @@ final class OAuthAuthenticatorTest extends TestCase
         } catch (AuthorizationException $e) {
             $this->assertNotInstanceOf(AuthorizationPendingException::class, $e);
             $this->assertNotContains('https://auth.example.com/token', $server->requested);
-            $this->assertNull($storage->getToken('https://auth.example.com', self::ENDPOINT));
+            $this->assertNull($storage->getToken('https://auth.example.com', self::tokenKey()));
         }
     }
 
@@ -720,7 +720,7 @@ final class OAuthAuthenticatorTest extends TestCase
         $server = new FakeOAuthServer();
         $storage = $this->createMock(CredentialStorageInterface::class);
         $storage->method('synchronize')->willReturnCallback(static fn (callable $operation): mixed => $operation());
-        $storage->expects($this->once())->method('saveToken')->with('https://auth.example.com', self::ENDPOINT, $this->isInstanceOf(AccessToken::class));
+        $storage->expects($this->once())->method('saveToken')->with('https://auth.example.com', self::tokenKey(), $this->isInstanceOf(AccessToken::class));
 
         $authenticator = $this->authenticator($server, storage: $storage);
         $this->assertTrue($authenticator->handleChallenge($this->request(), $server->challenge()));
@@ -1140,12 +1140,12 @@ final class OAuthAuthenticatorTest extends TestCase
     {
         $server = new FakeOAuthServer(refreshTokens: true);
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token', ['mcp:read', 'mcp:write']));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token', ['mcp:read', 'mcp:write']));
 
         $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge(['mcp:read']));
 
         $this->assertSame('refresh_token', $server->token['grant_type'] ?? null);
-        $this->assertSame(['mcp:read', 'mcp:write'], $storage->getToken('https://auth.example.com', self::ENDPOINT)?->scopes);
+        $this->assertSame(['mcp:read', 'mcp:write'], $storage->getToken('https://auth.example.com', self::tokenKey())?->scopes);
     }
 
     #[TestDox('a refresh does not record scopes the authorization server did not grant')]
@@ -1153,12 +1153,12 @@ final class OAuthAuthenticatorTest extends TestCase
     {
         $server = new FakeOAuthServer(refreshTokens: true);
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token'));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token'));
 
         $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge(['admin']));
 
         $this->assertSame('refresh_token', $server->token['grant_type'] ?? null);
-        $this->assertSame([], $storage->getToken('https://auth.example.com', self::ENDPOINT)?->scopes);
+        $this->assertSame([], $storage->getToken('https://auth.example.com', self::tokenKey())?->scopes);
     }
 
     #[TestDox('a new redirect URI gets a new registration, as the old one would be refused')]
@@ -1194,7 +1194,7 @@ final class OAuthAuthenticatorTest extends TestCase
         $server->unknownClient = 'forgotten-client';
         $storage = new InMemoryCredentialStorage();
         $storage->saveClientRegistration('https://auth.example.com', new ClientRegistration('forgotten-client', dynamic: true));
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token'));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token'));
 
         $authenticator = $this->authenticator($server, storage: $storage);
         $authenticator->handleChallenge($this->request(), $server->challenge());
@@ -1236,7 +1236,7 @@ final class OAuthAuthenticatorTest extends TestCase
         $server = new FakeOAuthServer(refreshTokens: true);
         $server->unknownClient = 'forgotten-client';
         $storage = $this->storageWithAnotherWorkerRegistering();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token'));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token'));
 
         $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
 
@@ -1285,7 +1285,7 @@ final class OAuthAuthenticatorTest extends TestCase
         $server = new FakeOAuthServer(refreshTokens: true);
         $server->unknownClient = 'known-client';
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'refresh'));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(clientId: 'known-client'), new AccessToken('expired', 'Bearer', time() - 60, 'refresh'));
         $configuration = OAuth::forApplication('test')->setClientCredentials('known-client')->setExpectedIssuer('https://auth.example.com');
 
         try {
@@ -1297,7 +1297,7 @@ final class OAuthAuthenticatorTest extends TestCase
         }
 
         $this->assertSame([], $server->authorization);
-        $this->assertNotNull($storage->getToken('https://auth.example.com', self::ENDPOINT));
+        $this->assertNotNull($storage->getToken('https://auth.example.com', self::tokenKey(clientId: 'known-client')));
     }
 
     #[TestDox('an error that only mentions a refused scope in its text does not send the user back')]
@@ -1391,7 +1391,7 @@ final class OAuthAuthenticatorTest extends TestCase
         $server = new FakeOAuthServer(refreshTokens: true);
         $server->grantTypes = $grantTypes;
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token'));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token'));
 
         $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
 
@@ -1415,11 +1415,44 @@ final class OAuthAuthenticatorTest extends TestCase
     {
         $server = new FakeOAuthServer(refreshTokens: true);
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expiring', 'Bearer', time() + 10, 'a-refresh-token'));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('expiring', 'Bearer', time() + 10, 'a-refresh-token'));
 
         $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
 
         $this->assertSame('refresh_token', $server->token['grant_type'] ?? null);
+    }
+
+    #[TestDox('a token stored by another client configuration in the same storage is not taken over')]
+    public function testDoesNotTakeOverATokenOfAnotherClient(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+        $this->assertSame('registered-client', $server->authorization['client_id'] ?? null);
+
+        $configured = $this->authenticator($server, storage: $storage, configuration: OAuth::forApplication('test')
+            ->setClientCredentials('known-client')
+            ->setExpectedIssuer('https://auth.example.com'));
+        $configured->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+
+        $this->assertSame('known-client', $server->authorization['client_id'] ?? null);
+        $this->assertNotNull($storage->getToken('https://auth.example.com', self::tokenKey()));
+        $this->assertNotNull($storage->getToken('https://auth.example.com', self::tokenKey(clientId: 'known-client')));
+    }
+
+    #[TestDox('a service account does not take over a token stored for a user of the same client')]
+    public function testServiceAccountDoesNotTakeOverAUserToken(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::tokenKey(clientId: 'known-client'), new AccessToken('user-token', 'Bearer', time() + 3600, null, ['mcp:read']));
+
+        $serviceAccount = $this->authenticator($server, storage: $storage, configuration: OAuth::forServiceAccount('test', 'known-client', 'secret')
+            ->setExpectedIssuer('https://auth.example.com'));
+        $serviceAccount->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+
+        $this->assertSame('client_credentials', $server->token['grant_type'] ?? null);
+        $this->assertNotSame('Bearer user-token', $serviceAccount->authenticate($this->request())->getHeaderLine('Authorization'));
     }
 
     #[TestDox('a step-up keeps the scopes of a stored token')]
@@ -1427,7 +1460,7 @@ final class OAuthAuthenticatorTest extends TestCase
     {
         $server = new FakeOAuthServer();
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('stored', 'Bearer', time() + 3600, null, ['mcp:read']));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('stored', 'Bearer', time() + 3600, null, ['mcp:read']));
         $authenticator = $this->authenticator($server, storage: $storage);
 
         $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read']));
@@ -1442,7 +1475,7 @@ final class OAuthAuthenticatorTest extends TestCase
     {
         $server = new FakeOAuthServer(serverScopes: ['offline_access']);
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('stored', 'Bearer', time() + 3600, null, ['mcp:read', 'offline_access']));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('stored', 'Bearer', time() + 3600, null, ['mcp:read', 'offline_access']));
         $authenticator = $this->authenticator($server, storage: $storage, configuration: OAuth::forApplication('test')->setOfflineAccess(false));
 
         $authenticator->handleChallenge((new Psr17Factory())->createRequest('POST', self::ENDPOINT)->withHeader('Authorization', 'Bearer stored'), $server->challenge(['mcp:write'], 403, 'insufficient_scope'));
@@ -1494,7 +1527,7 @@ final class OAuthAuthenticatorTest extends TestCase
     {
         $server = new FakeOAuthServer();
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, null, ['openid', 'mcp:read']));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('expired', 'Bearer', time() - 60, null, ['openid', 'mcp:read']));
 
         $this->authenticator($server, storage: $storage, configuration: OAuth::forApplication('test')->setScopes('openid'))->handleChallenge($this->request(), $server->challenge());
 
@@ -1615,7 +1648,7 @@ final class OAuthAuthenticatorTest extends TestCase
         $server = new FakeOAuthServer(refreshTokens: true);
         $server->refreshAnswer = new Response($status, [], $body);
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'still-good'));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('expired', 'Bearer', time() - 60, 'still-good'));
 
         try {
             $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
@@ -1625,7 +1658,7 @@ final class OAuthAuthenticatorTest extends TestCase
         }
 
         $this->assertSame([], $server->authorization);
-        $this->assertSame('still-good', $storage->getToken('https://auth.example.com', self::ENDPOINT)?->refreshToken);
+        $this->assertSame('still-good', $storage->getToken('https://auth.example.com', self::tokenKey())?->refreshToken);
     }
 
     #[TestWith(['invalid_grant'])]
@@ -1636,7 +1669,7 @@ final class OAuthAuthenticatorTest extends TestCase
         $server = new FakeOAuthServer(refreshTokens: true);
         $server->refreshAnswer = new Response(400, [], (string) json_encode(['error' => $error]));
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'revoked'));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('expired', 'Bearer', time() - 60, 'revoked'));
 
         $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
 
@@ -1860,7 +1893,7 @@ final class OAuthAuthenticatorTest extends TestCase
         $server = new FakeOAuthServer(refreshTokens: true, clientMetadataDocuments: true);
         $server->unknownClient = 'https://app.example.com/client.json';
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'refresh'));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(clientId: 'https://app.example.com/client.json'), new AccessToken('expired', 'Bearer', time() - 60, 'refresh'));
         $configuration = OAuth::forApplication('test')->setClientMetadataUrl('https://app.example.com/client.json');
 
         try {
@@ -1936,7 +1969,7 @@ final class OAuthAuthenticatorTest extends TestCase
     {
         $server = new FakeOAuthServer();
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('broader', 'Bearer', time() + 3600, null, $storedScopes));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('broader', 'Bearer', time() + 3600, null, $storedScopes));
         $authenticator = $this->authenticator($server, storage: $storage, configuration: OAuth::forServiceAccount('job', 'job-client', 'job-secret')
             ->setExpectedIssuer('https://auth.example.com')
             ->setScopes('mcp:read'));
@@ -1952,7 +1985,7 @@ final class OAuthAuthenticatorTest extends TestCase
     {
         $server = new FakeOAuthServer(refreshTokens: true);
         $storage = new InMemoryCredentialStorage();
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('broader', 'Bearer', time() - 60, 'broader-refresh', ['mcp:read', 'admin']));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('broader', 'Bearer', time() - 60, 'broader-refresh', ['mcp:read', 'admin']));
         $authenticator = $this->authenticator($server, storage: $storage, configuration: OAuth::forServiceAccount('job', 'job-client', 'job-secret')
             ->setExpectedIssuer('https://auth.example.com')
             ->setScopes('mcp:read'));
@@ -1998,7 +2031,7 @@ final class OAuthAuthenticatorTest extends TestCase
             ->setScopes('mcp:read'));
         $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read']));
         $current = $authenticator->authenticate($this->request());
-        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('broader', 'Bearer', time() + $expiresIn, null, ['mcp:read', 'admin']));
+        $storage->saveToken('https://auth.example.com', self::tokenKey(), new AccessToken('broader', 'Bearer', time() + $expiresIn, null, ['mcp:read', 'admin']));
         $server->token = [];
 
         $retry = $authenticator->handleChallenge($current, $server->challenge(['admin'], 403, 'insufficient_scope'));
@@ -2252,6 +2285,14 @@ final class OAuthAuthenticatorTest extends TestCase
         };
     }
 
+    /**
+     * The key the authenticator stores a token for ENDPOINT under.
+     */
+    public static function tokenKey(string $grant = 'authorization_code', ?string $clientId = null): string
+    {
+        return self::ENDPOINT.'#'.$grant.(null === $clientId ? '' : ' '.$clientId);
+    }
+
     private function request(): RequestInterface
     {
         return (new Psr17Factory())->createRequest('POST', self::ENDPOINT);
@@ -2273,7 +2314,7 @@ final class OAuthAuthenticatorTest extends TestCase
             public function __construct(private readonly AccessToken $tokenOfOtherProcess)
             {
                 $this->storage = new InMemoryCredentialStorage();
-                $this->storage->saveToken('https://auth.example.com', OAuthAuthenticatorTest::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'original'));
+                $this->storage->saveToken('https://auth.example.com', OAuthAuthenticatorTest::tokenKey(), new AccessToken('expired', 'Bearer', time() - 60, 'original'));
             }
 
             public function getClientRegistration(string $issuer): ?ClientRegistration
@@ -2304,7 +2345,7 @@ final class OAuthAuthenticatorTest extends TestCase
 
             public function synchronize(callable $operation): mixed
             {
-                $this->storage->saveToken('https://auth.example.com', OAuthAuthenticatorTest::ENDPOINT, $this->tokenOfOtherProcess);
+                $this->storage->saveToken('https://auth.example.com', OAuthAuthenticatorTest::tokenKey(), $this->tokenOfOtherProcess);
                 $this->synchronized = true;
 
                 try {
