@@ -1,2 +1,1 @@
-client:
-  - http-invalid-tool-headers:sep-2243-invalid-tool-tools-list-gate
+client: []
