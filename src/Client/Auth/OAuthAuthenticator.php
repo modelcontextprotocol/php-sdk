@@ -42,6 +42,10 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
     private bool $offlineAccessRefused = false;
 
+    /** Where the current token came from, so it can be refreshed before it expires. */
+    private ?AuthorizationServerMetadata $metadata = null;
+    private ?ClientRegistration $client = null;
+
     public function __construct(
         private readonly OAuthConfiguration $configuration,
         private readonly CredentialStorageInterface $storage,
@@ -55,7 +59,9 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
     public function authenticate(RequestInterface $request): RequestInterface
     {
-        if (null === $this->token || $this->token->isExpired()) {
+        $token = $this->token;
+
+        if (null === $token) {
             return $request;
         }
 
@@ -64,7 +70,15 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return $request;
         }
 
-        return $request->withHeader('Authorization', $this->token->getAuthorizationHeader());
+        if ($token->isExpiringSoon()) {
+            $token = $this->refreshBeforeSending($token, $request, $this->audience);
+        }
+
+        if ($token->isExpired()) {
+            return $request;
+        }
+
+        return $request->withHeader('Authorization', $token->getAuthorizationHeader());
     }
 
     public function handleChallenge(RequestInterface $request, ResponseInterface $response): bool
@@ -120,6 +134,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             $this->logger->debug('Reusing a stored access token', ['issuer' => $metadata->issuer, 'resource' => $resource]);
             $this->token = $stored;
             $this->audience = $resource;
+            $this->metadata = $metadata;
+            $this->client = null;
 
             return true;
         }
@@ -164,6 +180,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         $this->token = $token;
         $this->audience = $resource;
+        $this->metadata = $metadata;
+        $this->client = $client;
 
         return true;
     }
@@ -212,6 +230,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         $this->token = null;
         $this->audience = null;
+        $this->metadata = null;
+        $this->client = null;
         $this->requestedScopes = [];
         $this->issuer = $metadata->issuer;
         $this->resource = $pending->resource;
@@ -241,6 +261,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->token = $token->withGrantedScopes($scopes);
         $this->requestedScopes = $scopes;
         $this->audience = $pending->resource;
+        $this->metadata = $metadata;
+        $this->client = $client;
         $this->storage->saveToken($metadata->issuer, $this->tokenKey($pending->resource), $this->token);
     }
 
@@ -447,6 +469,39 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         }
 
         return $this->configuration->scopes;
+    }
+
+    /**
+     * Saves the round trip of a rejected request; on any failure the server's challenge starts the usual flow.
+     */
+    private function refreshBeforeSending(AccessToken $token, RequestInterface $request, string $resource): AccessToken
+    {
+        if (null === $token->refreshToken || null === $this->metadata) {
+            return $token;
+        }
+
+        $client = $this->client ?? $this->knownClient($this->metadata);
+
+        if (null === $client) {
+            return $token;
+        }
+
+        try {
+            $refreshed = $this->refresh($token, $this->metadata, $client, array_values(array_diff($token->scopes, ['offline_access'])), $resource, $request);
+        } catch (AuthorizationException $e) {
+            $this->logger->info('Refreshing the access token before sending failed; leaving it to the server\'s challenge.', ['exception' => $e]);
+
+            return $token;
+        }
+
+        if (null === $refreshed) {
+            return $token;
+        }
+
+        $this->token = $refreshed;
+        $this->client = $client;
+
+        return $refreshed;
     }
 
     /**
@@ -725,24 +780,10 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     private function resolveClient(AuthorizationServerMetadata $metadata, array $scopes, ?array $scopesSupported): ClientRegistration
     {
         $configuration = $this->configuration;
+        $client = $this->configuredClient($metadata);
 
-        if (null !== $configuration->clientId) {
-            return new ClientRegistration(
-                $configuration->clientId,
-                $configuration->clientSecret,
-                TokenEndpointAuthMethod::negotiate(
-                    $metadata->tokenEndpointAuthMethodsSupported,
-                    null !== $configuration->clientSecret,
-                    null !== $configuration->privateKeyPem,
-                    Grant::ClientCredentials !== $configuration->grant,
-                ),
-            );
-        }
-
-        if ($metadata->clientIdMetadataDocumentSupported && null !== $configuration->clientMetadataUrl) {
-            $this->logger->debug('Using the client metadata document URL as the client id', ['client_id' => $configuration->clientMetadataUrl]);
-
-            return new ClientRegistration($configuration->clientMetadataUrl, null, TokenEndpointAuthMethod::negotiate($metadata->tokenEndpointAuthMethodsSupported, false));
+        if (null !== $client) {
+            return $client;
         }
 
         // Another process may register at the same time, and its tokens would not work with this client.
@@ -782,6 +823,51 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $client = $this->configuration->clientId ?? $this->configuration->clientMetadataUrl;
 
         return $resource.'#'.$this->configuration->grant->value.(null === $client ? '' : ' '.$client);
+    }
+
+    /**
+     * The client identity that needs no registration: a configured client or a client metadata document.
+     */
+    private function configuredClient(AuthorizationServerMetadata $metadata): ?ClientRegistration
+    {
+        $configuration = $this->configuration;
+
+        if (null !== $configuration->clientId) {
+            return new ClientRegistration(
+                $configuration->clientId,
+                $configuration->clientSecret,
+                TokenEndpointAuthMethod::negotiate(
+                    $metadata->tokenEndpointAuthMethodsSupported,
+                    null !== $configuration->clientSecret,
+                    null !== $configuration->privateKeyPem,
+                    Grant::ClientCredentials !== $configuration->grant,
+                ),
+            );
+        }
+
+        if ($metadata->clientIdMetadataDocumentSupported && null !== $configuration->clientMetadataUrl) {
+            $this->logger->debug('Using the client metadata document URL as the client id', ['client_id' => $configuration->clientMetadataUrl]);
+
+            return new ClientRegistration($configuration->clientMetadataUrl, null, TokenEndpointAuthMethod::negotiate($metadata->tokenEndpointAuthMethodsSupported, false));
+        }
+
+        return null;
+    }
+
+    /**
+     * The client identity in use, without registering one.
+     */
+    private function knownClient(AuthorizationServerMetadata $metadata): ?ClientRegistration
+    {
+        $client = $this->configuredClient($metadata);
+
+        if (null !== $client) {
+            return $client;
+        }
+
+        $stored = $this->storage->getClientRegistration($metadata->issuer);
+
+        return null !== $stored && !$stored->isExpired() && $this->matchesRedirectUris($stored) ? $stored : null;
     }
 
     /**

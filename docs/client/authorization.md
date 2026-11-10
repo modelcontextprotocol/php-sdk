@@ -248,7 +248,7 @@ OAuth::forApplication('My App')->setScopes('mcp:read', 'mcp:write');
 
 If the server answers with `insufficient_scope`, the client adds the scopes of this challenge and authorizes again. It doesn't authorize again for scopes that it already requested. With any other `403`, the client doesn't authorize again.
 
-If the authorization server supports `offline_access`, the client requests it to get a refresh token. If the server refuses this scope, the client tries again without it. Use `setOfflineAccess(false)` to never request this scope. The server can still issue a refresh token, and the client then uses it.
+If the authorization server supports `offline_access`, the client requests it to get a refresh token. If the server refuses this scope, the client tries again without it. Use `setOfflineAccess(false)` to never request this scope. The server can still issue a refresh token, and the client then uses it. It refreshes a token shortly before it expires, so the server doesn't have to reject a request first.
 
 ## Connecting to Older Servers
 

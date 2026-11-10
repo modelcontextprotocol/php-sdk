@@ -1413,9 +1413,51 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('0', $server->token['code'] ?? null);
     }
 
-    /**
-     * @param ?string[] $grantTypes
-     */
+    #[TestDox('a token that is about to expire is refreshed before the request is sent')]
+    public function testRefreshesBeforeSending(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $server->expiresIn = 10;
+        $authenticator = $this->authenticator($server);
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+        $server->expiresIn = 3600;
+
+        $request = $authenticator->authenticate($this->request());
+
+        $this->assertSame('refresh_token', $server->token['grant_type'] ?? null);
+        $this->assertSame('Bearer access-token-2', $request->getHeaderLine('Authorization'));
+    }
+
+    #[TestDox('a refused refresh before sending keeps the token until it expires, and leaves the rest to the server\'s challenge')]
+    public function testRefusedRefreshBeforeSendingKeepsTheToken(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $server->expiresIn = 10;
+        $authenticator = $this->authenticator($server);
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+        $server->refreshAnswer = new Response(400, [], (string) json_encode(['error' => 'invalid_client']));
+
+        $request = $authenticator->authenticate($this->request());
+
+        $this->assertSame('refresh_token', $server->token['grant_type'] ?? null);
+        $this->assertSame('Bearer access-token-1', $request->getHeaderLine('Authorization'));
+    }
+
+    #[TestDox('a token without a refresh token is sent until it expires, without a token request')]
+    public function testNoRefreshBeforeSendingWithoutARefreshToken(): void
+    {
+        $server = new FakeOAuthServer();
+        $server->expiresIn = 10;
+        $authenticator = $this->authenticator($server);
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+        $requests = \count($server->requested);
+
+        $request = $authenticator->authenticate($this->request());
+
+        $this->assertSame('Bearer access-token-1', $request->getHeaderLine('Authorization'));
+        $this->assertCount($requests, $server->requested);
+    }
+
     #[TestWith([null, 'refresh_token'])]
     #[TestWith([['authorization_code', 'refresh_token'], 'refresh_token'])]
     #[TestWith([['authorization_code'], 'authorization_code'])]
