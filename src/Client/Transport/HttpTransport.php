@@ -861,7 +861,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             // Its reads never block, so drain what arrived, bounded to leave time for the request.
             $total = 0;
             do {
-                $done = $this->pumpSse($stream, $this->listenParser, $this->dispatchSseData(...), $onOverflow, $read);
+                $done = $this->pumpSse($stream, $this->listenParser, $this->dispatchSseData(...), $onOverflow, $read, min(4096, self::MAX_LISTEN_BYTES_PER_TICK - $total));
                 $total += $read;
             } while (!$done && 0 < $read && $total < self::MAX_LISTEN_BYTES_PER_TICK && $stream === $this->listenStream);
         } catch (\Throwable $e) {
@@ -892,9 +892,9 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      *
      * @return bool whether the stream is done: ended, or given up for its size
      */
-    private function pumpSse(StreamInterface $stream, SseParser $parser, callable $onEvent, callable $onOverflow, ?int &$read = null): bool
+    private function pumpSse(StreamInterface $stream, SseParser $parser, callable $onEvent, callable $onOverflow, ?int &$read = null, int $length = 4096): bool
     {
-        $chunk = $stream->eof() ? '' : $stream->read(4096);
+        $chunk = $stream->eof() ? '' : $stream->read($length);
         $read = \strlen($chunk);
 
         if (!$parser->append($chunk)) {
