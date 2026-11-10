@@ -1491,6 +1491,25 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('Bearer access-token-1', $request->getHeaderLine('Authorization'));
     }
 
+    #[TestWith([400, 'invalid_grant'])]
+    #[TestWith([503, 'temporarily_unavailable'])]
+    #[TestDox('a failed refresh before sending is not tried again for the same token: $_dataName')]
+    public function testFailedRefreshBeforeSendingIsNotRepeated(int $status, string $error): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $server->expiresIn = 10;
+        $authenticator = $this->authenticator($server);
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+        $server->refreshAnswer = new Response($status, [], (string) json_encode(['error' => $error]));
+        $tokenRequests = \count(array_filter($server->requested, static fn (string $url): bool => str_ends_with($url, '/token')));
+
+        $authenticator->authenticate($this->request());
+        $request = $authenticator->authenticate($this->request());
+
+        $this->assertCount($tokenRequests + 1, array_filter($server->requested, static fn (string $url): bool => str_ends_with($url, '/token')));
+        $this->assertSame('Bearer access-token-1', $request->getHeaderLine('Authorization'));
+    }
+
     #[TestDox('a storage failure during the refresh before sending keeps the token until it expires')]
     public function testStorageFailureBeforeSendingKeepsTheToken(): void
     {

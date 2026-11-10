@@ -47,6 +47,9 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     private ?AuthorizationServerMetadata $metadata = null;
     private ?ClientRegistration $client = null;
 
+    /** A refresh before sending that failed isn't repeated for the same token, as a down token endpoint would delay every request. */
+    private ?AccessToken $refreshFailedFor = null;
+
     public function __construct(
         private readonly OAuthConfiguration $configuration,
         private readonly CredentialStorageInterface $storage,
@@ -484,7 +487,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      */
     private function refreshBeforeSending(AccessToken $token, RequestInterface $request, string $resource): AccessToken
     {
-        if (null === $token->refreshToken || null === $this->metadata) {
+        if (null === $token->refreshToken || null === $this->metadata || $token === $this->refreshFailedFor) {
             return $token;
         }
 
@@ -498,11 +501,14 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             $refreshed = $this->refresh($token, $this->metadata, $client, array_values(array_diff($token->scopes, ['offline_access'])), $resource, $request);
         } catch (AuthorizationException|RuntimeException $e) {
             $this->logger->info('Refreshing the access token before sending failed; leaving it to the server\'s challenge.', ['exception' => $e]);
+            $this->refreshFailedFor = $token;
 
             return $token;
         }
 
         if (null === $refreshed) {
+            $this->refreshFailedFor = $token;
+
             return $token;
         }
 
