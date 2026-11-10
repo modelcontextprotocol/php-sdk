@@ -743,6 +743,26 @@ final class HttpTransportTest extends TestCase
         $this->assertCount($requests, $httpClient->requests);
     }
 
+    #[TestDox('a Symfony client passed without auth stops following redirects')]
+    public function testPassedSymfonyClientStopsFollowingRedirects(): void
+    {
+        if (!(new \ReflectionClass(Psr18Client::class))->hasMethod('withOptions')) {
+            $this->markTestSkipped('Psr18Client has no withOptions() before symfony/http-client 6.2.');
+        }
+
+        $maxRedirects = null;
+        $mock = new MockHttpClient(static function (string $method, string $url, array $options) use (&$maxRedirects): MockResponse {
+            $maxRedirects = $options['max_redirects'];
+
+            return new MockResponse('', ['http_code' => 202]);
+        });
+
+        $transport = new HttpTransport('http://localhost/mcp', httpClient: new Psr18Client($mock), requestFactory: $this->factory, streamFactory: $this->factory);
+        $transport->send('{"jsonrpc":"2.0","method":"notifications/initialized"}');
+
+        $this->assertSame(0, $maxRedirects);
+    }
+
     #[TestDox('a discovered Symfony client keeps its configuration and stops following redirects')]
     public function testDiscoveredClientKeepsItsConfiguration(): void
     {
