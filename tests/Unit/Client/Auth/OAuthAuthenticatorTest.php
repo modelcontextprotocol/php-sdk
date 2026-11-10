@@ -827,6 +827,38 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('registered-client', $server->token['client_id'] ?? null);
     }
 
+    #[TestDox('an unknown client on a refresh keeps the client another worker registered meanwhile')]
+    public function testRefreshKeepsAClientRegisteredByAnotherWorker(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $server->unknownClient = 'forgotten-client';
+        $storage = $this->storageWithAnotherWorkerRegistering();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token'));
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame([], $server->registration);
+        $this->assertSame('other-worker-client', $server->token['client_id'] ?? null);
+        $this->assertSame('other-worker-client', $storage->getClientRegistration('https://auth.example.com')?->clientId);
+    }
+
+    #[TestDox('an unknown client on the code exchange keeps the client another worker registered meanwhile')]
+    public function testCodeExchangeKeepsAClientRegisteredByAnotherWorker(): void
+    {
+        $server = new FakeOAuthServer();
+        $server->unknownClient = 'forgotten-client';
+        $storage = $this->storageWithAnotherWorkerRegistering();
+
+        try {
+            $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The unknown client should have failed.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('invalid_client', $e->getMessage());
+        }
+
+        $this->assertSame('other-worker-client', $storage->getClientRegistration('https://auth.example.com')?->clientId);
+    }
+
     #[TestDox('a client that was not registered dynamically is not replaced when it is unknown')]
     public function testDoesNotReplaceAConfiguredClient(): void
     {
@@ -1760,6 +1792,61 @@ final class OAuthAuthenticatorTest extends TestCase
 
         $this->assertSame([], $server->authorization);
         $this->assertNotContains('https://auth.example.com/register', $server->requested);
+    }
+
+    /**
+     * Holds a registration that another worker replaces once the authenticator has picked it up.
+     */
+    private function storageWithAnotherWorkerRegistering(): CredentialStorageInterface
+    {
+        return new class implements CredentialStorageInterface {
+            private readonly InMemoryCredentialStorage $storage;
+
+            private bool $replaced = false;
+
+            public function __construct()
+            {
+                $this->storage = new InMemoryCredentialStorage();
+                $this->storage->saveClientRegistration('https://auth.example.com', new ClientRegistration('forgotten-client', dynamic: true));
+            }
+
+            public function getClientRegistration(string $issuer): ?ClientRegistration
+            {
+                return $this->storage->getClientRegistration($issuer);
+            }
+
+            public function saveClientRegistration(string $issuer, ClientRegistration $registration): void
+            {
+                $this->storage->saveClientRegistration($issuer, $registration);
+            }
+
+            public function getToken(string $issuer, string $resource): ?AccessToken
+            {
+                return $this->storage->getToken($issuer, $resource);
+            }
+
+            public function saveToken(string $issuer, string $resource, AccessToken $token): void
+            {
+                $this->storage->saveToken($issuer, $resource, $token);
+            }
+
+            public function forget(?string $issuer = null): void
+            {
+                $this->storage->forget($issuer);
+            }
+
+            public function synchronize(callable $operation): mixed
+            {
+                $result = $operation();
+
+                if (!$this->replaced) {
+                    $this->replaced = true;
+                    $this->storage->saveClientRegistration('https://auth.example.com', new ClientRegistration('other-worker-client', null, TokenEndpointAuthMethod::None, true, null, ['http://127.0.0.1:8765/callback']));
+                }
+
+                return $result;
+            }
+        };
     }
 
     private function request(): RequestInterface
