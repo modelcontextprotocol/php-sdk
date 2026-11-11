@@ -26,11 +26,10 @@
           },
           "time": {
             "type": [
-              "null",
-              "string"
+              "string",
+              "null"
             ],
-            "description": "the time of the event (HH:MM), optional",
-            "default": null
+            "description": "the time of the event (HH:MM), optional"
           },
           "priority": {
             "type": "string",
@@ -48,7 +47,6 @@
               "null"
             ],
             "description": "an optional list of attendee email addresses",
-            "default": null,
             "items": {
               "type": "string"
             }
@@ -60,16 +58,22 @@
           },
           "labels": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "labels of the event by name",
             "default": {}
           },
           "metadata": {
-            "type": [
-              "null",
-              "object"
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "description": "free-form data stored with the event, exactly as sent",
-            "default": null
+            "description": "free-form data stored with the event, exactly as sent"
           }
         },
         "required": [

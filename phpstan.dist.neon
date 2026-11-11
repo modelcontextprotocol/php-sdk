@@ -16,9 +16,3 @@ parameters:
         -
             identifier: missingType.iterableValue
             path: tests/
-
-        # These errors should actually be fixed, but are ignored for now
-        -
-            identifier: missingType.iterableValue
-            path: src/Server/Capability/Discovery/SchemaGenerator.php
-            count: 12

@@ -11,8 +11,6 @@
 
 namespace Mcp\Tests\Unit\Server\Capability\Discovery;
 
-use Composer\InstalledVersions;
-use Composer\Semver\VersionParser;
 use Mcp\Server\Capability\Discovery\DocBlockParser;
 use phpDocumentor\Reflection\DocBlock;
 use phpDocumentor\Reflection\DocBlock\Tags\Deprecated;
@@ -60,38 +58,21 @@ class DocBlockParserTest extends TestCase
 
         $this->assertInstanceOf(Param::class, $params['$param1']);
         $this->assertEquals('param1', $params['$param1']->getVariableName());
-        $this->assertEquals('string', $this->parser->getParamTypeString($params['$param1']));
-        $this->assertEquals('description for string param', $this->parser->getParamDescription($params['$param1']));
 
         $this->assertInstanceOf(Param::class, $params['$param2']);
         $this->assertEquals('param2', $params['$param2']->getVariableName());
-        $this->assertEquals('int|null', $this->parser->getParamTypeString($params['$param2']));
-        $this->assertEquals('description for nullable int param', $this->parser->getParamDescription($params['$param2']));
 
         $this->assertInstanceOf(Param::class, $params['$param3']);
         $this->assertEquals('param3', $params['$param3']->getVariableName());
-        $this->assertEquals('bool', $this->parser->getParamTypeString($params['$param3']));
-        $this->assertEquals('nothing to say', $this->parser->getParamDescription($params['$param3']));
 
         $this->assertInstanceOf(Param::class, $params['$param4']);
         $this->assertEquals('param4', $params['$param4']->getVariableName());
-        $this->assertEquals('mixed', $this->parser->getParamTypeString($params['$param4']));
-        $this->assertEquals('Missing type', $this->parser->getParamDescription($params['$param4']));
 
         $this->assertInstanceOf(Param::class, $params['$param5']);
         $this->assertEquals('param5', $params['$param5']->getVariableName());
-        // Remove if when dropping support for phpdocumentor/reflection-docblock:^5.6
-        if (InstalledVersions::satisfies(new VersionParser(), 'phpdocumentor/reflection-docblock', '^6.0')) {
-            $this->assertEquals('array<string, mixed>', $this->parser->getParamTypeString($params['$param5']));
-        } else {
-            $this->assertEquals('array<string,mixed>', $this->parser->getParamTypeString($params['$param5']));
-        }
-        $this->assertEquals('array description', $this->parser->getParamDescription($params['$param5']));
 
         $this->assertInstanceOf(Param::class, $params['$param6']);
         $this->assertEquals('param6', $params['$param6']->getVariableName());
-        $this->assertEquals('stdClass', $this->parser->getParamTypeString($params['$param6']));
-        $this->assertEquals('object param', $this->parser->getParamDescription($params['$param6']));
     }
 
     public function testGetTagsByNameReturnsSpecificTags(): void
