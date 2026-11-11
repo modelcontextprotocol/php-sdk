@@ -168,8 +168,8 @@ A reverse proxy validating `Host` alone does not replace Origin validation.
 ## Protocol Version Validation
 
 `ProtocolVersionMiddleware` rejects requests whose `MCP-Protocol-Version` header is not in the SDK's supported
-set with `400 Bad Request`. Requests without the header pass through, since the `initialize` round-trip and some
-legacy clients do not send it.
+set with `400 Bad Request`. Requests without the header pass through, since a client need not send it on
+`initialize` and some legacy clients never send it.
 
 The transport applies it to handshake-era traffic only, always with the default set, and also when you replace the
 default stack. `StreamableHttpTransport::handshakeMiddleware()` returns it. Don't add it to a custom
@@ -180,14 +180,21 @@ The default set is `ProtocolVersion::handshakeVersions()` — every revision the
 `ProtocolVersion::DEFAULT_HEADER_VERSION` (`2025-03-26`), the revision that introduced both Streamable HTTP and the
 header itself, so a header-less request cannot be newer than that.
 
-This header check is separate from, and happens after, the handshake itself. See
-[Protocol versions](../protocol-versions.md#negotiating-in-the-handshake-era) for how the revision is agreed in the
-first place. The check is also unaffected by `setProtocolVersion()`, so a server that pins the handshake still
-accepts every handshake revision in this header.
+On `initialize`, the body is authoritative: the server negotiates from `params.protocolVersion` as described in
+[Protocol versions](../protocol-versions.md#negotiating-in-the-handshake-era), and a pin set with
+`setProtocolVersion()` still wins over it (see [Pinning a revision](../protocol-versions.md#pinning-a-revision)). The
+header plays no part in negotiation and is not compared with `params.protocolVersion`. A client re-initializing may
+still send the revision it negotiated on an earlier connection in the header while its body proposes another, so the
+two are allowed to differ.
+
+The header check is unaffected by `setProtocolVersion()`, so a server that pins the handshake still accepts every
+handshake revision in this header.
 
 Modern revisions never reach it. A `2026-07-28` request declares its revision in `params._meta` and repeats it in
 the `MCP-Protocol-Version` header. The server answers a missing or different header with `400` and error code
-`-32020`. See [Serving both eras](protocol-eras.md).
+`-32020`. A request whose header names a modern revision but whose body lacks the `params._meta` envelope, such as a
+handshake-era `initialize`, is refused by the transport with `400` and error code `-32602`. See
+[Serving both eras](protocol-eras.md).
 
 ## Request Body Size Limit
 
