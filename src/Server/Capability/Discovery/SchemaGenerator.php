@@ -17,6 +17,9 @@ use Mcp\Server\Capability\Registry\InjectableParameters;
 use Mcp\Server\Exception\BadMethodCallException;
 use Mcp\Server\Exception\InvalidArgumentException;
 use Symfony\Component\JsonSchema\Configuration;
+use Symfony\Component\JsonSchema\Dialect;
+use Symfony\Component\JsonSchema\Direction;
+use Symfony\Component\JsonSchema\NullSyntax;
 use Symfony\Component\JsonSchema\Schema as JsonSchema;
 use Symfony\Component\JsonSchema\SchemaGenerator as JsonSchemaGenerator;
 use Symfony\Component\JsonSchema\SchemaGeneratorInterface as JsonSchemaGeneratorInterface;
@@ -35,11 +38,18 @@ final class SchemaGenerator implements SchemaGeneratorInterface
     private readonly JsonSchemaGeneratorInterface $generator;
     private readonly TypeResolverInterface $typeResolver;
 
+    /**
+     * Each schema is a document of its own, so definitions are named after their class only.
+     *
+     * @param Configuration $configuration       The configuration of input schemas
+     * @param Configuration $outputConfiguration The configuration of output schemas
+     */
     public function __construct(
         ?JsonSchemaGeneratorInterface $generator = null,
         ?TypeResolverInterface $typeResolver = null,
-        private readonly Configuration $configuration = new Configuration(),
+        private readonly Configuration $configuration = new Configuration(new Dialect('#/$defs/', NullSyntax::Union), definitionName: '', direction: Direction::Input),
         private readonly bool $outputSchemaFromReturnType = false,
+        private readonly Configuration $outputConfiguration = new Configuration(new Dialect('#/$defs/', NullSyntax::Union), definitionName: '', direction: Direction::Output),
     ) {
         $this->generator = $generator ?? JsonSchemaGenerator::create();
         $this->typeResolver = $typeResolver ?? TypeResolver::create();
@@ -72,7 +82,6 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         }
 
         $schema = self::toArray($this->generator->generateForParameters(array_values($parameters), $this->configuration)->flatten());
-        unset($schema['$schema']);
 
         $methodProperties = $methodSchema['properties'] ?? [];
         $methodRequired = $methodSchema['required'] ?? [];
@@ -129,8 +138,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             return null;
         }
 
-        $schema = self::toArray($this->generator->generate($type, $this->configuration)->flatten());
-        unset($schema['$schema']);
+        $schema = self::toArray($this->generator->generate($type, $this->outputConfiguration)->flatten());
 
         return $schema;
     }

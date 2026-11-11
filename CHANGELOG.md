@@ -9,7 +9,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 * Discovery
   * [BC Break] Generate tool input and output schemas with `symfony/json-schema`. Unions are described with `anyOf`, `null` comes last in `type`, `default: null` is no longer emitted, array shapes are closed with `additionalProperties: false`, string-keyed maps get `additionalProperties`, and a class parameter is described by its properties.
-  * [BC Break] `SchemaGenerator` takes a `Symfony\Component\JsonSchema\SchemaGeneratorInterface`, a `TypeResolverInterface` and a `Configuration` instead of a `DocBlockParser`.
+  * [BC Break] `SchemaGenerator` takes a `Symfony\Component\JsonSchema\SchemaGeneratorInterface`, a `TypeResolverInterface` and the input and output `Configuration` instead of a `DocBlockParser`.
   * [BC Break] Describe `array<int, V>` and `array<array-key, V>` as a JSON array, so a JSON object is rejected. Use `array<string, V>` for a map.
   * [BC Break] Remove `DocBlockParser::getParamTypeString()` and `DocBlockParser::getParamDescription()`.
   * Add the `outputSchemaFromReturnType` argument of `SchemaGenerator`, to describe the output of a tool that returns an object by its class.

@@ -727,7 +727,7 @@ final class SchemaGeneratorTest extends TestCase
         $schema = (new SchemaGenerator(outputSchemaFromReturnType: true))->generateOutputSchema($method);
         $this->assertNotNull($schema);
         $this->assertSame('object', $schema['type']);
-        $this->assertSame(['email', 'age'], $schema['required']);
+        $this->assertSame(['email', 'age', 'address', 'tags', 'birthday'], $schema['required']);
     }
 
     public function testExplicitOutputSchemaWins(): void
