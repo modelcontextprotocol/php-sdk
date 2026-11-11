@@ -366,10 +366,14 @@ final class SchemaGenerator implements SchemaGeneratorInterface
 
         // If no items specified by Schema attribute, infer from type
         if (!isset($paramSchema['items'])) {
+            // Reflection gives a variadic its element type, so an enum constrains each item.
+            $enumItems = $this->applyEnumConstraints([], $paramInfo);
             $itemJsonTypes = $this->mapPhpTypeToJsonSchemaType($paramInfo['type_string']);
             $nonNullItemTypes = array_filter($itemJsonTypes, static fn ($t) => 'null' !== $t);
 
-            if (1 === \count($nonNullItemTypes)) {
+            if ([] !== $enumItems) {
+                $paramSchema['items'] = $enumItems;
+            } elseif (1 === \count($nonNullItemTypes)) {
                 $paramSchema['items'] = ['type' => $nonNullItemTypes[0]];
             }
         }
