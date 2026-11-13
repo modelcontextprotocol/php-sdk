@@ -959,6 +959,35 @@ final class ProtocolTest extends TestCase
         $this->assertStringContainsString('No handler found', $message['error']['message']);
     }
 
+    #[TestDox('Request for a method the SDK does not know returns method not found error')]
+    public function testUnknownMethodReturnsMethodNotFoundError(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        $transport = new RecordingTransport();
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput(
+            $transport,
+            '{"jsonrpc": "2.0", "id": 7, "method": "nonexistent/method", "params": {}}',
+            Uuid::v4()
+        );
+
+        $this->assertCount(1, $transport->sent);
+        $message = json_decode($transport->sent[0]['message'], true);
+        $this->assertSame(Error::METHOD_NOT_FOUND, $message['error']['code']);
+        $this->assertSame(7, $message['id']);
+    }
+
     #[TestDox('Handler throwing InvalidArgumentException returns invalid params error')]
     public function testHandlerInvalidArgumentReturnsInvalidParamsError(): void
     {
