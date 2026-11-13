@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\PingRequest;
@@ -808,6 +809,43 @@ final class StreamableHttpTransportTest extends TestCase
     }
 
     /**
+     * @return iterable<string, array{string, ?string, bool}>
+     */
+    public static function provideInitializeVersionHeaders(): iterable
+    {
+        foreach (['without sessions' => false, 'with sessions' => true] as $mode => $withSession) {
+            yield 'an older header, '.$mode => [ProtocolVersion::V2025_11_25->value, ProtocolVersion::V2025_03_26->value, $withSession];
+            yield 'a newer header, '.$mode => [ProtocolVersion::V2025_03_26->value, ProtocolVersion::V2025_11_25->value, $withSession];
+            yield 'no header, '.$mode => [ProtocolVersion::V2025_11_25->value, null, $withSession];
+        }
+    }
+
+    #[DataProvider('provideInitializeVersionHeaders')]
+    #[TestDox('initialize negotiates the body version given $_dataName')]
+    public function testInitializeNegotiatesTheBodyVersion(string $bodyVersion, ?string $headerVersion, bool $withSession): void
+    {
+        $store = new InMemorySessionStore();
+        $builder = Server::builder()->setServerInfo('test', '1.0');
+
+        if ($withSession) {
+            $builder->setSession($store);
+        }
+
+        $response = $builder->build()->run(new StreamableHttpTransport($this->initializeRequest($bodyVersion, $headerVersion), $this->factory, $this->factory));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame($bodyVersion, json_decode((string) $response->getBody(), true)['result']['protocolVersion'] ?? null);
+
+        if ($withSession) {
+            $sessionId = $response->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+            $this->assertNotSame('', $sessionId);
+
+            $session = new Session($store, Uuid::fromString($sessionId));
+            $this->assertSame($bodyVersion, $session->get('protocol_version'));
+        }
+    }
+
+    /**
      * Sends one POST to a fresh server sharing $store, like a PHP worker would.
      */
     private function post(InterleavingSessionStore $store, string $body, string $sessionId = '', ?SessionLockInterface $lock = null): ResponseInterface
@@ -880,6 +918,22 @@ final class StreamableHttpTransportTest extends TestCase
             ->withBody($this->factory->createStream('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'));
 
         return $server->run(new StreamableHttpTransport($request, $this->factory, $this->factory))->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+    }
+
+    private function initializeRequest(string $bodyVersion, ?string $headerVersion): ServerRequestInterface
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader('Content-Type', 'application/json')
+            ->withHeader('Accept', 'application/json, text/event-stream')
+            ->withBody($this->factory->createStream(\sprintf('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"%s","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}', $bodyVersion)));
+
+        if (null === $headerVersion) {
+            return $request;
+        }
+
+        return $request->withHeader(StreamableHttpTransport::PROTOCOL_VERSION_HEADER, $headerVersion);
     }
 
     private function delete(Server $server, string $sessionId): ResponseInterface
