@@ -51,7 +51,7 @@ final class DiscoverHandler implements RequestHandlerInterface
             $request->getId(),
             new DiscoverResult(
                 $this->supportedVersions,
-                $this->configuration->capabilities,
+                $this->configuration->capabilities(),
                 $this->configuration->instructions,
             ),
         );

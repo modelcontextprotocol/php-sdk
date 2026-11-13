@@ -15,7 +15,7 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListResourceTemplatesRequest;
 use Mcp\Schema\Result\ListResourceTemplatesResult;
-use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Capability\ElementCatalogInterface;
 use Mcp\Server\Exception\InvalidCursorException;
 use Mcp\Server\Session\SessionInterface;
 
@@ -27,7 +27,7 @@ use Mcp\Server\Session\SessionInterface;
 final class ListResourceTemplatesHandler implements RequestHandlerInterface
 {
     public function __construct(
-        private readonly RegistryInterface $registry,
+        private readonly ElementCatalogInterface $registry,
         private readonly int $pageSize = 20,
     ) {
     }

@@ -40,6 +40,7 @@ use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Subscription\PublishingEventDispatcher;
 use Mcp\Server\Transport\InMemoryTransport;
+use Mcp\Tests\Unit\Server\Capability\Registry\Loader\Stub\RecordingLoader;
 use Mcp\Tests\Unit\Server\Extension\ThingExtension;
 use Mcp\Tests\Unit\Server\Extension\ThingListHandler;
 use Mcp\Tests\Unit\Server\Extension\ThingListRequest;
@@ -466,21 +467,23 @@ final class BuilderTest extends TestCase
         $this->assertContainsOnlyInstancesOf(ThingListHandler::class, $handlers);
     }
 
-    #[TestDox('Lazy loading (default) advertises tools from configured sources without running loaders')]
-    public function testLazyLoadingAdvertisesFromConfiguredSourcesWithoutLoading(): void
+    #[TestDox('Lazy loading (default) runs the loaders when a request asks for the capabilities, not at build time')]
+    public function testLazyLoadingDetectsCapabilitiesFromTheLoadedRegistry(): void
     {
-        $loader = $this->createMock(LoaderInterface::class);
-        $loader->expects($this->never())->method('load');
+        $calls = new \ArrayObject();
 
         $server = Server::builder()
             ->setServerInfo('test', '1.0.0')
-            ->addLoader($loader)
+            ->addLoader(new RecordingLoader('loader', $calls))
             ->build();
+
+        $this->assertSame([], $calls->getArrayCopy());
 
         $capabilities = $this->extractServerCapabilities($server);
 
-        // A custom loader is opaque, so its presence advertises tools even though it never ran.
-        $this->assertTrue($capabilities->tools);
+        // The loader ran but registered nothing, so the loaded registry advertises no tools.
+        $this->assertSame(['loader'], $calls->getArrayCopy());
+        $this->assertFalse($capabilities->tools);
     }
 
     #[TestDox('Eager loading runs the loaders at build time and advertises from the loaded registry')]
@@ -551,7 +554,7 @@ final class BuilderTest extends TestCase
             if ($handler instanceof InitializeHandler) {
                 $this->assertNotNull($handler->configuration);
 
-                return $handler->configuration->capabilities;
+                return $handler->configuration->capabilities();
             }
         }
 
@@ -622,6 +625,74 @@ final class BuilderTest extends TestCase
             ->setRegistry($registry)
             ->addTool(static fn (): string => 'ok', 'alpha')
             ->build();
+    }
+
+    public function testASuppliedRegistryStaysEagerByDefault(): void
+    {
+        $registry = new Registry();
+
+        Server::builder()
+            ->setRegistry($registry)
+            ->addTool(static fn (): string => 'ok', 'alpha')
+            ->build();
+
+        $this->assertTrue($registry->hasTool('alpha'));
+    }
+
+    public function testASuppliedRegistryIsDeferredWhenLazyLoadingIsAskedFor(): void
+    {
+        $calls = new \ArrayObject();
+
+        $server = Server::builder()
+            ->setRegistry(new Registry())
+            ->setLazyLoading()
+            ->addLoader(new RecordingLoader('loader', $calls))
+            ->build();
+
+        $this->assertSame([], $calls->getArrayCopy());
+
+        $this->extractServerCapabilities($server);
+
+        $this->assertSame(['loader'], $calls->getArrayCopy());
+    }
+
+    public function testASuppliedRegistryWithItsOwnLoaderIsNotLoadedByTheBuild(): void
+    {
+        $calls = new \ArrayObject();
+
+        $server = Server::builder()
+            ->setRegistry(new Registry(loader: new RecordingLoader('own', $calls)))
+            ->setLazyLoading()
+            ->build();
+
+        $this->assertSame([], $calls->getArrayCopy());
+
+        $this->extractServerCapabilities($server);
+
+        $this->assertSame(['own'], $calls->getArrayCopy());
+    }
+
+    public function testAThirdPartyRegistryIsNotReadByTheBuild(): void
+    {
+        $registry = $this->createMock(RegistryInterface::class);
+        $registry->expects($this->never())->method('hasTools');
+
+        Server::builder()->setRegistry($registry)->setLazyLoading()->build();
+    }
+
+    public function testADeferredThirdPartyRegistryAdvertisesWhatItHolds(): void
+    {
+        $registry = $this->createStub(RegistryInterface::class);
+        $registry->method('hasPrompts')->willReturn(true);
+
+        $capabilities = $this->extractServerCapabilities(Server::builder()
+            ->setRegistry($registry)
+            ->setLazyLoading()
+            ->build());
+
+        $this->assertTrue($capabilities->prompts);
+        $this->assertFalse($capabilities->tools);
+        $this->assertFalse($capabilities->resources);
     }
 }
 

@@ -359,9 +359,19 @@ final class StatelessProtocol
     {
         $notifications = \is_array($params['notifications'] ?? null) ? $params['notifications'] : null;
         // Only the bus delivers anything on this stream.
-        $agreed = null === $this->notificationBus
-            ? new NotificationFilter()
-            : NotificationFilter::fromParams($notifications)->intersect($this->configuration->capabilities);
+        if (null === $this->notificationBus) {
+            $agreed = new NotificationFilter();
+        } else {
+            try {
+                $capabilities = $this->configuration->capabilities();
+            } catch (\Throwable $e) {
+                $this->logger->error('Resolving the server capabilities failed on a subscriptions/listen request.', ['exception' => $e]);
+
+                return StatelessResult::error(Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $id), 500);
+            }
+
+            $agreed = NotificationFilter::fromParams($notifications)->intersect($capabilities);
+        }
 
         $lifetime = $this->subscriptionLifetime;
         $bus = $this->notificationBus;

@@ -38,6 +38,9 @@ use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\Capability\Registry;
+use Mcp\Server\Capability\Registry\Loader\LoaderInterface;
+use Mcp\Server\Capability\RegistryInterface;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Configuration;
 use Mcp\Server\Event\ErrorEvent;
@@ -45,6 +48,7 @@ use Mcp\Server\Event\RequestEvent;
 use Mcp\Server\Event\ResponseEvent;
 use Mcp\Server\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Server\Exception\ResourceReadException;
+use Mcp\Server\Exception\RuntimeException;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Server;
@@ -1479,6 +1483,31 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame(42, $frames[3]['id']);
         $this->assertSame(42, $frames[3]['result']['_meta'][RequestMeta::SUBSCRIPTION_ID]);
         $this->assertSame('complete', $frames[3]['result']['resultType']);
+    }
+
+    #[TestDox('a listen request answers with an error when resolving the capabilities fails')]
+    public function testListenAnswersAFailingLoadWithAnError(): void
+    {
+        $loader = new class implements LoaderInterface {
+            public function load(RegistryInterface $registry): void
+            {
+                throw new RuntimeException('source not ready');
+            }
+        };
+
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setRegistry(new Registry(loader: $loader))
+            ->setLazyLoading()
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $result = $protocol->handleInline(self::inlineRequest('subscriptions/listen', ['notifications' => ['toolsListChanged' => true]]));
+
+        $this->assertFalse($result->isStream());
+        $this->assertSame(500, $result->httpStatus);
+        $body = json_decode($result->toJson(), true, flags: \JSON_THROW_ON_ERROR);
+        $this->assertSame(Error::INTERNAL_ERROR, $body['error']['code']);
     }
 
     /**

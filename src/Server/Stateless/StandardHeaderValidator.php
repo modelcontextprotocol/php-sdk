@@ -13,7 +13,7 @@ namespace Mcp\Server\Stateless;
 
 use Mcp\Schema\Json;
 use Mcp\Schema\Wire\McpHeader;
-use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Capability\ElementResolverInterface;
 use Mcp\Server\Exception\ConfigurationException;
 use Mcp\Server\Exception\ToolNotFoundException;
 
@@ -36,7 +36,7 @@ final class StandardHeaderValidator
     private const MAX_SAFE_INTEGER = 2 ** 53 - 1;
 
     public function __construct(
-        private readonly ?RegistryInterface $registry = null,
+        private readonly ?ElementResolverInterface $registry = null,
     ) {
     }
 

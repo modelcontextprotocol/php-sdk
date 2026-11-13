@@ -21,8 +21,8 @@ use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Tool;
 use Mcp\Server\Capability\Discovery\SchemaValidator;
+use Mcp\Server\Capability\ElementResolverInterface;
 use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Server\Capability\RegistryInterface;
 use Mcp\Server\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Server\Exception\RegistryException;
 use Mcp\Server\Exception\SessionRequiredException;
@@ -47,7 +47,7 @@ final class CallToolHandler implements RequestHandlerInterface
     private SchemaValidator $schemaValidator;
 
     public function __construct(
-        private readonly RegistryInterface $registry,
+        private readonly ElementResolverInterface $registry,
         private readonly ReferenceHandlerInterface $referenceHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
         ?SchemaValidator $schemaValidator = null,
