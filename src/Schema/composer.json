@@ -1,0 +1,45 @@
+{
+    "name": "mcp/schema",
+    "description": "Model Context Protocol schema: the messages, results and content types shared by MCP clients and servers",
+    "license": "Apache-2.0",
+    "type": "library",
+    "keywords": [
+        "mcp",
+        "model-context-protocol",
+        "ai",
+        "schema"
+    ],
+    "homepage": "https://php.sdk.modelcontextprotocol.io",
+    "authors": [
+        {
+            "name": "Christopher Hertel",
+            "email": "mail@christopher-hertel.de"
+        },
+        {
+            "name": "Kyrian Obikwelu",
+            "email": "koshnawaza@gmail.com"
+        },
+        {
+            "name": "Tobias Nyholm",
+            "email": "tobias.nyholm@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "symfony/polyfill-mbstring": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Mcp\\Schema\\": ""
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "thanks": {
+            "name": "mcp/sdk",
+            "url": "https://github.com/modelcontextprotocol/php-sdk"
+        }
+    }
+}
