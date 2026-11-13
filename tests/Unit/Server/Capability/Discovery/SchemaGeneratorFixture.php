@@ -513,6 +513,14 @@ class SchemaGeneratorFixture
     {
     }
 
+    public function variadicBackedEnum(BackedStringEnum ...$options): void
+    {
+    }
+
+    public function variadicUnitEnum(UnitEnum ...$answers): void
+    {
+    }
+
     /**
      * Variadic with Schema constraints.
      *
