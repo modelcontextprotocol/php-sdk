@@ -40,6 +40,9 @@ trait ManagesTransportCallbacks
     /** @var callable(Uuid, McpFiber): array<string, array<string, mixed>> */
     protected $pendingRequestsProvider;
 
+    /** @var callable(Uuid, McpFiber): bool */
+    protected $cancellationChecker;
+
     /** @var (callable(Uuid, Uuid): (Response<array<string, mixed>>|Error|null))|null */
     protected $responseFinder;
 
@@ -64,6 +67,14 @@ trait ManagesTransportCallbacks
     public function setPendingRequestsProvider(callable $provider): void
     {
         $this->pendingRequestsProvider = $provider;
+    }
+
+    /**
+     * @param callable(Uuid, McpFiber): bool $checker
+     */
+    public function setCancellationChecker(callable $checker): void
+    {
+        $this->cancellationChecker = $checker;
     }
 
     /**

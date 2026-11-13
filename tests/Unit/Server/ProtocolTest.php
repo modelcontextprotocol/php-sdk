@@ -2746,6 +2746,224 @@ final class ProtocolTest extends TestCase
         $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": null, "error": {"code": -32700, "message": "Parse error"}}', $session->getId());
     }
 
+    #[TestDox('notifications/cancelled drops a suspended handshake-era fiber and does not answer it')]
+    public function testCancelledNotificationDropsSuspendedFiberAndDoesNotAnswerIt(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
+
+            return new Response($request->getId(), ['content' => [['type' => 'text', 'text' => 'should not be sent']]]);
+        });
+
+        $sessionManager = new SessionManager(new InMemorySessionStore(), gcProbability: 0);
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
+        $session->save();
+        $sessionId = $session->getId();
+
+        $stream = new PollingLoopTransport();
+        $protocol->connect($stream);
+        $protocol->processInput($stream, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $sessionId);
+
+        $fiber = $stream->getSessionFiber();
+        $this->assertInstanceOf(\Fiber::class, $fiber);
+        $this->assertTrue($fiber->isSuspended());
+        $this->assertCount(1, $stream->getPendingRequestIds());
+        $this->assertNotSame([], $stream->takeOutgoingMessages());
+
+        $protocol->processInput(
+            $stream,
+            '{"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 1, "reason": "user cancelled"}}',
+            $sessionId
+        );
+
+        $this->assertNull($stream->pump());
+        $this->assertNull($stream->getSessionFiber());
+        $this->assertTrue($fiber->isSuspended(), 'The cancelled fiber must be dropped, not resumed.');
+        $this->assertSame([], $protocol->getPendingRequests($sessionId));
+    }
+
+    #[TestDox('notifications/cancelled for an unknown request id is ignored')]
+    public function testCancelledNotificationForUnknownRequestIdIsIgnored(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
+
+            return new Response($request->getId(), []);
+        });
+
+        $sessionManager = new SessionManager(new InMemorySessionStore(), gcProbability: 0);
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
+        $session->save();
+        $sessionId = $session->getId();
+
+        $stream = new PollingLoopTransport();
+        $protocol->connect($stream);
+        $protocol->processInput($stream, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $sessionId);
+
+        $fiber = $stream->getSessionFiber();
+        $this->assertInstanceOf(\Fiber::class, $fiber);
+        $pendingRequestIds = $stream->getPendingRequestIds();
+        $this->assertCount(1, $pendingRequestIds);
+
+        $this->transport = $this->createMock(TransportInterface::class);
+        $this->transport->expects($this->never())->method('send');
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 99}}',
+            $sessionId
+        );
+
+        $this->assertSame($fiber, $stream->getSessionFiber());
+        $this->assertTrue($fiber->isSuspended());
+        $this->assertSame($pendingRequestIds, $stream->getPendingRequestIds());
+
+        $protocol->processInput($stream, \sprintf('{"jsonrpc": "2.0", "id": %s, "result": {}}', json_encode($pendingRequestIds[0])), $sessionId);
+        $result = $stream->pump();
+        $this->assertInstanceOf(Response::class, $result);
+        $this->assertSame(1, $result->getId());
+    }
+
+    #[TestDox('notifications/cancelled for a request that already finished is ignored')]
+    public function testCancelledNotificationForAFinishedRequestIsIgnored(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturn(new Response(1, ['ok' => true]));
+
+        $sent = [];
+        $this->transport->method('send')->willReturnCallback(static function (string $data) use (&$sent): void {
+            $sent[] = json_decode($data, true);
+        });
+
+        $sessionManager = new SessionManager(new InMemorySessionStore(), gcProbability: 0);
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
+        $session->save();
+        $sessionId = $session->getId();
+
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $sessionId);
+        $this->assertCount(1, $sent);
+        $this->assertSame(1, $sent[0]['id']);
+        $this->assertSame(['ok' => true], $sent[0]['result']);
+
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 1}}',
+            $sessionId
+        );
+
+        $this->assertCount(1, $sent, 'A cancellation after the response must not produce another one.');
+    }
+
+    #[TestDox('a malformed notifications/cancelled is still rejected as an invalid request')]
+    public function testMalformedCancelledNotificationIsStillRejected(): void
+    {
+        $sent = [];
+        $this->transport->method('send')->willReturnCallback(static function (string $data) use (&$sent): void {
+            $sent[] = json_decode($data, true);
+        });
+
+        $sessionManager = new SessionManager(new InMemorySessionStore(), gcProbability: 0);
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
+        $session->save();
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 1, "reason": [1]}}',
+            $session->getId()
+        );
+
+        $this->assertCount(1, $sent);
+        $this->assertArrayHasKey('error', $sent[0]);
+        $this->assertSame(Error::INVALID_REQUEST, $sent[0]['error']['code']);
+        $this->assertArrayNotHasKey('id', $sent[0]);
+    }
+
+    #[TestDox('cancelling one suspended request leaves another of a different id type')]
+    public function testCancelledNotificationMatchesRequestIdType(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
+
+            return new Response($request->getId(), []);
+        });
+
+        $sessionManager = new SessionManager(new InMemorySessionStore(), gcProbability: 0);
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
+        $session->save();
+        $sessionId = $session->getId();
+
+        $intStream = new PollingLoopTransport();
+        $protocol->connect($intStream);
+        $protocol->processInput($intStream, '{"jsonrpc": "2.0", "id": 5, "method": "ping"}', $sessionId);
+
+        $stringStream = new PollingLoopTransport();
+        $protocol->connect($stringStream);
+        $protocol->processInput($stringStream, '{"jsonrpc": "2.0", "id": "5", "method": "ping"}', $sessionId);
+
+        $protocol->processInput(
+            $intStream,
+            '{"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 5}}',
+            $sessionId
+        );
+
+        $this->assertNull($intStream->pump());
+        $this->assertNull($intStream->getSessionFiber());
+        $this->assertInstanceOf(\Fiber::class, $stringStream->getSessionFiber());
+        $this->assertTrue($stringStream->getSessionFiber()->isSuspended());
+
+        $pendingRequestIds = $stringStream->getPendingRequestIds();
+        $this->assertCount(1, $pendingRequestIds);
+        $protocol->processInput($stringStream, \sprintf('{"jsonrpc": "2.0", "id": %s, "result": {}}', json_encode($pendingRequestIds[0])), $sessionId);
+        $result = $stringStream->pump();
+        $this->assertInstanceOf(Response::class, $result);
+        $this->assertSame('5', $result->getId());
+    }
+
     /**
      * @return iterable<string, array{string, string}>
      */

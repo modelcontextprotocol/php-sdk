@@ -108,6 +108,16 @@ interface TransportInterface
     public function setPendingRequestsProvider(callable $provider): void;
 
     /**
+     * Set a checker for whether a suspended handler's incoming request was cancelled.
+     *
+     * The transport calls this from its polling loop and must drop the fiber
+     * without sending a response when it returns true.
+     *
+     * @param callable(Uuid $sessionId, McpFiber $fiber): bool $checker
+     */
+    public function setCancellationChecker(callable $checker): void;
+
+    /**
      * Set a finder function to check for a specific client response.
      *
      * @param callable(Uuid, Uuid):FiberResume $finder

@@ -342,6 +342,10 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                 $this->logger->info('SSE: Starting request processing loop');
 
                 while ($fiber->isSuspended()) {
+                    if ($this->isRequestCancelled($fiber)) {
+                        return;
+                    }
+
                     yield from $this->outgoingFrames();
 
                     $pendingRequests = $this->getPendingRequests($this->sessionId, $fiber);
@@ -380,6 +384,10 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                         // An idle turn: the consumer paces it and keeps it alive.
                         yield '';
                     }
+                }
+
+                if ($this->isRequestCancelled($fiber)) {
+                    return;
                 }
 
                 yield from $this->finalFrame($fiber->getReturn());

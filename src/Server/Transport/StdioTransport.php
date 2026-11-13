@@ -449,6 +449,12 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     private function processFibers(): void
     {
         foreach ($this->fibers as $key => $fiber) {
+            if ($this->isRequestCancelled($fiber)) {
+                unset($this->fibers[$key]);
+
+                continue;
+            }
+
             if ($fiber->isSuspended() && null !== $error = $this->resumeFiber($fiber)) {
                 unset($this->fibers[$key]);
                 $this->flushOutgoingMessages();
@@ -459,7 +465,10 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
             if ($fiber->isTerminated()) {
                 unset($this->fibers[$key]);
-                $this->handleFiberTermination($fiber);
+                // A cancellation may have arrived while this fiber was resumed, e.g. under an event loop.
+                if (!$this->isRequestCancelled($fiber)) {
+                    $this->handleFiberTermination($fiber);
+                }
             }
         }
     }

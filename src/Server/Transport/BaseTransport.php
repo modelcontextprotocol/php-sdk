@@ -104,6 +104,18 @@ abstract class BaseTransport implements TransportInterface
     }
 
     /**
+     * @param McpFiber $fiber
+     */
+    protected function isRequestCancelled(\Fiber $fiber): bool
+    {
+        if ($this->sessionId && \is_callable($this->cancellationChecker)) {
+            return ($this->cancellationChecker)($this->sessionId, $fiber);
+        }
+
+        return false;
+    }
+
+    /**
      * @phpstan-return FiberResume
      */
     protected function checkForResponse(Uuid $requestId, ?Uuid $sessionId): Response|Error|null

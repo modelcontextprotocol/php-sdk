@@ -599,6 +599,45 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertNull($received);
     }
 
+    #[TestDox('the polling loop drops a cancelled fiber and does not send its response')]
+    public function testPollingLoopDropsACancelledFiberWithoutSendingAResponse(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withBody($this->factory->createStream('{"jsonrpc":"2.0","id":1,"method":"ping"}'));
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory);
+
+        $received = null;
+        $fiber = new \Fiber(static function () use (&$received) {
+            $received = \Fiber::suspend();
+
+            return new \Mcp\Schema\JsonRpc\Response(1, ['ok' => true]);
+        });
+        $fiber->start();
+
+        $transport->onMessage(static function (TransportInterface $transport) use ($fiber): void {
+            $transport->attachFiberToSession($fiber, Uuid::v4());
+        });
+        $transport->setOutgoingMessagesProvider(static fn (): array => []);
+        $transport->setResponseFinder(static fn () => null);
+        $transport->setPendingRequestsProvider(static fn (): array => [
+            '00000000-0000-4000-8000-000000000001' => ['request_id' => '00000000-0000-4000-8000-000000000001', 'timestamp' => time(), 'timeout' => 120],
+        ]);
+        $transport->setCancellationChecker(static fn (): bool => true);
+
+        $response = $transport->listen();
+
+        $this->assertSame('text/event-stream', $response->getHeaderLine('Content-Type'));
+
+        $this->expectOutputString('');
+        $this->assertSame('', $response->getBody()->getContents());
+
+        $this->assertTrue($fiber->isSuspended(), 'The cancelled call must not be resumed.');
+        $this->assertNull($received);
+    }
+
     /**
      * @return iterable<string, array{bool}>
      */
