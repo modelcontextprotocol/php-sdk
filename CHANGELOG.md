@@ -79,6 +79,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
   * Fix a resource whose text is not valid UTF-8 failing `resources/read`: `ResourceResultFormatter` sends it as a blob with the same MIME type.
   * Encode arrays and objects in results and `TextContent` as compact JSON instead of pretty-printed JSON.
   * Fix `EnumCompletionProvider` and `ListCompletionProvider` offering all values for the prefix `"0"`.
+  * Fix `completion/complete` for a resource template completing the arguments of another template whose pattern matches the referenced URI template, e.g. `weather://{city}` for `weather://{city},{country}`: the template named by the reference is used.
   * Log the name of a called tool at info level; its arguments stay at debug level.
 * Discovery and registration
   * [BC Break] `Builder::build()` and `Builder::buildStateless()` throw a `RuntimeException` when `setDiscovery()` is used without `symfony/finder` and without a custom discoverer, instead of logging a warning and discovering nothing.

@@ -16,7 +16,9 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CompletionCompleteRequest;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Result\CompletionCompleteResult;
+use Mcp\Server\Capability\Completion\ListCompletionProvider;
 use Mcp\Server\Capability\Completion\ProviderInterface;
+use Mcp\Server\Capability\Registry;
 use Mcp\Server\Capability\Registry\ResourceReference;
 use Mcp\Server\Capability\Registry\ResourceTemplateReference;
 use Mcp\Server\Capability\RegistryInterface;
@@ -80,6 +82,26 @@ class CompletionCompleteHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals(new CompletionCompleteResult(['alpha'], 1, false), $response->result);
+    }
+
+    public function testCompletesTheTemplateTheReferenceNames(): void
+    {
+        $registry = new Registry();
+        $registry->registerResourceTemplate(new ResourceTemplate('weather://{city}', 'city'), static fn () => null, [
+            'city' => new ListCompletionProvider(['Paris', 'Madrid']),
+        ]);
+        $registry->registerResourceTemplate(new ResourceTemplate('weather://{city},{country}', 'city_in_country'), static fn () => null, [
+            'city' => new ListCompletionProvider(['Paris', 'Madrid']),
+            'country' => new ListCompletionProvider(['France', 'Spain']),
+        ]);
+
+        $handler = new CompletionCompleteHandler($registry);
+        $request = $this->createCompletionRequest('weather://{city},{country}', ['name' => 'country', 'value' => '']);
+
+        $response = $handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertEquals(new CompletionCompleteResult(['France', 'Spain'], 2, false), $response->result);
     }
 
     public function testLogsProviderFailureBeforeReturningInternalError(): void

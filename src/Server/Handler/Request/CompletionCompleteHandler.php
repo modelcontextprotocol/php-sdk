@@ -105,6 +105,15 @@ final class CompletionCompleteHandler implements RequestHandlerInterface
      */
     private function resourceCompletionProviders(string $uri): array
     {
+        // Clients name a template by its URI template, which another template's pattern may match too
+        if (str_contains($uri, '{')) {
+            try {
+                return $this->registry->getResourceTemplate($uri)->completionProviders;
+            } catch (ResourceNotFoundException) {
+                // Not a registered template: matched below like any other URI.
+            }
+        }
+
         $reference = $this->registry->getResource($uri);
 
         return $reference instanceof ResourceTemplateReference ? $reference->completionProviders : [];
