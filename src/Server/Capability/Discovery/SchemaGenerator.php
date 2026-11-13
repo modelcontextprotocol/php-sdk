@@ -843,7 +843,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             'int', 'integer' => ['integer'],
             'float', 'double', 'number' => ['number'],
             'bool', 'boolean' => ['boolean'],
-            'array' => ['array'],
+            'array', 'iterable' => ['array'],
             'object', 'stdclass' => ['object'],
             'null' => ['null'],
             'resource', 'callable' => ['object'],

@@ -51,6 +51,14 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEqualsCanonicalizing(['name', 'age', 'active', 'tags'], $schema['required']);
     }
 
+    public function testRepresentsIterableParametersAsArrays(): void
+    {
+        $schema = $this->schemaGenerator->generate(new \ReflectionMethod(SchemaGeneratorFixture::class, 'iterableParameters'));
+        $this->assertEquals(['type' => 'array', 'items' => new \stdClass()], $schema['properties']['items']);
+        $this->assertEquals(['type' => ['array', 'null'], 'default' => null, 'items' => new \stdClass()], $schema['properties']['optional']);
+        $this->assertSame([], (new SchemaValidator())->validateAgainstJsonSchema(['items' => [1, 2]], $schema));
+    }
+
     public function testInfersTypesAndDescriptionsFromDocBlockTags(): void
     {
         $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'docBlockOnly');
