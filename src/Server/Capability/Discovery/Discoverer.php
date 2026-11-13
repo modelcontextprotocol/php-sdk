@@ -62,7 +62,7 @@ final class Discoverer implements DiscovererInterface
         }
 
         $this->docBlockParser = $docBlockParser ?? new DocBlockParser(logger: $this->logger);
-        $this->schemaGenerator = $schemaGenerator ?? new SchemaGenerator($this->docBlockParser);
+        $this->schemaGenerator = $schemaGenerator ?? new SchemaGenerator();
     }
 
     /**

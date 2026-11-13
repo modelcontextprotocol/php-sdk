@@ -11,7 +11,6 @@
 
 namespace Mcp\Tests\Unit\Server\Capability\Discovery;
 
-use Mcp\Server\Capability\Discovery\DocBlockParser;
 use Mcp\Server\Capability\Discovery\SchemaGenerator;
 use Mcp\Server\Capability\Discovery\SchemaValidator;
 use PHPUnit\Framework\TestCase;
@@ -63,7 +62,7 @@ final class SchemaGeneratorNullableMemberTest extends TestCase
      */
     private function schema(string $method): array
     {
-        return (new SchemaGenerator(new DocBlockParser()))
+        return (new SchemaGenerator())
             ->generate(new \ReflectionMethod(NullableMemberFixture::class, $method));
     }
 

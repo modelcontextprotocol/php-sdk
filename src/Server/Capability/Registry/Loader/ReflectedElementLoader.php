@@ -96,7 +96,7 @@ final class ReflectedElementLoader implements LoaderInterface
     public function load(RegistryInterface $registry): void
     {
         $docBlockParser = new DocBlockParser(logger: $this->logger);
-        $schemaGenerator = $this->schemaGenerator ?? new SchemaGenerator($docBlockParser);
+        $schemaGenerator = $this->schemaGenerator ?? new SchemaGenerator();
 
         // Register Tools
         foreach ($this->tools as $data) {

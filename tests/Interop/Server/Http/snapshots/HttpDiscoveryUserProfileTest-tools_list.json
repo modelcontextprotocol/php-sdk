@@ -51,11 +51,10 @@
           },
           "customMessage": {
             "type": [
-              "null",
-              "string"
+              "string",
+              "null"
             ],
-            "description": "an optional custom message part",
-            "default": null
+            "description": "an optional custom message part"
           }
         },
         "required": [
