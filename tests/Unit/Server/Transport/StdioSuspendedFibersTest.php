@@ -54,7 +54,7 @@ final class StdioSuspendedFibersTest extends TestCase
         $lines = $this->exchange([
             self::call(2, 'ask'),
             self::call(3, 'ask'),
-        ], static fn (int|string $first, ?int|string $second = null): array => {
+        ], static fn (int|string $first, int|string|null $second = null): array => {
             if (null === $second) {
                 return [];
             }
