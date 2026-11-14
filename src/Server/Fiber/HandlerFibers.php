@@ -116,6 +116,15 @@ final class HandlerFibers
     }
 
     /**
+     * Marks a suspended handler fiber as abandoned so it can be terminated
+     * without sending a response, e.g. on notifications/cancelled.
+     */
+    public static function abandon(\Fiber $fiber): void
+    {
+        (self::states()[$fiber] ?? null)?->abandoned();
+    }
+
+    /**
      * Suspends the current handler fiber for the server, until the server resumes it: how a handler waits on the client.
      *
      * @throws LogicException when the request of the fiber was already answered, as nobody would resume it

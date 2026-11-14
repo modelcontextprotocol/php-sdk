@@ -23,6 +23,7 @@ use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Schema\Request\ResourceSubscribeRequest;
 use Mcp\Schema\Request\ResourceUnsubscribeRequest;
 use Mcp\Schema\Request\SetLogLevelRequest;
+use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Event\ClientResponseEvent;
 use Mcp\Server\Event\ErrorEvent;
@@ -135,6 +136,7 @@ class Protocol
     private array $droppedAwaitedRequestIds = [];
 
     private readonly ?SessionLockInterface $sessionLock;
+    private readonly array $notificationHandlers;
 
     /**
      * @param array<int, RequestHandlerInterface<ResultInterface|array<string, mixed>>> $requestHandlers
@@ -144,7 +146,7 @@ class Protocol
      */
     public function __construct(
         private readonly array $requestHandlers,
-        private readonly array $notificationHandlers,
+        array $notificationHandlers,
         private readonly MessageFactory $messageFactory,
         private readonly SessionManagerInterface $sessionManager,
         private readonly LoggerInterface $logger = new NullLogger(),
@@ -156,6 +158,24 @@ class Protocol
         private readonly ?FiberContextInterface $fiberContext = null,
         private readonly bool $sessionless = false,
     ) {
+        $this->notificationHandlers = [
+            ...$notificationHandlers,
+            new class($this) implements NotificationHandlerInterface {
+                public function __construct(private readonly Protocol $protocol)
+                {
+                }
+
+                public function supports(Notification $notification): bool
+                {
+                    return $notification instanceof CancelledNotification;
+                }
+
+                public function handle(Notification $notification, SessionInterface $session): void
+                {
+                    $this->protocol->handleCancelledNotification($notification, $session);
+                }
+            },
+        ];
         $this->sessionLock = null !== $sessionLock && null !== $fiberScheduler ? new EventLoopSessionLock($sessionLock, $fiberScheduler) : $sessionLock;
         $this->awaitedRequestIds = new \WeakMap();
         $this->fiberOutgoingMessages = new \WeakMap();
@@ -614,6 +634,37 @@ class Protocol
                 $this->logger->error(\sprintf('Error while handling notification: %s', $e->getMessage()), ['exception' => $e]);
             }
         }
+    }
+
+    private function handleCancelledNotification(CancelledNotification $notification, SessionInterface $session): void
+    {
+        $requestId = $notification->requestId;
+
+        $this->logger->info('Handling cancelled notification.', ['request_id' => $requestId]);
+
+        foreach ($this->awaitedRequestIds as $fiber => $awaitedId) {
+            if ($awaitedId->toRfc4122() === $requestId) {
+                HandlerFibers::abandon($fiber);
+
+                if ($fiber->isSuspended() && !$fiber->isTerminated()) {
+                    try {
+                        $fiber->throw(new \RuntimeException('The request has been cancelled.'));
+                    } catch (\Throwable) {
+                        // Fiber terminated without producing a response, per the cancellation utility.
+                    }
+                }
+
+                $this->settleAwaitedRequest($requestId);
+
+                if (!$session instanceof EphemeralSessionInterface) {
+                    $session->forget(self::SESSION_PENDING_REQUESTS . ".{$requestId}");
+                }
+
+                return;
+            }
+        }
+
+        $this->logger->debug('No matching suspended fiber for cancelled notification.', ['request_id' => $requestId]);
     }
 
     /**

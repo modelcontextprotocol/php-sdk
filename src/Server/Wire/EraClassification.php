@@ -40,6 +40,14 @@ final class EraClassification
     }
 
     /**
+     * notifications/cancelled before initialize to ensure no response is sent.
+     */
+    public static function cancelled(): self
+    {
+        return new self(false, null, null, 204);
+    }
+
+    /**
      * The modern era, claiming $version — which may be one this server does not
      * serve. Routing and support are separate questions, and the dispatcher
      * owns the second one so its answer can name what it does support.

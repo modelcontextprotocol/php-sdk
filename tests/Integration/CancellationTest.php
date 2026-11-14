@@ -18,7 +18,7 @@ use PHPUnit\Framework\Attributes\TestDox;
 
 final class CancellationTest extends IntegrationTestCase
 {
-    #[TestDox('cancelling a pending stdio call notifies the server and leaves the connection usable')]
+    #[TestDox('cancelling a pending stdio call notifies the handshake-era server and leaves the connection usable')]
     public function testCancelsPendingCall(): void
     {
         $log = tempnam(sys_get_temp_dir(), 'mcp-cancel-');

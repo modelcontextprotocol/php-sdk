@@ -54,16 +54,37 @@ final class StdioSuspendedFibersTest extends TestCase
         $lines = $this->exchange([
             self::call(2, 'ask'),
             self::call(3, 'ask'),
-        ], static fn (int|string $first, int|string $second): array => [
-            ['jsonrpc' => '2.0', 'id' => $second, 'result' => ['action' => 'accept', 'content' => ['name' => 'second']]],
-            ['jsonrpc' => '2.0', 'id' => $first, 'result' => ['action' => 'accept', 'content' => ['name' => 'first']]],
-        ]);
+        ], static fn (int|string $first, ?int|string $second = null): array => {
+            if (null === $second) {
+                return [];
+            }
+
+            return [
+                ['jsonrpc' => '2.0', 'id' => $second, 'result' => ['action' => 'accept', 'content' => ['name' => 'second']]],
+                ['jsonrpc' => '2.0', 'id' => $first, 'result' => ['action' => 'accept', 'content' => ['name' => 'first']]],
+            ];
+        });
 
         $elicitations = array_values(array_filter($lines, static fn (array $line): bool => 'elicitation/create' === ($line['method'] ?? null)));
         $this->assertCount(2, $elicitations);
 
         $this->assertSame('first', $this->answer($lines, 2)['result']['content'][0]['text'] ?? null);
         $this->assertSame('second', $this->answer($lines, 3)['result']['content'][0]['text'] ?? null);
+    }
+
+    #[TestDox('handshake-era cancellation drops the suspended fiber and sends no response')]
+    public function testHandshakeEraCancellation(): void
+    {
+        $lines = $this->exchange([
+            self::call(2, 'ask'),
+        ], static fn (int|string $elicitationId): array => [
+            ['jsonrpc' => '2.0', 'method' => 'notifications/cancelled', 'params' => ['requestId' => $elicitationId]],
+        ]);
+
+        $elicitations = array_filter($lines, static fn (array $line): bool => 'elicitation/create' === ($line['method'] ?? null));
+        $this->assertCount(1, $elicitations);
+
+        $this->assertEmpty($this->answer($lines, 2), 'should send no response for cancelled request');
     }
 
     #[TestDox('notifications a call sent reach the client before its answer')]
@@ -120,7 +141,7 @@ final class StdioSuspendedFibersTest extends TestCase
         $requestIds = [];
         $dispatcher = new class(static function (ServerRequestEvent $event) use ($input, $answer, &$requestIds): void {
             $requestIds[] = $event->getRequest()->getId();
-            if (null === $answer || 2 !== \count($requestIds)) {
+            if (null === $answer) {
                 return;
             }
 

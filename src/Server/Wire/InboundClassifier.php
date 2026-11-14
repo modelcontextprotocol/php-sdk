@@ -104,6 +104,10 @@ final class InboundClassifier
      */
     private function classifyMessage(array $message, ?string $headerVersion): EraClassification
     {
+        if ('notifications/cancelled' === ($message['method'] ?? null)) {
+            return EraClassification::cancelled();
+        }
+
         $id = $message['id'] ?? null;
         $isNotification = !\array_key_exists('id', $message) || null === $id;
 
