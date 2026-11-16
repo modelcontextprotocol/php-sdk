@@ -37,6 +37,10 @@ class SchemaGeneratorFixture
     {
     }
 
+    public function iterableParameters(iterable $items, ?iterable $optional = null): void
+    {
+    }
+
     /**
      * DocBlock types only - no PHP type hints, no Schema attributes.
      *
