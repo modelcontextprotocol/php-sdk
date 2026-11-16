@@ -7,7 +7,9 @@
 
 Over Streamable HTTP, a server has sessions only once you configure them with `setSession()`; without it, it
 serves handshake-era clients [without sessions](#serving-without-sessions). Over stdio, the connection has one
-session, which stays in memory unless `setSession()` names a store. Configure session storage and lifecycle:
+session, which stays in memory until the connection closes, without an idle timeout. Calling `setSession()`
+opts into the configured session lifecycle on stdio too: without a store it uses the one-hour in-memory
+default, and a supplied store keeps its own expiry policy. Configure session storage and lifecycle:
 
 ```php
 use Mcp\Server\Server;
