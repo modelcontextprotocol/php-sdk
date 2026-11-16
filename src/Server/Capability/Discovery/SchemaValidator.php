@@ -240,7 +240,7 @@ class SchemaValidator
                 }
                 break;
             case 'const':
-                $expected = json_encode($args['expected'] ?? 'null', \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE);
+                $expected = json_encode($args['const'] ?? $args['expected'] ?? null, \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE);
                 $message = "Value must be equal to the constant value: {$expected}.";
                 break;
             case 'minLength':

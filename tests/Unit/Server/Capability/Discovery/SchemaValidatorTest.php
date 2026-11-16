@@ -113,6 +113,28 @@ class SchemaValidatorTest extends TestCase
         $this->assertStringContainsString('must be one of the allowed values: "A", "B"', $errors[0]['message']);
     }
 
+    public function testConstConstraintViolationIncludesExpectedValue(): void
+    {
+        $schema = ['type' => 'string', 'const' => 'PairMatching'];
+        $data = 'Quiz';
+
+        $errors = $this->validator->validateAgainstJsonSchema($data, $schema);
+        $this->assertCount(1, $errors);
+        $this->assertEquals('const', $errors[0]['keyword']);
+        $this->assertSame('Value must be equal to the constant value: "PairMatching".', $errors[0]['message']);
+    }
+
+    public function testConstConstraintViolationWithNullConstant(): void
+    {
+        $schema = ['const' => null];
+        $data = 'not-null';
+
+        $errors = $this->validator->validateAgainstJsonSchema($data, $schema);
+        $this->assertCount(1, $errors);
+        $this->assertEquals('const', $errors[0]['keyword']);
+        $this->assertSame('Value must be equal to the constant value: null.', $errors[0]['message']);
+    }
+
     public function testMinimumConstraintViolation(): void
     {
         $schema = ['type' => 'integer', 'minimum' => 10];
