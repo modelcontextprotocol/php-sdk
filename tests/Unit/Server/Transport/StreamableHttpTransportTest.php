@@ -824,10 +824,10 @@ final class StreamableHttpTransportTest extends TestCase
     #[TestDox('initialize negotiates the body version given $_dataName')]
     public function testInitializeNegotiatesTheBodyVersion(string $bodyVersion, ?string $headerVersion, bool $withSession): void
     {
-        $store = new InMemorySessionStore();
+        $store = $withSession ? new InMemorySessionStore() : null;
         $builder = Server::builder()->setServerInfo('test', '1.0');
 
-        if ($withSession) {
+        if (null !== $store) {
             $builder->setSession($store);
         }
 
@@ -836,7 +836,7 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame($bodyVersion, json_decode((string) $response->getBody(), true)['result']['protocolVersion'] ?? null);
 
-        if ($withSession) {
+        if (null !== $store) {
             $sessionId = $response->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
             $this->assertNotSame('', $sessionId);
 
@@ -910,14 +910,7 @@ final class StreamableHttpTransportTest extends TestCase
      */
     private function initialize(Server $server): string
     {
-        $request = $this->factory
-            ->createServerRequest('POST', 'http://localhost/')
-            ->withHeader('Host', 'localhost')
-            ->withHeader('Content-Type', 'application/json')
-            ->withHeader('Accept', 'application/json, text/event-stream')
-            ->withBody($this->factory->createStream('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'));
-
-        return $server->run(new StreamableHttpTransport($request, $this->factory, $this->factory))->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+        return $server->run(new StreamableHttpTransport($this->initializeRequest(ProtocolVersion::V2025_06_18->value, null), $this->factory, $this->factory))->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
     }
 
     private function initializeRequest(string $bodyVersion, ?string $headerVersion): ServerRequestInterface

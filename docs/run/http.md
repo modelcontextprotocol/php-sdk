@@ -183,9 +183,7 @@ header itself, so a header-less request cannot be newer than that.
 On `initialize`, the body is authoritative: the server negotiates from `params.protocolVersion` as described in
 [Protocol versions](../protocol-versions.md#negotiating-in-the-handshake-era), and a pin set with
 `setProtocolVersion()` still wins over it (see [Pinning a revision](../protocol-versions.md#pinning-a-revision)). The
-header plays no part in negotiation and is not compared with `params.protocolVersion`. A client re-initializing may
-still send the revision it negotiated on an earlier connection in the header while its body proposes another, so the
-two are allowed to differ.
+header plays no part in negotiation and is not compared with `params.protocolVersion`, so the two may differ.
 
 The header check is unaffected by `setProtocolVersion()`, so a server that pins the handshake still accepts every
 handshake revision in this header.
