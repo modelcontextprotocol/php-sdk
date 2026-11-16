@@ -32,8 +32,8 @@ use Psr\Http\Server\RequestHandlerInterface;
  * values with `400 Bad Request`.
  *
  * When the header is absent the middleware passes the request through —
- * the `initialize` round-trip does not carry the header, and legacy clients
- * that omit it are tolerated.
+ * clients need not send it on `initialize`, and legacy clients that omit it
+ * are tolerated.
  *
  * Validation is against a fixed set, not against the version a particular session
  * negotiated: PSR-15 middleware runs before the transport resolves the session.
