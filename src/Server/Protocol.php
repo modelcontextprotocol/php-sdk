@@ -12,6 +12,7 @@
 namespace Mcp\Server;
 
 use Mcp\Schema\Exception\InvalidInputMessageException;
+use Mcp\Schema\Exception\UnknownMethodException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\JsonRpc\Notification;
@@ -376,9 +377,11 @@ class Protocol
     {
         $this->logger->warning('Failed to create message.', ['exception' => $exception]);
 
-        $error = $exception->isInvalidParams()
-            ? Error::forInvalidParams($exception->getMessage(), $exception->getRequestId())
-            : Error::forInvalidRequest($exception->getMessage(), $exception->getRequestId());
+        $error = match (true) {
+            $exception instanceof UnknownMethodException => Error::forMethodNotFound($exception->getMessage(), $exception->getRequestId()),
+            $exception->isInvalidParams() => Error::forInvalidParams($exception->getMessage(), $exception->getRequestId()),
+            default => Error::forInvalidRequest($exception->getMessage(), $exception->getRequestId()),
+        };
         $this->sendResponse($transport, $error, $session, $context);
     }
 

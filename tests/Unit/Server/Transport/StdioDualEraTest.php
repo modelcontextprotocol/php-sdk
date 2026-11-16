@@ -426,7 +426,7 @@ final class StdioDualEraTest extends TestCase
             ['jsonrpc' => '2.0', 'id' => 2, 'method' => 'server/discover'],
         ]);
 
-        $this->assertSame(Error::INVALID_REQUEST, $answers[2]['error']['code']);
+        $this->assertSame(Error::METHOD_NOT_FOUND, $answers[2]['error']['code']);
         $this->assertArrayNotHasKey('result', $answers[2]);
     }
 
