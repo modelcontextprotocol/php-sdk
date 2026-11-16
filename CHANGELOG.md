@@ -1,13 +1,13 @@
-Unreleased
-----------
-
-### Server
-
-* Fix `SchemaValidator` reporting every `const` violation as `"null"`: it reads the expected value from `opis/json-schema`'s `const` error arg instead of a non-existent `expected` key.
-
 # Changelog
 
 All notable changes to `mcp/sdk` will be documented in this file.
+
+0.11.0
+------
+
+### Server
+
+* Fix const validation errors always reporting the expected value as null.
 
 0.10.0
 ------
