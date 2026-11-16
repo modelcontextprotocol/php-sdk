@@ -196,7 +196,7 @@ function buildAuthenticator(string $url, string $scenario, array $context, Psr\L
 }
 
 $client = $builder->build();
-$transport = new HttpTransport($url, logger: $logger, auth: buildAuthenticator($url, $scenario, $context, $logger));
+$transport = new HttpTransport($url, logger: $logger, listen: true, auth: buildAuthenticator($url, $scenario, $context, $logger));
 
 try {
     $client->connect($transport);
