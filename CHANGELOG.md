@@ -2,6 +2,13 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.11.0
+------
+
+### Server
+
+* Fix const validation errors always reporting the expected value as null.
+
 0.10.0
 ------
 
