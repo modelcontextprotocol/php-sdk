@@ -42,6 +42,8 @@ final class Rev2026Codec implements WireCodecInterface
         'resources/list',
         'resources/templates/list',
         'resources/read',
+        'skills/list',
+        'skills/get',
     ];
 
     private readonly CachePolicy $cachePolicy;
