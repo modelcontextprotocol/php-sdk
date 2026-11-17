@@ -196,20 +196,24 @@ handshake-era `initialize`, is refused by the transport with `400` and error cod
 
 ## Request Body Size Limit
 
-`StreamableHttpTransport` caps the POST body it reads to guard against memory exhaustion from an oversized or
-unbounded (chunked) payload. The default cap is 4 MiB. A body over the cap is rejected with `413` and never reaches
-message parsing.
+`StreamableHttpTransport` caps the raw POST body it reads. The default cap is 4 MiB. The transport rejects a body
+over the cap with `413` before parsing it.
+
+`maxBodyBytes` bounds raw bytes, not the memory needed to decode and process JSON. Nested arrays and objects can
+occupy many times the body size, so a request below the cap can still exceed PHP's `memory_limit`. There is no
+single safe multiplier: size the cap using representative and deeply nested inputs, leaving room for the
+application's other allocations and, in a shared process, concurrent requests.
 
 ```php
 use Mcp\Server\Transport\StreamableHttpTransport;
 
-// Raise the cap to 16 MiB
+// Raise the cap only after checking the application's memory budget
 $transport = new StreamableHttpTransport($request, maxBodyBytes: 16 * 1024 * 1024);
 ```
 
 When the request stream advertises a size, the transport rejects it up-front. Otherwise (e.g. chunked transfer with
-unknown size) the body is read incrementally and aborted as soon as it crosses the cap, so an unbounded stream cannot
-exhaust memory. A value below `1` throws `InvalidArgumentException`.
+unknown size) the body is read incrementally and aborted as soon as it crosses the cap. This bounds the raw input
+buffer, not subsequent JSON allocations. A value below `1` throws `InvalidArgumentException`.
 
 An `AuthorizationMiddleware` with a `ScopePolicy` that has method or tool rules reads the body before the transport,
 with its own limit. Pass the same value to both, as the lower one wins and a lower transport limit only applies after

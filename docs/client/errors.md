@@ -2,8 +2,8 @@
 
 Every exception `Client` throws implements `Mcp\Schema\Exception\ExceptionInterface`. Catch it to handle
 client errors in one place. Creating an `HttpTransport` is different: if no PSR-18 client or PSR-17
-factory can be found, the constructor throws an exception from `php-http/discovery`. All classes below
-live in the `Mcp\Client\Exception` namespace:
+factory can be found, the constructor throws an exception from `php-http/discovery`. The following table lists
+exceptions in the `Mcp\Client\Exception` namespace:
 
 | Exception | Thrown when |
 | --- | --- |
@@ -12,11 +12,16 @@ live in the `Mcp\Client\Exception` namespace:
 | `AuthorizationException` | the server answers a request, a notification or the resumption of an event stream with the HTTP status `401` or `403`, or the [OAuth flow](authorization.md) fails |
 | `TimeoutException` | the request timeout (`setRequestTimeout()`, for any method) or the `timeoutSeconds` of a `callTool()` call runs out |
 | `RequestCancelledException` | the cancellation token of a `callTool()` call is canceled, see [Cancellation and deadlines](transports.md#cancellation-and-deadlines) |
-| `InvalidArgumentException` | `callTool()` gets a `timeoutSeconds` that is not finite and positive, `readResource()` gets an empty URI, `build()` finds an invalid timeout, retry count or fallback revision, the request can't be encoded as JSON (for example invalid UTF-8 in tool arguments), or the server returns a malformed result |
+| `InvalidArgumentException` | `callTool()` gets a `timeoutSeconds` that is not finite and positive, `readResource()` gets an empty URI, `build()` finds an invalid timeout, retry count or fallback revision, or the request can't be encoded as JSON (for example invalid UTF-8 in tool arguments) |
 | `RuntimeException` | `callTool()` calls a tool that `listTools()` dropped for malformed `x-mcp-header` annotations, you call `sendRootsListChanged()` without the `rootsListChanged` capability, or, on `2026-07-28`, the server asks for input (elicitation, sampling, roots) that no request handler answers, or whose callback throws |
 
 An HTTP error status or an exited server process fails the request at once. The client doesn't
 wait for the request timeout.
+
+A malformed result returned by a method such as `callTool()` throws
+`Mcp\Schema\Exception\InvalidArgumentException`. It does not extend the client package's
+`InvalidArgumentException`; catch it separately or use `Mcp\Schema\Exception\ExceptionInterface`
+to handle exceptions from both packages. During `connect()`, it is wrapped as described below.
 
 ## ConnectionException
 
