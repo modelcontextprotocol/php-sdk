@@ -334,8 +334,8 @@ final class ReactFiberScheduler implements FiberSchedulerInterface
 }
 ```
 
-If the callback wakes the fiber right away, the client gets an internal error (`-32603`) with a message that explains
-the fix.
+If the callback wakes the fiber right away, the client gets an internal error (`-32603`). On revision `2026-07-28`,
+the message explains the fix. Handshake-era clients receive `Internal server error.`; the server logs the cause.
 
 Without a scheduler, the client of a handler that awaits I/O gets the same kind of error. The event loop still
 resumes the handler after that, so the handler runs to its end and its side effects still happen.
