@@ -1214,7 +1214,7 @@ class Protocol
         if ($message instanceof InitializeRequest) {
             // Spec: An initialize request must not have a session ID.
             if ($sessionId) {
-                $error = Error::forInvalidRequest('A session ID MUST NOT be sent with an "initialize" request.');
+                $error = Error::forInvalidRequest('A session ID MUST NOT be sent with an "initialize" request.', self::findRequestId($message));
                 $this->sendResponse($transport, $error, null, ['status_code' => 400]);
 
                 return null;
