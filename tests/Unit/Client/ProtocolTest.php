@@ -28,12 +28,15 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\MessageInterface;
+use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Notification\ResourceUpdatedNotification;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\RequestMeta;
 use Mcp\Schema\Result\CallToolResult;
+use Mcp\Schema\SubscriptionFilter;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -708,6 +711,46 @@ final class ProtocolTest extends TestCase
             protocolVersion: $protocolVersion,
             fallbackProtocolVersion: $fallback,
         );
+    }
+
+    #[TestDox('hands the notifications of the open subscription to its callbacks, and no one else\'s')]
+    public function testSubscriptionNotificationsReachTheListener(): void
+    {
+        $protocol = new Protocol();
+        $protocol->getState()->addPendingRequest(4, 30);
+        $acknowledged = [];
+        $received = [];
+        $protocol->setSubscriptionCallbacks(
+            static function (Notification $notification) use (&$received): void {
+                $received[] = $notification;
+            },
+            static function (SubscriptionFilter $filter) use (&$acknowledged): void {
+                $acknowledged[] = $filter;
+            },
+        );
+
+        $protocol->processMessage('{"jsonrpc":"2.0","method":"notifications/subscriptions/acknowledged","params":{"_meta":{"io.modelcontextprotocol/subscriptionId":4},"notifications":{"resourceSubscriptions":["file:///a.txt"]}}}');
+        $protocol->processMessage('{"jsonrpc":"2.0","method":"notifications/resources/updated","params":{"_meta":{"io.modelcontextprotocol/subscriptionId":4},"uri":"file:///a.txt"}}');
+        $protocol->processMessage('{"jsonrpc":"2.0","method":"notifications/resources/updated","params":{"_meta":{"io.modelcontextprotocol/subscriptionId":3},"uri":"file:///stale.txt"}}');
+
+        $this->assertEquals([new SubscriptionFilter(resourceSubscriptions: ['file:///a.txt'])], $acknowledged);
+        $this->assertCount(1, $received);
+        $this->assertInstanceOf(ResourceUpdatedNotification::class, $received[0]);
+        $this->assertSame('file:///a.txt', $received[0]->uri);
+    }
+
+    #[TestDox('ends the subscription when the server cancels its listen request (stdio)')]
+    public function testServerCancellationEndsTheSubscription(): void
+    {
+        $protocol = new Protocol();
+        $protocol->getState()->addPendingRequest(4, 30);
+        $protocol->setSubscriptionCallbacks(static fn (Notification $notification) => null);
+
+        $protocol->processMessage('{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":4}}');
+
+        $response = $protocol->getState()->consumeResponse(4);
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame(['_meta' => ['io.modelcontextprotocol/subscriptionId' => 4]], $response->result);
     }
 }
 
