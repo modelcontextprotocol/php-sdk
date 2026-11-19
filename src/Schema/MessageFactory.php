@@ -50,6 +50,7 @@ final class MessageFactory
         Schema\Notification\ResourceListChangedNotification::class,
         Schema\Notification\ResourceUpdatedNotification::class,
         Schema\Notification\RootsListChangedNotification::class,
+        Schema\Notification\SubscriptionsAcknowledgedNotification::class,
         Schema\Notification\ToolListChangedNotification::class,
 
         Schema\Request\CallToolRequest::class,

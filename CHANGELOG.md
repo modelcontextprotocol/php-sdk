@@ -5,6 +5,10 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.11.0
 ------
 
+### Client
+
+* Add `Client::listen()` to receive change notifications on a `subscriptions/listen` stream (`2026-07-28`), with `SubscriptionFilter`, `SubscriptionsListenRequest` and `SubscriptionsAcknowledgedNotification` in `Mcp\Schema`, and `Notification::getMeta()`.
+
 ### Server
 
 * Fix const validation errors always reporting the expected value as null.
