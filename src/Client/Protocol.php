@@ -40,7 +40,9 @@ use Mcp\Schema\Notification\InitializedNotification;
 use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Request\InitializeRequest;
+use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\RequestMeta;
+use Mcp\Schema\Result\EmptyResult;
 use Mcp\Schema\Result\InitializeResult;
 use Mcp\Schema\ServerCapabilities;
 use Psr\Log\LoggerInterface;
@@ -929,6 +931,13 @@ class Protocol
 
                 return;
             }
+        }
+
+        // Either side may ping, and the receiver MUST answer with an empty result.
+        if ($request instanceof PingRequest) {
+            $this->sendResponse(new Response($request->getId(), new EmptyResult()));
+
+            return;
         }
 
         $error = Error::forMethodNotFound(

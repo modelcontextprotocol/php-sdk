@@ -700,6 +700,22 @@ final class ProtocolTest extends TestCase
         $this->assertInstanceOf(\JsonException::class, $logger->warnings[0]['exception'] ?? null);
     }
 
+    #[TestDox('answers a ping from the server with an empty result')]
+    public function testAnswersServerPingWithEmptyResult(): void
+    {
+        $messages = [];
+        $transport = $this->createMock(TransportInterface::class);
+        $transport->method('send')->willReturnCallback(static function (string $data) use (&$messages): void {
+            $messages[] = json_decode($data, true, flags: \JSON_THROW_ON_ERROR);
+        });
+        $protocol = new Protocol();
+        $protocol->connect($transport, $this->createConfiguration(ProtocolVersion::V2025_11_25));
+
+        $protocol->processMessage('{"jsonrpc": "2.0", "id": "srv-1", "method": "ping"}');
+
+        $this->assertSame([['jsonrpc' => '2.0', 'id' => 'srv-1', 'result' => []]], $messages);
+    }
+
     private function createConfiguration(ProtocolVersion $protocolVersion, ?ProtocolVersion $fallback = ProtocolVersion::V2025_11_25): Configuration
     {
         return new Configuration(
