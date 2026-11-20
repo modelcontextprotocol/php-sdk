@@ -588,6 +588,20 @@ final class FakeListeningServer implements ClientInterface
      */
     private function socketPair(): array
     {
+        // Some tests write up to 90 KB before the client reads. A Unix socket pair buffers only 8 KB on macOS,
+        // so those writes would block forever; raise the buffer where ext-sockets allows it.
+        if ('Windows' !== \PHP_OS_FAMILY && \extension_loaded('sockets') && socket_create_pair(\AF_UNIX, \SOCK_STREAM, 0, $sockets)) {
+            foreach ($sockets as $socket) {
+                socket_set_option($socket, \SOL_SOCKET, \SO_SNDBUF, 1 << 20);
+                socket_set_option($socket, \SOL_SOCKET, \SO_RCVBUF, 1 << 20);
+            }
+
+            $streams = [socket_export_stream($sockets[0]), socket_export_stream($sockets[1])];
+            if (false !== $streams[0] && false !== $streams[1]) {
+                return $streams;
+            }
+        }
+
         $pair = stream_socket_pair('Windows' === \PHP_OS_FAMILY ? \STREAM_PF_INET : \STREAM_PF_UNIX, \STREAM_SOCK_STREAM, \STREAM_IPPROTO_IP);
         if (false === $pair) {
             throw new \RuntimeException('Could not create a socket pair.');
