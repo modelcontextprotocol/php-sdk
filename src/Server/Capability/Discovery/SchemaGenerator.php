@@ -323,8 +323,8 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             $paramSchema['description'] = $paramInfo['description'];
         }
 
-        // Add default value only if parameter actually has a default
-        if ($paramInfo['has_default']) {
+        // Add default value only if parameter actually has a default; INF and NAN cannot be encoded as JSON
+        if ($paramInfo['has_default'] && !(\is_float($paramInfo['default_value']) && !is_finite($paramInfo['default_value']))) {
             $paramSchema['default'] = $paramInfo['default_value'];
         }
 
