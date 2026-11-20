@@ -687,6 +687,23 @@ final class SchemaGeneratorTest extends TestCase
         ], $schema);
     }
 
+    public function testNonFiniteDefaultIsLeftOut(): void
+    {
+        $handler = new class {
+            public function handle(float $max = \INF, float $min = -\INF, float $nan = \NAN, float $ratio = 0.5): void
+            {
+            }
+        };
+
+        $schema = $this->schemaGenerator->generate(new \ReflectionMethod($handler, 'handle'));
+
+        $this->assertArrayNotHasKey('default', $schema['properties']['max']);
+        $this->assertArrayNotHasKey('default', $schema['properties']['min']);
+        $this->assertArrayNotHasKey('default', $schema['properties']['nan']);
+        $this->assertSame(0.5, $schema['properties']['ratio']['default']);
+        $this->assertNotFalse(json_encode($schema));
+    }
+
     public function testEmptyDefaultOfAMapIsAnObject(): void
     {
         $handler = new class {
