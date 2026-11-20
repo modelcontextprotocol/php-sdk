@@ -29,6 +29,7 @@ use Mcp\Client\Transport\TransportInterface;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Exception\InvalidInputMessageException;
+use Mcp\Schema\Exception\UnknownMethodException;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
@@ -856,6 +857,15 @@ class Protocol
             $message = $this->messageFactory->create($input);
         } catch (\JsonException|InvalidInputMessageException $e) {
             $this->logger->warning('Failed to parse message', ['exception' => $e]);
+
+            // A server request the client cannot read still needs an answer, or the server waits for its timeout.
+            if ($e instanceof InvalidInputMessageException && null !== $e->getRequestId()) {
+                if ($e instanceof UnknownMethodException) {
+                    $this->sendResponse(Error::forMethodNotFound($e->getMessage(), $e->getRequestId()));
+                } elseif ($e->isInvalidParams()) {
+                    $this->sendResponse(Error::forInvalidParams($e->getMessage(), $e->getRequestId()));
+                }
+            }
 
             return;
         }
