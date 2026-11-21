@@ -30,7 +30,8 @@ class ConfigProvider
 - **`description`** (optional): Resource description. Falls back to the docblock (summary plus long description).
 - **`mimeType`** (optional): MIME type of the resource content.
 - **`size`** (optional): Size in bytes if known.
-- **`annotations`** (optional): Additional metadata.
+- **`annotations`** (optional): An `Annotations` object with hints for the client: `audience`, `priority` and
+  `lastModified` (an ISO 8601 timestamp such as `2025-01-12T15:00:58Z`).
 - **`icons`** (optional): Array of `Icon` objects for visual representation.
 - **`meta`** (optional): Arbitrary key-value pairs for custom metadata.
 
