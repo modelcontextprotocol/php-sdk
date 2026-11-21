@@ -104,6 +104,35 @@ public function getUserProfile(
 }
 ```
 
+A provider whose suggestions depend on the other arguments implements `ContextAwareProviderInterface` instead. It
+receives the arguments the client already resolved, from the request's `context.arguments`:
+
+```php
+use Mcp\Server\Capability\Completion\ContextAwareProviderInterface;
+
+class FrameworkCompletionProvider implements ContextAwareProviderInterface
+{
+    private const FRAMEWORKS = [
+        'python' => ['flask', 'django', 'fastapi'],
+        'php' => ['symfony', 'laravel'],
+    ];
+
+    public function getCompletions(string $currentValue): array
+    {
+        return $this->getCompletionsWithContext($currentValue, []);
+    }
+
+    public function getCompletionsWithContext(string $currentValue, array $arguments): array
+    {
+        $frameworks = self::FRAMEWORKS[$arguments['language'] ?? ''] ?? array_merge(...array_values(self::FRAMEWORKS));
+
+        return array_values(array_filter($frameworks, static fn (string $f): bool => str_starts_with($f, $currentValue)));
+    }
+}
+```
+
+The context is optional, so the arguments can be empty or miss the ones you look for.
+
 **Provider Resolution:**
 
 - **Class strings** (`Provider::class`) → Resolved from the PSR-11 container, or created with `new Provider()` if the container doesn't have it

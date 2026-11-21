@@ -340,14 +340,15 @@ class Client
     /**
      * Request completion suggestions for a prompt or resource argument.
      *
-     * @param PromptReference|ResourceReference  $ref      The prompt or resource reference
-     * @param array{name: string, value: string} $argument The argument to complete
+     * @param PromptReference|ResourceReference             $ref      The prompt or resource reference
+     * @param array{name: string, value: string}            $argument The argument to complete
+     * @param array{arguments?: array<string, string>}|null $context  Previously resolved arguments, sent as `context`
      *
      * @throws AuthorizationException|RequestException|ConnectionException|InvalidArgumentException
      */
-    public function complete(PromptReference|ResourceReference $ref, array $argument): CompletionCompleteResult
+    public function complete(PromptReference|ResourceReference $ref, array $argument, ?array $context = null): CompletionCompleteResult
     {
-        $request = new CompletionCompleteRequest($ref, $argument);
+        $request = new CompletionCompleteRequest($ref, $argument, $context);
 
         $response = $this->sendRequest($request);
 

@@ -166,3 +166,14 @@ foreach ($completionResult->values as $value) {
     echo "Suggestion: {$value}\n";
 }
 ```
+
+When the prompt or URI template has several arguments, pass the ones already filled in as `context`, so the server can
+narrow its suggestions:
+
+```php
+$completionResult = $client->complete(
+    ref: new PromptReference('code_review'),
+    argument: ['name' => 'framework', 'value' => 'fla'],
+    context: ['arguments' => ['language' => 'python']],
+);
+```

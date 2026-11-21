@@ -57,6 +57,72 @@ final class CompletionCompleteRequestTest extends TestCase
         $this->assertSame(['name' => 'seat', 'value' => ''], $request->argument);
     }
 
+    public function testContextIsAbsentWhenNotSent(): void
+    {
+        $request = self::fromParams([
+            'ref' => ['type' => 'ref/prompt', 'name' => 'code_review'],
+            'argument' => ['name' => 'framework', 'value' => 'fla'],
+        ]);
+
+        $this->assertNull($request->context);
+    }
+
+    public function testFromArrayReadsContextArguments(): void
+    {
+        $request = self::fromParams([
+            'ref' => ['type' => 'ref/prompt', 'name' => 'code_review'],
+            'argument' => ['name' => 'framework', 'value' => 'fla'],
+            'context' => ['arguments' => ['language' => 'python']],
+        ]);
+
+        $this->assertSame(['arguments' => ['language' => 'python']], $request->context);
+    }
+
+    public function testContextWithoutArgumentsIsEmpty(): void
+    {
+        $request = self::fromParams([
+            'ref' => ['type' => 'ref/prompt', 'name' => 'code_review'],
+            'argument' => ['name' => 'framework', 'value' => 'fla'],
+            'context' => [],
+        ]);
+
+        $this->assertSame([], $request->context);
+    }
+
+    public function testContextIsSerialized(): void
+    {
+        $request = (new CompletionCompleteRequest(
+            new PromptReference('code_review'),
+            ['name' => 'framework', 'value' => 'fla'],
+            ['arguments' => ['language' => 'python']],
+        ))->withId(1);
+
+        $params = json_decode(json_encode($request, \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR)['params'];
+
+        $this->assertSame(['arguments' => ['language' => 'python']], $params['context']);
+    }
+
+    public function testEmptyContextIsSerializedAsObjects(): void
+    {
+        $request = (new CompletionCompleteRequest(
+            new PromptReference('code_review'),
+            ['name' => 'framework', 'value' => 'fla'],
+            ['arguments' => []],
+        ))->withId(1);
+
+        $this->assertStringContainsString('"context":{"arguments":{}}', json_encode($request, \JSON_THROW_ON_ERROR));
+    }
+
+    public function testContextIsOmittedWhenNull(): void
+    {
+        $request = (new CompletionCompleteRequest(
+            new PromptReference('code_review'),
+            ['name' => 'framework', 'value' => 'fla'],
+        ))->withId(1);
+
+        $this->assertStringNotContainsString('"context"', json_encode($request, \JSON_THROW_ON_ERROR));
+    }
+
     /**
      * @param array<string, mixed> $params
      */
@@ -115,6 +181,21 @@ final class CompletionCompleteRequestTest extends TestCase
         yield 'argument value that is not a string' => [
             ['ref' => $ref, 'argument' => ['name' => 'seat', 'value' => 12]],
             'Missing or invalid "argument.value" parameter for completion/complete.',
+        ];
+
+        yield 'context that is not an object' => [
+            ['ref' => $ref, 'argument' => $argument, 'context' => 'row=12'],
+            'Invalid "context" parameter for completion/complete.',
+        ];
+
+        yield 'context arguments that are not an object' => [
+            ['ref' => $ref, 'argument' => $argument, 'context' => ['arguments' => 'row=12']],
+            'Invalid "context.arguments" parameter for completion/complete.',
+        ];
+
+        yield 'context argument value that is not a string' => [
+            ['ref' => $ref, 'argument' => $argument, 'context' => ['arguments' => ['row' => 12]]],
+            'Invalid "context.arguments.row" parameter for completion/complete.',
         ];
     }
 

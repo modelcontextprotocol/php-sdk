@@ -24,12 +24,14 @@ use Mcp\Schema\ResourceReference;
 final class CompletionCompleteRequest extends Request
 {
     /**
-     * @param PromptReference|ResourceReference    $ref      the prompt or resource to complete
-     * @param array{ name: string, value: string } $argument the argument to complete
+     * @param PromptReference|ResourceReference               $ref      the prompt or resource to complete
+     * @param array{ name: string, value: string }            $argument the argument to complete
+     * @param array{ arguments?: array<string, string> }|null $context  previously resolved arguments of the prompt or URI template
      */
     public function __construct(
         public readonly PromptReference|ResourceReference $ref,
         public readonly array $argument,
+        public readonly ?array $context = null,
     ) {
     }
 
@@ -57,7 +59,38 @@ final class CompletionCompleteRequest extends Request
         return new self($ref, [
             'name' => self::stringMember($params['argument'], 'argument', 'name'),
             'value' => self::stringMember($params['argument'], 'argument', 'value'),
-        ]);
+        ], self::context($params));
+    }
+
+    /**
+     * @param array<mixed> $params
+     *
+     * @return array{ arguments?: array<string, string> }|null
+     */
+    private static function context(array $params): ?array
+    {
+        if (!isset($params['context'])) {
+            return null;
+        }
+        if (!\is_array($params['context'])) {
+            throw new InvalidArgumentException('Invalid "context" parameter for completion/complete.');
+        }
+        if (!isset($params['context']['arguments'])) {
+            return [];
+        }
+        if (!\is_array($params['context']['arguments'])) {
+            throw new InvalidArgumentException('Invalid "context.arguments" parameter for completion/complete.');
+        }
+
+        $arguments = [];
+        foreach ($params['context']['arguments'] as $name => $value) {
+            if (!\is_string($value)) {
+                throw new InvalidArgumentException(\sprintf('Invalid "context.arguments.%s" parameter for completion/complete.', $name));
+            }
+            $arguments[(string) $name] = $value;
+        }
+
+        return ['arguments' => $arguments];
     }
 
     /**
@@ -75,14 +108,25 @@ final class CompletionCompleteRequest extends Request
     /**
      * @return array{
      *     ref: PromptReference|ResourceReference,
-     *     argument: array{ name: string, value: string }
+     *     argument: array{ name: string, value: string },
+     *     context?: object
      * }
      */
     protected function getParams(): array
     {
-        return [
+        $params = [
             'ref' => $this->ref,
             'argument' => $this->argument,
         ];
+
+        if (null !== $this->context) {
+            $context = new \stdClass();
+            if (isset($this->context['arguments'])) {
+                $context->arguments = (object) $this->context['arguments'];
+            }
+            $params['context'] = $context;
+        }
+
+        return $params;
     }
 }

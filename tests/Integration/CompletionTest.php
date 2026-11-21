@@ -45,6 +45,30 @@ final class CompletionTest extends IntegrationTestCase
         $this->assertSame(['12A', '12B', '14C'], $result->values);
     }
 
+    #[TestDox('a context-aware provider narrows its completions to the arguments sent as context')]
+    public function testContextArgumentsReachTheProvider(): void
+    {
+        $client = $this->connect('completion');
+
+        $result = $client->complete(
+            new PromptReference('book_cabin_seat'),
+            ['name' => 'seat', 'value' => '1'],
+            ['arguments' => ['cabin' => 'business']],
+        );
+
+        $this->assertSame(['1A', '1C'], $result->values);
+    }
+
+    #[TestDox('a context-aware provider without context completes from everything it knows')]
+    public function testContextAwareProviderWithoutContext(): void
+    {
+        $client = $this->connect('completion');
+
+        $result = $client->complete(new PromptReference('book_cabin_seat'), ['name' => 'seat', 'value' => '1']);
+
+        $this->assertSame(['1A', '1C', '12A', '12B', '14C'], $result->values);
+    }
+
     #[TestDox('an argument the prompt does not declare completes to nothing')]
     public function testUnknownArgumentCompletesToNothing(): void
     {
