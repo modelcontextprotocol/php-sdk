@@ -19,8 +19,8 @@ $transport = new StdioTransport(
 
 **Parameters:**
 
-- `command` (string): The command to execute
-- `args` (array): Command arguments
+- `command` (string): The program to start, a path (spaces allowed) or a name looked up in `PATH`
+- `args` (array): Its arguments, each passed on as is
 - `cwd` (string|null): Working directory for the process
 - `env` (array|null): Environment variables of the process. An array replaces the inherited environment, so pass `[...getenv(), 'KEY' => 'value']` to keep it
 - `logger` (LoggerInterface|null): Optional PSR-3 logger
@@ -32,7 +32,8 @@ If the server process exits while a request waits for its answer, the request fa
 On Windows, use PHP 8.5 or newer. With older versions, the client blocks while the server sends no output, and its
 timeouts have no effect.
 
-Windows starts the command directly, so a batch file like `npx` must run through `cmd`:
+The command is started directly, without a shell, so its arguments go in `args`, not in `command`. On Windows a batch
+file like `npx` must run through `cmd`:
 
 ```php
 $transport = new StdioTransport('cmd', ['/c', 'npx', '-y', '@acme/weather-server']);

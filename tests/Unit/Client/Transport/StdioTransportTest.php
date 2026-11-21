@@ -240,6 +240,26 @@ final class StdioTransportTest extends TestCase
         }
     }
 
+    #[TestDox('a command whose path has a space starts')]
+    public function testCommandPathWithASpaceStarts(): void
+    {
+        $dir = sys_get_temp_dir().'/mcp stdio '.getmypid();
+        mkdir($dir);
+        $command = $dir.'/php';
+        symlink(\PHP_BINARY, $command);
+        $client = Client::builder()->setInitTimeout(10)->setMaxRetries(0)->build();
+
+        try {
+            $client->connect(new StdioTransport(command: $command, args: ['-r', 'fwrite(STDERR, "started"); exit(3);']));
+            $this->fail('Connecting to a server that exits must fail.');
+        } catch (ConnectionException $e) {
+            $this->assertStringContainsString('exited with code 3: started', $e->getMessage());
+        } finally {
+            unlink($command);
+            rmdir($dir);
+        }
+    }
+
     #[TestDox('a retried connection reports how its own process ended, not the previous one')]
     public function testRetryReportsItsOwnProcess(): void
     {

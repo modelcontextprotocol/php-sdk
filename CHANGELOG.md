@@ -9,6 +9,10 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 * Fix const validation errors always reporting the expected value as null.
 
+### Client
+
+* [BC Break] `StdioTransport` starts the command without a shell on every platform, so a command whose path has a space starts. Arguments written into `command` (`'npx -y pkg'`) go in `args` instead.
+
 0.10.0
 ------
 

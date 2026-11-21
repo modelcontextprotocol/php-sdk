@@ -210,14 +210,11 @@ class StdioTransport extends BaseTransport
             2 => ['pipe', 'w'], // stderr
         ];
 
-        $cmd = escapeshellcmd($this->command);
-        foreach ($this->args as $arg) {
-            $cmd .= ' '.escapeshellarg($arg);
-        }
+        $cmd = implode(' ', array_map('escapeshellarg', [$this->command, ...$this->args]));
 
         $process = proc_open(
-            // cmd.exe cannot pass every argument on, and escapeshellarg() blanks what it cannot quote.
-            'Windows' === \PHP_OS_FAMILY ? [$this->command, ...$this->args] : $cmd,
+            // Without a shell: a command path with a space still names one program, and every argument arrives as is.
+            [$this->command, ...$this->args],
             $descriptors,
             $pipes,
             $this->cwd,
