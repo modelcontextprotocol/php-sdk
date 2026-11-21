@@ -142,16 +142,18 @@ class Protocol
     private array $droppedAwaitedRequestIds = [];
 
     /**
-     * The incoming request id of each suspended handler fiber, so a notifications/cancelled can find it.
+     * The session id and incoming request id of each suspended handler fiber, so a
+     * notifications/cancelled can find it. Sessions may reuse request ids, so both must match.
      *
-     * @var \WeakMap<McpFiber, string|int>
+     * @var \WeakMap<McpFiber, array{0: string, 1: string|int}>
      */
     private \WeakMap $incomingRequestIds;
 
     /**
-     * Incoming request keys cancelled in this process, so a polling loop does not need to reload the session.
+     * Incoming request keys cancelled in this process, per session, so a polling loop
+     * does not need to reload the session. Only a fiber this process owns is cached.
      *
-     * @var array<string, true>
+     * @var array<string, array<string, true>>
      */
     private array $cancelledRequestKeys = [];
 
@@ -486,7 +488,6 @@ class Protocol
                 $dispatchResult = $this->dispatchResult(...);
                 $errorForThrowable = $this->errorForThrowable(...);
                 $saveResumedSession = $this->saveResumedSession(...);
-                $clearIncomingRequest = $this->clearIncomingRequest(...);
                 // Weak: the fiber's state keeping this protocol alive segfaults PHP 8.1 when both are freed.
                 $protocol = \WeakReference::create($this);
                 /** @var bool $suspended set by reference once the fiber first suspended */
@@ -496,7 +497,7 @@ class Protocol
                 // re-enters inside it each round rather than needing a new one.
                 // Handled in the fiber, as the transport resumes it outside the catch below.
                 /** @var McpFiber $fiber */
-                $fiber = HandlerFibers::create(static function () use ($handler, $request, $session, $shim, $codec, $dispatchResult, $errorForThrowable, $saveResumedSession, $clearIncomingRequest, &$suspended): Response|Error {
+                $fiber = HandlerFibers::create(static function () use ($handler, $request, $session, $shim, $codec, $dispatchResult, $errorForThrowable, $saveResumedSession, &$suspended): Response|Error {
                     try {
                         $result = $handler->handle($request, $session);
                         $result = $shim?->fulfill($result, $handler, $request, $session, $codec) ?? $result;
@@ -515,9 +516,10 @@ class Protocol
                     }
 
                     // A fiber that never suspended is saved by doProcessInput(); after a resume nothing else saves it.
+                    // The request keeps its identity and cancellation state until the transport has
+                    // decided whether its result may be sent at all.
                     if ($suspended) {
-                        $saveResumedSession($session);
-                        $clearIncomingRequest($request->getId(), $session);
+                        $saveResumedSession($session, $request->getId());
                     }
 
                     return $result;
@@ -566,7 +568,7 @@ class Protocol
 
                     $suspended = true;
 
-                    $this->incomingRequestIds[$fiber] = $request->getId();
+                    $this->incomingRequestIds[$fiber] = [$session->getId()->toRfc4122(), $request->getId()];
                     $this->trackAwaitedRequest($fiber, $awaitedRequestId);
                     $transport->attachFiberToSession($fiber, $session->getId());
 
@@ -661,13 +663,14 @@ class Protocol
     {
         $requestId = $notification->requestId;
         $key = self::requestKey($requestId);
+        $sessionKey = $session->getId()->toRfc4122();
 
         $this->logger->debug('Received a cancellation notification.', [
             'request_id' => $requestId,
             'reason' => $notification->reason,
         ]);
 
-        $fiber = $this->fiberForIncomingRequest($requestId);
+        $fiber = $this->fiberForIncomingRequest($sessionKey, $requestId);
         if (null === $fiber && !$this->hasInFlightIncomingRequest($session, $key)) {
             $this->logger->debug('Ignored a cancellation for an unknown or finished request.', [
                 'request_id' => $requestId,
@@ -678,7 +681,11 @@ class Protocol
 
         $this->logger->info('Cancelled an in-flight request.', ['request_id' => $requestId]);
 
-        $this->cancelledRequestKeys[$key] = true;
+        // Another worker's fiber reads the session marker and drops itself there. Caching the
+        // cancellation here would cancel a later request of this session that reuses the id.
+        if (null !== $fiber) {
+            $this->cancelledRequestKeys[$sessionKey][$key] = true;
+        }
 
         if (!$session instanceof EphemeralSessionInterface) {
             $session->set(self::SESSION_CANCELLED_REQUESTS.'.'.$key, true);
@@ -696,44 +703,87 @@ class Protocol
      */
     private function isHandlerCancelled(\Fiber $fiber, Uuid $sessionId): bool
     {
-        if (!isset($this->incomingRequestIds[$fiber])) {
+        $incoming = $this->incomingRequestIds[$fiber] ?? null;
+        if (null === $incoming) {
             return false;
         }
 
-        $requestId = $this->incomingRequestIds[$fiber];
+        [$ownerSessionId, $requestId] = $incoming;
+        $sessionKey = $sessionId->toRfc4122();
+
+        // A cancellation authenticated for another session must not drop this session's handler,
+        // even though both may have sent a request with the same id.
+        if ($ownerSessionId !== $sessionKey) {
+            return false;
+        }
+
         $key = self::requestKey($requestId);
-
-        if (!isset($this->cancelledRequestKeys[$key])) {
-            if (!$this->sessionManager->exists($sessionId)) {
-                return false;
-            }
-
-            $session = $this->sessionManager->createWithId($sessionId);
-            if (true !== $session->get(self::SESSION_CANCELLED_REQUESTS.'.'.$key)) {
-                return false;
-            }
-
-            $this->cancelledRequestKeys[$key] = true;
-        } else {
-            $session = $this->sessionManager->exists($sessionId) ? $this->sessionManager->createWithId($sessionId) : null;
+        if (!isset($this->cancelledRequestKeys[$sessionKey][$key]) && !$this->sessionRecordsCancellation($sessionId, $key)) {
+            return false;
         }
 
-        if (null !== $session) {
-            $this->dropSuspendedHandler($fiber, $session);
-            $this->clearIncomingRequest($requestId, $session);
-            if (!$session instanceof EphemeralSessionInterface) {
-                try {
-                    $session->save();
-                } catch (\Throwable $e) {
-                    $this->logger->error(\sprintf('Failed to save the session of a cancelled request: %s', $e->getMessage()), ['exception' => $e]);
-                }
-            }
-        } else {
-            $this->dropSuspendedHandler($fiber, null);
-            unset($this->incomingRequestIds[$fiber], $this->cancelledRequestKeys[$key]);
-        }
+        $this->cancelledRequestKeys[$sessionKey][$key] = true;
+        $this->finishCancelledIncomingRequest($fiber, $requestId, $sessionId);
 
         return true;
+    }
+
+    /**
+     * Reads a cancellation another worker may have stored, under the session lock, so the
+     * reload cannot race a save that is writing the same request's state.
+     */
+    private function sessionRecordsCancellation(Uuid $sessionId, string $key): bool
+    {
+        if (!$this->sessionManager->exists($sessionId) || !$this->tryAcquireSessionLockForPoll($sessionId)) {
+            return false;
+        }
+
+        try {
+            return true === $this->sessionManager->createWithId($sessionId)->get(self::SESSION_CANCELLED_REQUESTS.'.'.$key);
+        } catch (\Throwable $e) {
+            $this->logger->error(\sprintf('Failed to read the cancellation state of a session: %s', $e->getMessage()), ['exception' => $e]);
+
+            return false;
+        } finally {
+            $this->releaseSessionLock($sessionId);
+        }
+    }
+
+    /**
+     * Drops the handler and clears its markers. The handler is dropped even when the cleanup
+     * cannot take the session lock: a cancelled request must not answer, and the session's
+     * markers are cleared when a later request of that session reuses the id.
+     *
+     * @param McpFiber $fiber
+     */
+    private function finishCancelledIncomingRequest(\Fiber $fiber, string|int $requestId, Uuid $sessionId): void
+    {
+        $session = null;
+        $locked = false;
+
+        try {
+            if ($this->sessionManager->exists($sessionId) && ($locked = $this->tryAcquireSessionLockForPoll($sessionId))) {
+                $session = $this->sessionManager->createWithId($sessionId);
+            } else {
+                $this->logger->warning('Deferred the session cleanup of a cancelled request, its session lock is busy.', [
+                    'request_id' => $requestId,
+                    'session_id' => $sessionId->toRfc4122(),
+                ]);
+            }
+
+            $this->dropSuspendedHandler($fiber, $session);
+            $this->forgetIncomingRequest($fiber, $requestId, $session, $sessionId->toRfc4122());
+
+            if (null !== $session && !$session instanceof EphemeralSessionInterface && !$session->save()) {
+                $this->logger->error('Failed to save the session of a cancelled request.', ['session_id' => $sessionId->toRfc4122()]);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->error(\sprintf('Failed to save the session of a cancelled request: %s', $e->getMessage()), ['exception' => $e]);
+        } finally {
+            if ($locked) {
+                $this->releaseSessionLock($sessionId);
+            }
+        }
     }
 
     /**
@@ -757,10 +807,10 @@ class Protocol
     /**
      * @return McpFiber|null
      */
-    private function fiberForIncomingRequest(string|int $requestId): ?\Fiber
+    private function fiberForIncomingRequest(string $sessionKey, string|int $requestId): ?\Fiber
     {
-        foreach ($this->incomingRequestIds as $fiber => $id) {
-            if ($id === $requestId) {
+        foreach ($this->incomingRequestIds as $fiber => $incoming) {
+            if ($incoming[0] === $sessionKey && $incoming[1] === $requestId) {
                 return $fiber;
             }
         }
@@ -776,23 +826,32 @@ class Protocol
     private function markIncomingRequestInFlight(string|int $requestId, SessionInterface $session): void
     {
         $key = self::requestKey($requestId);
+        $sessionKey = $session->getId()->toRfc4122();
         // A later request may reuse this id; it must not inherit a cancellation meant for the previous one.
+        unset($this->cancelledRequestKeys[$sessionKey][$key]);
+        if ([] === ($this->cancelledRequestKeys[$sessionKey] ?? [])) {
+            unset($this->cancelledRequestKeys[$sessionKey]);
+        }
         $session->forget(self::SESSION_CANCELLED_REQUESTS.'.'.$key);
         $session->set(self::SESSION_IN_FLIGHT_REQUESTS.'.'.$key, true);
     }
 
-    private function clearIncomingRequest(string|int $requestId, SessionInterface $session): void
+    /**
+     * Forgets a finished incoming request: its fiber, the cancellation cached for it and, when
+     * the session is at hand, the markers another worker reads.
+     *
+     * @param McpFiber $fiber
+     */
+    private function forgetIncomingRequest(\Fiber $fiber, string|int $requestId, ?SessionInterface $session, string $sessionKey): void
     {
         $key = self::requestKey($requestId);
-        unset($this->cancelledRequestKeys[$key]);
 
-        foreach ($this->incomingRequestIds as $fiber => $id) {
-            if ($id === $requestId) {
-                unset($this->incomingRequestIds[$fiber]);
-            }
+        unset($this->incomingRequestIds[$fiber], $this->cancelledRequestKeys[$sessionKey][$key]);
+        if ([] === ($this->cancelledRequestKeys[$sessionKey] ?? [])) {
+            unset($this->cancelledRequestKeys[$sessionKey]);
         }
 
-        if ($session instanceof EphemeralSessionInterface) {
+        if (null === $session || $session instanceof EphemeralSessionInterface) {
             return;
         }
 
@@ -1341,7 +1400,7 @@ class Protocol
     /**
      * The code after a resume runs without the lock, so the session's changes since it suspended are saved under it.
      */
-    private function saveResumedSession(SessionInterface $session): void
+    private function saveResumedSession(SessionInterface $session, string|int $requestId): void
     {
         if ($session instanceof EphemeralSessionInterface) {
             return;
@@ -1356,6 +1415,10 @@ class Protocol
 
                 return;
             }
+
+            // The request is answered: no worker may take it for one still suspended. Clear the mark
+            // before saving, so storage does not keep it once this save is through.
+            $session->forget(self::SESSION_IN_FLIGHT_REQUESTS.'.'.self::requestKey($requestId));
 
             // A session the client ended while the handler waited is not saved back, and that is no failure.
             if ($this->sessionManager->exists($sessionId) && !$session->save()) {
