@@ -1,3 +1,1 @@
-client:
-  # Elicitation defaults (SEP-1034) are not filled in when accepting.
-  - elicitation-sep1034-client-defaults
+client: []
