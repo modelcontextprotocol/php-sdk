@@ -143,6 +143,22 @@ enum ProtocolVersion: string
     }
 
     /**
+     * Whether this revision answers invalid tool arguments with a tool error.
+     *
+     * SEP-1303, part of {@see self::V2025_11_25}, moved input validation errors
+     * from protocol errors to tool execution errors, reported in the result
+     * with `isError: true`, so that the model reads what was wrong and can
+     * retry with adjusted arguments. Earlier revisions list "Invalid arguments"
+     * under protocol errors, answered with `-32602`.
+     *
+     * @see https://modelcontextprotocol.io/specification/2025-11-25/server/tools#error-handling
+     */
+    public function reportsInvalidToolArgumentsAsToolError(): bool
+    {
+        return $this->isAtLeast(self::V2025_11_25);
+    }
+
+    /**
      * Whether this revision resumes an interrupted SSE stream with `Last-Event-ID`.
      *
      * SEP-2575, part of {@see self::V2026_07_28}, removed resumability and the

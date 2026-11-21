@@ -97,6 +97,9 @@ The same tool, resource and prompt registrations serve both eras. What changes:
 * **[Structured output](servers/tools.md#structured-output)**: from `2026-07-28`, a tool can
   send any JSON value as `structuredContent` ([SEP-2106](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2106)).
   Before it, only a JSON object.
+* **[Argument validation](servers/schemas.md#argument-validation)**: from `2025-11-25`, arguments a tool's input
+  schema refuses come back as a tool result marked `isError` ([SEP-1303](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1303)).
+  Before it, as a `-32602` error.
 * **[Serving both eras](run/protocol-eras.md)** — what a modern request carries, how one
   endpoint classifies and routes each request, and how to serve one era only.
 * **[Caching](run/caching.md)** — the `ttlMs` / `cacheScope` hints a cacheable result must

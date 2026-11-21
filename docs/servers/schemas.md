@@ -171,7 +171,28 @@ public function getForecast(
 ## Argument Validation
 
 Before a `tools/call` reaches your method, the SDK validates the arguments against the tool's input schema. If they
-don't match, your method is not called and the client gets a JSON-RPC error with code `-32602`:
+don't match, your method is not called. What the client gets depends on the negotiated protocol revision.
+
+From `2025-11-25` on, the specification counts an input validation error as a tool execution error, so the answer is a
+result with `isError: true`. The client hands it to the model, which can read what was wrong and call the tool again:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Invalid parameters for tool 'validateUser': Property '/age': Number must be greater than or equal to 18."
+      }
+    ],
+    "isError": true
+  }
+}
+```
+
+Up to `2025-06-18`, invalid arguments are a protocol error, and the client gets a JSON-RPC error with code `-32602`:
 
 ```json
 {
@@ -189,10 +210,10 @@ don't match, your method is not called and the client gets a JSON-RPC error with
 }
 ```
 
-By default, the validator stops at the first error. So the message and `validation_errors` hold one error. If you
-configure the validator to report more errors, see
-[Customizing the Generator and Validator](#customizing-the-generator-and-validator), the message lists the first three
-and `validation_errors` contains all of them.
+By default, the validator stops at the first error. So the message holds one error, and so does `validation_errors`
+in the protocol error. If you configure the validator to report more errors, see
+[Customizing the Generator and Validator](#customizing-the-generator-and-validator), the message lists the first three.
+`validation_errors` contains all of them; the tool result has no such field, and the full list goes to the debug log.
 
 After this check, the SDK casts each argument to the type of its parameter. Prompts and resource templates have no input
 schema, so this is the only check for them. If a value can't be cast, your method is not called and the client gets a
