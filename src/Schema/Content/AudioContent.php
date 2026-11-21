@@ -25,16 +25,24 @@ use Mcp\Schema\Exception\RuntimeException;
  *     data: string,
  *     mimeType: string,
  *     annotations?: AnnotationsData,
+ *     _meta?: array<string, mixed>,
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class AudioContent extends Content
 {
+    /**
+     * @param string                $data        Base64-encoded audio data
+     * @param string                $mimeType    The MIME type of the audio
+     * @param ?Annotations          $annotations Optional annotations describing the content
+     * @param ?array<string, mixed> $meta        Optional metadata
+     */
     public function __construct(
         public readonly string $data,
         public readonly string $mimeType,
         public readonly ?Annotations $annotations = null,
+        public readonly ?array $meta = null,
     ) {
         parent::__construct('audio');
     }
@@ -50,11 +58,15 @@ class AudioContent extends Content
         if (!isset($data['mimeType']) || !\is_string($data['mimeType'])) {
             throw new InvalidArgumentException('Missing or invalid "mimeType" in AudioContent data.');
         }
+        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
+            throw new InvalidArgumentException('Invalid "_meta" in AudioContent data.');
+        }
 
         return new self(
             $data['data'],
             $data['mimeType'],
-            Annotations::tryFromArray($data['annotations'] ?? null, 'AudioContent')
+            Annotations::tryFromArray($data['annotations'] ?? null, 'AudioContent'),
+            $data['_meta'] ?? null,
         );
     }
 
@@ -101,6 +113,7 @@ class AudioContent extends Content
      *     data: string,
      *     mimeType: string,
      *     annotations?: Annotations,
+     *     _meta?: array<string, mixed>,
      * }
      */
     public function jsonSerialize(): array
@@ -113,6 +126,9 @@ class AudioContent extends Content
 
         if (null !== $this->annotations) {
             $result['annotations'] = $this->annotations;
+        }
+        if (null !== $this->meta) {
+            $result['_meta'] = $this->meta;
         }
 
         return $result;

@@ -18,6 +18,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 ### Schema
 
 * Add `icons` to `ResourceTemplate`, so `resources/templates/list` carries them.
+* Add `_meta` to `TextContent`, `ImageContent`, `AudioContent` and `EmbeddedResource`, as `$meta` constructor argument and property.
 * Add `context` to `CompletionCompleteRequest`. A `context` or `context.arguments` that is not an object, or an argument value that is not a string, is rejected with `-32602`.
 
 0.10.0

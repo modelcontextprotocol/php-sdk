@@ -112,6 +112,12 @@ public function getResourceLink(): ResourceLink
 }
 ```
 
+Every content type also takes optional `annotations` and `meta`; the latter is sent as the block's `_meta`:
+
+```php
+new TextContent('Found 3 matches', meta: ['com.example/query-id' => 'q-42']);
+```
+
 ### Multiple Content Items
 
 Return an array of content items:

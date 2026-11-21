@@ -23,6 +23,7 @@ use Mcp\Schema\Exception\InvalidArgumentException;
  *     type: 'text',
  *     text: string,
  *     annotations?: AnnotationsData,
+ *     _meta?: array<string, mixed>,
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -32,12 +33,14 @@ class TextContent extends Content
     /**
      * Create a new TextContent instance from any value.
      *
-     * @param mixed        $text        The value to convert to text
-     * @param ?Annotations $annotations Optional annotations describing the content
+     * @param mixed                 $text        The value to convert to text
+     * @param ?Annotations          $annotations Optional annotations describing the content
+     * @param ?array<string, mixed> $meta        Optional metadata
      */
     public function __construct(
         public mixed $text,
         public readonly ?Annotations $annotations = null,
+        public readonly ?array $meta = null,
     ) {
         $this->text = (\is_array($text) || \is_object($text))
             ? json_encode($text) : (string) $text;
@@ -53,10 +56,14 @@ class TextContent extends Content
         if (!isset($data['text']) || !\is_string($data['text'])) {
             throw new InvalidArgumentException('Missing or invalid "text" in TextContent data.');
         }
+        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
+            throw new InvalidArgumentException('Invalid "_meta" in TextContent data.');
+        }
 
         return new self(
             $data['text'],
-            Annotations::tryFromArray($data['annotations'] ?? null, 'TextContent')
+            Annotations::tryFromArray($data['annotations'] ?? null, 'TextContent'),
+            $data['_meta'] ?? null,
         );
     }
 
@@ -78,6 +85,7 @@ class TextContent extends Content
      *     type: 'text',
      *     text: string,
      *     annotations?: Annotations,
+     *     _meta?: array<string, mixed>,
      * }
      */
     public function jsonSerialize(): array
@@ -89,6 +97,9 @@ class TextContent extends Content
 
         if (null !== $this->annotations) {
             $result['annotations'] = $this->annotations;
+        }
+        if (null !== $this->meta) {
+            $result['_meta'] = $this->meta;
         }
 
         return $result;
