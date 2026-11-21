@@ -8,6 +8,11 @@ All notable changes to `mcp/sdk` will be documented in this file.
 ### Server
 
 * Fix const validation errors always reporting the expected value as null.
+* Add `icons` to `#[McpResourceTemplate]` and `Builder::addResourceTemplate()`.
+
+### Schema
+
+* Add `icons` to `ResourceTemplate`, so `resources/templates/list` carries them.
 
 0.10.0
 ------

@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Capability\Attribute;
 
+use Mcp\Schema\Icon;
 use Mcp\Server\Capability\Attribute\McpResourceTemplate;
 use PHPUnit\Framework\TestCase;
 
@@ -67,5 +68,15 @@ class McpResourceTemplateTest extends TestCase
         $this->assertNull($attribute->name);
         $this->assertNull($attribute->description);
         $this->assertNull($attribute->mimeType);
+        $this->assertNull($attribute->icons);
+    }
+
+    public function testInstantiatesWithIcons(): void
+    {
+        $icons = [new Icon('https://example.com/icon.png', 'image/png', ['48x48'])];
+
+        $attribute = new McpResourceTemplate(uriTemplate: 'tmpl://{key}', icons: $icons);
+
+        $this->assertSame($icons, $attribute->icons);
     }
 }

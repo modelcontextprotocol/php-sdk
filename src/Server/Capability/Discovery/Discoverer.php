@@ -281,7 +281,7 @@ final class Discoverer implements DiscovererInterface
             } elseif ($instance instanceof McpResourceTemplate) {
                 $name = ElementMetadataResolver::resolveName($method, $instance->name);
                 $description = ElementMetadataResolver::resolveDescription($method, $instance->description, $this->docBlockParser);
-                $resourceTemplate = new ResourceTemplate($instance->uriTemplate, $name, $instance->title, $description, $instance->mimeType, $instance->annotations, $instance->meta);
+                $resourceTemplate = new ResourceTemplate($instance->uriTemplate, $name, $instance->title, $description, $instance->mimeType, $instance->annotations, $instance->meta, $instance->icons);
                 $completionProviders = $this->getCompletionProviders($method);
                 $resourceTemplates[$instance->uriTemplate] = new ResourceTemplateReference($resourceTemplate, [$className, $methodName], $completionProviders);
                 ++$discoveredCount['resourceTemplates'];

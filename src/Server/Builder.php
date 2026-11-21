@@ -208,7 +208,8 @@ final class Builder
      *     description: ?string,
      *     mimeType: ?string,
      *     annotations: ?Annotations,
-     *     meta: ?array<string, mixed>
+     *     meta: ?array<string, mixed>,
+     *     icons: ?Icon[]
      * }[]
      */
     private array $resourceTemplates = [];
@@ -834,6 +835,7 @@ final class Builder
      * @param Handler                   $handler
      * @param ?string                   $title   Optional human-readable title for display in UI
      * @param array<string, mixed>|null $meta
+     * @param ?Icon[]                   $icons
      */
     public function addResourceTemplate(
         \Closure|array|string $handler,
@@ -844,6 +846,7 @@ final class Builder
         ?string $mimeType = null,
         ?Annotations $annotations = null,
         ?array $meta = null,
+        ?array $icons = null,
     ): self {
         $this->resourceTemplates[] = compact(
             'handler',
@@ -854,6 +857,7 @@ final class Builder
             'mimeType',
             'annotations',
             'meta',
+            'icons',
         );
 
         return $this;

@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
+use Mcp\Schema\Icon;
 use Mcp\Schema\Request\ListResourceTemplatesRequest;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Result\ListResourceTemplatesResult;
@@ -185,6 +186,25 @@ class ListResourceTemplatesHandlerTest extends TestCase
         $result2 = $response2->result;
         $this->assertEquals($result1->nextCursor, $result2->nextCursor);
         $this->assertEquals($result1->resourceTemplates, $result2->resourceTemplates);
+    }
+
+    public function testListsTemplateIcons(): void
+    {
+        $this->registry->registerResourceTemplate(
+            new ResourceTemplate(
+                uriTemplate: 'file:///{path}',
+                name: 'project_files',
+                icons: [new Icon('https://example.com/folder-icon.png', 'image/png', ['48x48'])],
+            ),
+            static fn () => null,
+        );
+
+        $response = $this->handler->handle($this->createListResourcesRequest(), $this->session);
+
+        $this->assertJsonStringEqualsJsonString(
+            '{"resourceTemplates":[{"uriTemplate":"file:///{path}","name":"project_files","icons":[{"src":"https://example.com/folder-icon.png","mimeType":"image/png","sizes":["48x48"]}]}]}',
+            json_encode($response->result, \JSON_THROW_ON_ERROR),
+        );
     }
 
     private function addResourcesToRegistry(int $count): void

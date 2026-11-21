@@ -133,6 +133,10 @@ class DiscoveryTest extends TestCase
         $this->assertEquals('product_details_template', $templates['product://{region}/details/{productId}']->resourceTemplate->name);
         $this->assertEquals(CompletionProviderFixture::class, $templates['product://{region}/details/{productId}']->completionProviders['region']);
         $this->assertEqualsCanonicalizing(['region', 'productId'], $templates['product://{region}/details/{productId}']->getVariableNames());
+        $this->assertJsonStringEqualsJsonString(
+            '[{"src":"https://example.com/product.png","mimeType":"image/png","sizes":["48x48"]}]',
+            json_encode($templates['product://{region}/details/{productId}']->resourceTemplate->icons, \JSON_THROW_ON_ERROR),
+        );
 
         $this->assertArrayHasKey('invokable://user-profile/{userId}', $templates);
         $this->assertEquals([InvocableResourceTemplateFixture::class, '__invoke'], $templates['invokable://user-profile/{userId}']->handler);

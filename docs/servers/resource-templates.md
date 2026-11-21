@@ -40,6 +40,7 @@ class UserProvider
 - **`mimeType`** (optional): MIME type of the resource content.
 - **`annotations`** (optional): Additional metadata.
 - **`meta`** (optional): Arbitrary key-value pairs for custom metadata.
+- **`icons`** (optional): Array of `Icon` objects for visual representation.
 
 ## Variable Rules
 

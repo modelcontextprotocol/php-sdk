@@ -17,6 +17,7 @@ use Mcp\Schema\Exception\InvalidArgumentException;
  * A template description for resources available on the server.
  *
  * @phpstan-import-type AnnotationsData from Annotations
+ * @phpstan-import-type IconData from Icon
  *
  * @phpstan-type ResourceTemplateData array{
  *     uriTemplate: string,
@@ -25,6 +26,7 @@ use Mcp\Schema\Exception\InvalidArgumentException;
  *     description?: string|null,
  *     mimeType?: string|null,
  *     annotations?: AnnotationsData|null,
+ *     icons?: IconData[],
  *     _meta?: array<string, mixed>
  * }
  *
@@ -46,6 +48,7 @@ class ResourceTemplate implements \JsonSerializable
      * @param ?string               $mimeType    the MIME type for all resources that match this template, if uniform
      * @param ?Annotations          $annotations optional annotations for the client
      * @param ?array<string, mixed> $meta        optional metadata
+     * @param ?Icon[]               $icons       optional icons representing the resource template
      */
     public function __construct(
         public readonly string $uriTemplate,
@@ -55,6 +58,7 @@ class ResourceTemplate implements \JsonSerializable
         public readonly ?string $mimeType = null,
         public readonly ?Annotations $annotations = null,
         public readonly ?array $meta = null,
+        public readonly ?array $icons = null,
     ) {
         if (!preg_match(self::URI_TEMPLATE_PATTERN, $uriTemplate)) {
             throw new InvalidArgumentException(\sprintf('Invalid URI template : "%s" must be a valid URI template with at least one placeholder.', $uriTemplate));
@@ -90,7 +94,8 @@ class ResourceTemplate implements \JsonSerializable
             description: $data['description'] ?? null,
             mimeType: $data['mimeType'] ?? null,
             annotations: Annotations::tryFromArray($data['annotations'] ?? null, 'ResourceTemplate'),
-            meta: isset($data['_meta']) ? $data['_meta'] : null
+            meta: isset($data['_meta']) ? $data['_meta'] : null,
+            icons: isset($data['icons']) && \is_array($data['icons']) ? Icon::listFromArray($data['icons'], 'ResourceTemplate') : null,
         );
     }
 
@@ -102,6 +107,7 @@ class ResourceTemplate implements \JsonSerializable
      *     description?: string,
      *     mimeType?: string,
      *     annotations?: Annotations,
+     *     icons?: Icon[],
      *     _meta?: array<string, mixed>
      * }
      */
@@ -122,6 +128,9 @@ class ResourceTemplate implements \JsonSerializable
         }
         if (null !== $this->annotations) {
             $data['annotations'] = $this->annotations;
+        }
+        if (null !== $this->icons) {
+            $data['icons'] = $this->icons;
         }
         if (null !== $this->meta) {
             $data['_meta'] = $this->meta;

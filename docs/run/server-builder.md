@@ -516,7 +516,7 @@ $server = Server::builder()
 | `addNotificationHandlers()` | handlers | Prepend multiple custom notification handlers |
 | `addTool()` | handler, name?, title?, description?, annotations?, inputSchema?, icons?, meta?, outputSchema? | Register tool |
 | `addResource()` | handler, uri, name?, title?, description?, mimeType?, size?, annotations?, icons?, meta? | Register resource |
-| `addResourceTemplate()` | handler, uriTemplate, name?, title?, description?, mimeType?, annotations?, meta? | Register resource template |
+| `addResourceTemplate()` | handler, uriTemplate, name?, title?, description?, mimeType?, annotations?, meta?, icons? | Register resource template |
 | `addPrompt()` | handler, name?, title?, description?, icons?, meta? | Register prompt |
 | `add()` | definition, handler, completionProviders? | Register an element from a schema VO + handler pair, see [Explicit element registration](../servers/registration.md#explicit-element-registration) |
 | `build()` | - | Create the server instance |

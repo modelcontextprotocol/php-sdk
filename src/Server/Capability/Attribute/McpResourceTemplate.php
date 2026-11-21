@@ -12,6 +12,7 @@
 namespace Mcp\Server\Capability\Attribute;
 
 use Mcp\Schema\Annotations;
+use Mcp\Schema\Icon;
 
 /**
  * Marks a PHP class definition as representing an MCP Resource Template.
@@ -30,6 +31,7 @@ class McpResourceTemplate
      * @param ?string               $mimeType    optional default MIME type for matching resources
      * @param ?Annotations          $annotations optional annotations describing the resource template
      * @param ?array<string, mixed> $meta        optional metadata
+     * @param ?Icon[]               $icons       optional icons representing the resource template
      */
     public function __construct(
         public string $uriTemplate,
@@ -39,6 +41,7 @@ class McpResourceTemplate
         public ?string $mimeType = null,
         public ?Annotations $annotations = null,
         public ?array $meta = null,
+        public ?array $icons = null,
     ) {
     }
 }
