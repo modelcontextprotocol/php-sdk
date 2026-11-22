@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Integration;
 
+use Http\Discovery\Psr18ClientDiscovery;
 use Mcp\Client\Client;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
 use Mcp\Client\Transport\HttpTransport;
@@ -23,9 +24,13 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\ElicitResult;
+use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Tests\Support\ServerProcess;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Symfony\Component\Process\Process;
 
 /**
@@ -113,6 +118,52 @@ class StatelessClientTest extends TestCase
         $client->disconnect();
     }
 
+    #[TestDox('defers and resumes tool input')]
+    public function testDefersAndResumesToolInput(): void
+    {
+        $calls = [];
+        $httpClient = $this->createMock(ClientInterface::class);
+        $delegate = Psr18ClientDiscovery::find();
+        $httpClient->method('sendRequest')->willReturnCallback(static function (RequestInterface $request) use (&$calls, $delegate): ResponseInterface {
+            $body = json_decode((string) $request->getBody(), flags: \JSON_THROW_ON_ERROR);
+            if ('tools/call' === ($body->method ?? null)) {
+                $calls[] = $body;
+            }
+
+            return $delegate->sendRequest($request);
+        });
+
+        $client = $this->connect(elicitation: true, httpClient: $httpClient);
+        // @phpstan-ignore function.alreadyNarrowedType (Run the same assertion against SDK versions without callToolRound.)
+        $callRound = method_exists($client, 'callToolRound') ? $client->callToolRound(...) : $client->callTool(...);
+
+        $pending = $callRound('greet');
+
+        $this->assertInstanceOf(InputRequiredResult::class, $pending, 'Received '.get_debug_type($pending).' instead of being able to defer the tool call.');
+        $this->assertInstanceOf(ElicitRequest::class, $pending->inputRequests['who']);
+        $this->assertSame('What name should the greeting use?', $pending->inputRequests['who']->message);
+        $this->assertNotNull($pending->requestState);
+        $this->assertCount(1, $calls);
+        $this->assertObjectNotHasProperty('inputResponses', $calls[0]->params);
+        $this->assertObjectNotHasProperty('requestState', $calls[0]->params);
+
+        $result = $client->callToolRound(
+            'greet',
+            inputResponses: ['who' => new ElicitResult(ElicitAction::Accept, ['name' => 'Grace'])],
+            requestState: $pending->requestState,
+        );
+
+        $this->assertInstanceOf(CallToolResult::class, $result);
+        $this->assertSame('Hello, Grace!', self::text($result));
+        $this->assertCount(2, $calls);
+        $this->assertNotSame($calls[0]->id, $calls[1]->id);
+        $this->assertSame($pending->requestState, $calls[1]->params->requestState);
+        $this->assertSame('Grace', $calls[1]->params->inputResponses->who->content->name);
+        $this->assertSame('Hello, Ada!', self::text($client->callTool('greet')));
+
+        $client->disconnect();
+    }
+
     #[TestDox('a capability the client never declared is refused up front, and costs only that call')]
     public function testUndeclaredCapabilityIsRefused(): void
     {
@@ -143,7 +194,7 @@ class StatelessClientTest extends TestCase
         return $first->text;
     }
 
-    private function connect(bool $elicitation = false): Client
+    private function connect(bool $elicitation = false, ?ClientInterface $httpClient = null): Client
     {
         $builder = Client::builder()
             ->setClientInfo('stateless-integration-client', '1.0.0')
@@ -166,7 +217,7 @@ class StatelessClientTest extends TestCase
         }
 
         $client = $builder->build();
-        $client->connect(new HttpTransport(\sprintf('http://127.0.0.1:%d/', $this->port)));
+        $client->connect(new HttpTransport(\sprintf('http://127.0.0.1:%d/', $this->port), httpClient: $httpClient));
 
         return $client;
     }
