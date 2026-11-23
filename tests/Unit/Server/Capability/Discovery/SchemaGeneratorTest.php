@@ -212,7 +212,7 @@ final class SchemaGeneratorTest extends TestCase
         $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'parameterNumericConstraints');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['minimum' => 18, 'maximum' => 120, 'type' => 'integer'], $schema['properties']['age']);
-        $this->assertEquals(['minimum' => 0, 'maximum' => 5, 'exclusiveMaximum' => true, 'type' => 'number'], $schema['properties']['rating']);
+        $this->assertEquals(['minimum' => 0, 'maximum' => 5, 'exclusiveMaximum' => 5, 'type' => 'number'], $schema['properties']['rating']);
         $this->assertEquals(['multipleOf' => 10, 'type' => 'integer'], $schema['properties']['count']);
         $this->assertEqualsCanonicalizing(['age', 'rating', 'count'], $schema['required']);
     }

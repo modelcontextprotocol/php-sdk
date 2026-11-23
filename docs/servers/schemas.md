@@ -90,6 +90,15 @@ public function validateUser(
 }
 ```
 
+For exclusive numeric bounds, use `#[Schema(exclusiveMinimum: 0, exclusiveMaximum: 5)]` to require a value strictly
+between 0 and 5. These keywords take numbers in JSON Schema 2020-12, the default dialect in MCP.
+
+The legacy boolean form is still supported: `#[Schema(minimum: 0, exclusiveMinimum: true)]` generates
+`{"minimum": 0, "exclusiveMinimum": 0}`. A `false` flag is omitted from the generated schema, leaving any inclusive
+bound in place. Flags are resolved after method-level and parameter-level settings are merged, so a bound can be
+inherited from the method. A `true` flag without a corresponding numeric bound raises an `InvalidArgumentException`
+during schema generation. Complete `definition` overrides are passed through without this conversion.
+
 ## Method-Level Schema
 
 Add validation for complex object structures:

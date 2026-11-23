@@ -205,7 +205,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             unset($schema['required']);
         }
 
-        return $schema;
+        return $this->normalizeExclusiveBounds($schema);
     }
 
     /**
@@ -244,10 +244,43 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             }
         }
 
+        if (!isset($parameterLevelSchema['definition'])) {
+            $mergedSchema = $this->normalizeExclusiveBounds($mergedSchema);
+        }
+
         // Run after all merges so that when a Schema attribute reshapes the parameter
         // (e.g. to `object`), the array `items` invariant is only enforced on what is
         // genuinely still an array.
         return $this->ensureObjectDefault($this->ensureArrayItems($mergedSchema));
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeExclusiveBounds(array $schema): array
+    {
+        foreach (['minimum' => 'exclusiveMinimum', 'maximum' => 'exclusiveMaximum'] as $bound => $exclusive) {
+            $value = $schema[$exclusive] ?? null;
+            if (!\is_bool($value)) {
+                continue;
+            }
+
+            if (false === $value) {
+                unset($schema[$exclusive]);
+                continue;
+            }
+
+            $limit = $schema[$bound] ?? null;
+            if (!\is_int($limit) && !\is_float($limit)) {
+                throw new InvalidArgumentException(\sprintf('Schema keyword "%s" set to true requires a numeric "%s".', $exclusive, $bound));
+            }
+
+            $schema[$exclusive] = $limit;
+        }
+
+        return $schema;
     }
 
     /**
@@ -372,6 +405,10 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             if (1 === \count($nonNullItemTypes)) {
                 $paramSchema['items'] = ['type' => $nonNullItemTypes[0]];
             }
+        }
+
+        if (!isset($paramInfo['parameter_schema']['definition'])) {
+            $paramSchema = $this->normalizeExclusiveBounds($paramSchema);
         }
 
         return $paramSchema;
