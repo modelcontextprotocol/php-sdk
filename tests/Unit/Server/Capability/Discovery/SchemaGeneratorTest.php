@@ -527,6 +527,16 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertArrayNotHasKey('required', $schema);
     }
 
+    public function testRepresentsVariadicEnumParametersAsArrayOfEnumValues(): void
+    {
+        $backed = $this->schemaGenerator->generate(new \ReflectionMethod(SchemaGeneratorFixture::class, 'variadicBackedEnum'));
+        $this->assertEquals(['type' => 'array', 'items' => ['type' => 'string', 'enum' => ['A', 'B']]], $backed['properties']['options']);
+        $this->assertSame([], (new SchemaValidator())->validateAgainstJsonSchema(['options' => ['A', 'B']], $backed));
+
+        $unit = $this->schemaGenerator->generate(new \ReflectionMethod(SchemaGeneratorFixture::class, 'variadicUnitEnum'));
+        $this->assertEquals(['type' => 'array', 'items' => ['type' => 'string', 'enum' => ['Yes', 'No']]], $unit['properties']['answers']);
+    }
+
     public function testAppliesItemConstraintsToVariadicParameters(): void
     {
         $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'variadicWithConstraints');
