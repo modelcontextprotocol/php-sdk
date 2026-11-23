@@ -23,6 +23,9 @@ use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Schema\Request\PingRequest;
+use Mcp\Schema\Result\CallToolResult;
+use Mcp\Schema\Result\ListToolsResult;
+use Mcp\Server\Capability\Discovery\SchemaValidator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -57,6 +60,65 @@ final class MessageFactoryTest extends TestCase
 
         $this->assertInstanceOf(CallToolRequest::class, $message);
         $this->assertStringContainsString('"arguments":{"0":"x"}', json_encode($message, \JSON_THROW_ON_ERROR));
+    }
+
+    #[DataProvider('provideStructuredContent')]
+    public function testToolResultKeepsStructuredJsonTypes(?string $json): void
+    {
+        $content = '[{"type":"text","text":"legacy"}]';
+        $message = $this->factory->create('{"jsonrpc":"2.0","id":1,"result":{"content":'.$content.(null === $json ? '' : ',"structuredContent":'.$json).'}}');
+
+        $this->assertInstanceOf(Response::class, $message);
+        $this->assertSame([['type' => 'text', 'text' => 'legacy']], $message->result['content']);
+        $result = CallToolResult::fromArray($message->result);
+        $this->assertSame(null !== $json, $result->hasStructuredContent());
+        $serialized = $result->jsonSerialize();
+        if (null !== $json) {
+            $this->assertArrayHasKey('structuredContent', $serialized);
+            $this->assertSame($json, json_encode($result->structuredContent, \JSON_THROW_ON_ERROR));
+            $this->assertSame($json, json_encode($serialized['structuredContent'] ?? null, \JSON_THROW_ON_ERROR));
+        } else {
+            $this->assertArrayNotHasKey('structuredContent', $serialized);
+        }
+    }
+
+    public static function provideStructuredContent(): iterable
+    {
+        yield 'absent' => [null];
+        yield 'explicit null' => ['null'];
+        yield 'false' => ['false'];
+        yield 'zero' => ['0'];
+        yield 'empty string' => ['""'];
+        yield 'empty list' => ['[]'];
+        yield 'empty object' => ['{}'];
+        yield 'nested shapes' => ['{"object":{},"list":[],"numeric":{"0":"x"},"nested":[{},[]]}'];
+    }
+
+    public function testParsedEmptyToolObjectSatisfiesObjectSchema(): void
+    {
+        $message = $this->factory->create('{"jsonrpc":"2.0","id":1,"result":{"content":[],"structuredContent":{}}}');
+
+        $this->assertInstanceOf(Response::class, $message);
+        $result = CallToolResult::fromArray($message->result);
+        $this->assertInstanceOf(\stdClass::class, $result->structuredContent);
+        $this->assertSame([], (new SchemaValidator())->validateAgainstJsonSchema($result->structuredContent, ['type' => 'object']));
+    }
+
+    public function testDiscoveredOutputSchemaKeepsJsonShapes(): void
+    {
+        $schema = '{"type":"object","properties":{"object":{"const":{}},"list":{"const":[]},"literal":{"enum":[{},[],{"0":"x"}]},"empty":{}}}';
+        $response = $this->factory->create('{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"t","inputSchema":{"type":"object","properties":{}},"outputSchema":'.$schema.'}]}}');
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame([], $response->result['tools'][0]['inputSchema']['properties']);
+        $tool = ListToolsResult::fromArray($response->result)->tools[0];
+        $this->assertIsArray($tool->outputSchema);
+        $this->assertSame($schema, json_encode($tool->jsonSerialize()['outputSchema'] ?? null, \JSON_THROW_ON_ERROR));
+
+        $validator = new SchemaValidator();
+        $this->assertSame([], $validator->validateAgainstJsonSchema((object) ['object' => new \stdClass(), 'list' => []], $tool->outputSchema));
+        $this->assertNotEmpty($validator->validateAgainstJsonSchema((object) ['object' => [], 'list' => []], $tool->outputSchema));
+        $this->assertNotEmpty($validator->validateAgainstJsonSchema((object) ['object' => new \stdClass(), 'list' => new \stdClass()], $tool->outputSchema));
     }
 
     public function testOtherParamsAreDecodedToArrays(): void
