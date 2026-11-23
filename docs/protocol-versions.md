@@ -178,7 +178,8 @@ What being modern changes underneath:
 - **Headers on every POST** — `MCP-Protocol-Version`, `Mcp-Method`, and `Mcp-Name` where the
   method addresses a subject. Arguments annotated with `x-mcp-header` are mirrored into
   `Mcp-Param-*`, which requires the client to have listed the tool first; `tools/list` is what
-  populates that knowledge. A tool whose annotations are malformed is dropped from the listing
+  populates that knowledge. A call the server refuses with `-32020` is retried once after
+  listing the tools again. A tool whose annotations are malformed is dropped from the listing
   and refused if called, since the client cannot produce the headers it demands.
 - **[Multi round-trip calls](handlers/input-required.md) are answered by the client.** A result
   of `resultType: "input_required"` is resolved through the same

@@ -244,18 +244,21 @@ class Client
             throw new InvalidArgumentException('The per-call timeout must be a finite positive number of seconds.');
         }
 
-        $catalog = $this->protocol->getToolCatalog();
+        $this->refuseRejectedTool($name);
 
-        // A tool the listing showed to be malformed is refused here rather than
-        // sent: the client cannot produce the headers its annotations demand,
-        // so the call could only go out misdescribed (SEP-2243).
-        if ($catalog->isRejected($name)) {
-            throw new RuntimeException(\sprintf('Refusing to call tool "%s": its "x-mcp-header" annotations are invalid (%s).', $name, $catalog->reasonFor($name)));
+        try {
+            $response = $this->sendRequest(new CallToolRequest($name, $arguments), $onProgress, $cancellation, $timeoutSeconds);
+        } catch (RequestException $e) {
+            if (Error::HEADER_MISMATCH !== $e->getCode()) {
+                throw $e;
+            }
+
+            // The tool was never listed or its schema changed: list again and retry once (SEP-2243).
+            $this->recordTools();
+            $this->refuseRejectedTool($name);
+
+            $response = $this->sendRequest(new CallToolRequest($name, $arguments), $onProgress, $cancellation, $timeoutSeconds);
         }
-
-        $request = new CallToolRequest($name, $arguments);
-
-        $response = $this->sendRequest($request, $onProgress, $cancellation, $timeoutSeconds);
 
         return CallToolResult::fromArray($response->result);
     }
@@ -400,6 +403,25 @@ class Client
         }
 
         $this->protocol->sendNotification(new RootsListChangedNotification());
+    }
+
+    // A malformed tool can't get the headers its annotations demand, so it is never sent (SEP-2243).
+    private function refuseRejectedTool(string $name): void
+    {
+        $catalog = $this->protocol->getToolCatalog();
+
+        if ($catalog->isRejected($name)) {
+            throw new RuntimeException(\sprintf('Refusing to call tool "%s": its "x-mcp-header" annotations are invalid (%s).', $name, $catalog->reasonFor($name)));
+        }
+    }
+
+    private function recordTools(): void
+    {
+        $cursor = null;
+
+        do {
+            $cursor = $this->listTools($cursor)->nextCursor;
+        } while (null !== $cursor);
     }
 
     /**
