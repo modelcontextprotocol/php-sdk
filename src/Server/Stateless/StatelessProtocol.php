@@ -40,9 +40,12 @@ use Mcp\Server\Fiber\FiberContextInterface;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\Fiber\HandlerFibers;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
+use Mcp\Server\Middleware\RequestMiddlewareHandler;
+use Mcp\Server\Middleware\RequestMiddlewareInterface;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;
+use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Subscription\NotificationBusInterface;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
@@ -104,8 +107,9 @@ final class StatelessProtocol
 
     /**
      * @param iterable<RequestHandlerInterface<ResultInterface>> $requestHandlers
+     * @param list<RequestMiddlewareInterface>                   $receivingMiddleware
      * @param list<ProtocolVersion>                              $supportedVersions
-     * @param array<string, string>                              $extensionMethods  RPC method to the extension identifier defining it
+     * @param array<string, string>                              $extensionMethods    RPC method to the extension identifier defining it
      */
     public function __construct(
         private readonly iterable $requestHandlers,
@@ -124,6 +128,7 @@ final class StatelessProtocol
         private readonly ?RequestStateBinderInterface $requestStateBinder = null,
         private readonly ?FiberSchedulerInterface $fiberScheduler = null,
         private readonly ?FiberContextInterface $fiberContext = null,
+        private readonly array $receivingMiddleware = [],
     ) {
         $this->codec = $codec ?? new Rev2026Codec($configuration->serverInfo, $cachePolicy);
 
@@ -541,7 +546,28 @@ final class StatelessProtocol
 
         $request = $this->dispatchEvent(new RequestEvent($request, $session))->getRequest();
 
-        foreach ($this->requestHandlers as $handler) {
+        $unhandled = null;
+        $handlers = $this->requestHandlers;
+        if ([] !== $this->receivingMiddleware) {
+            $handlers = [RequestMiddlewareHandler::wrap($this->receivingMiddleware, $request, $session, function (Request $request, SessionInterface $session) use ($meta, $method, $id, &$unhandled): Response|Error {
+                foreach ($this->requestHandlers as $handler) {
+                    if (!$handler->supports($request)) {
+                        continue;
+                    }
+
+                    $run = $this->run($handler, $request, $session, $meta);
+                    foreach ($run as $notification) {
+                        HandlerFibers::suspend(new NotificationSuspension($notification, $session->getId()->toRfc4122()));
+                    }
+
+                    return $run->getReturn();
+                }
+
+                return $unhandled = $this->unknownMethod($method, $id);
+            })];
+        }
+
+        foreach ($handlers as $handler) {
             if (!$handler->supports($request)) {
                 continue;
             }
@@ -581,7 +607,7 @@ final class StatelessProtocol
             }
 
             if ($result instanceof Error) {
-                return StatelessResult::error($this->dispatchError($result, $request, $session), 400);
+                return StatelessResult::error($this->dispatchError($result, $request, $session), $result === $unhandled ? 404 : 400);
             }
 
             if (null !== $capabilityError = $this->checkInputRequests($result->result, $meta, $method, $id)) {
@@ -688,11 +714,11 @@ final class StatelessProtocol
      * {@see \Mcp\Server\ClientGateway::elicit()}; see {@see ElicitationReplay}
      * for what it costs.
      *
-     * @param RequestHandlerInterface<ResultInterface> $handler
+     * @param RequestHandlerInterface<ResultInterface|array<string, mixed>> $handler
      *
      * @return \Generator<int, Notification, null, Response<ResultInterface>|Error>
      */
-    private function run(RequestHandlerInterface $handler, Request $request, Session $session, RequestMeta $meta): \Generator
+    private function run(RequestHandlerInterface $handler, Request $request, SessionInterface $session, RequestMeta $meta): \Generator
     {
         $fiber = HandlerFibers::create(static fn (): mixed => $handler->handle($request, $session), $this->fiberScheduler, logger: $this->logger, context: $this->fiberContext);
         $input = $session->get(InputContext::class);
@@ -731,10 +757,18 @@ final class StatelessProtocol
             $suspended = HandlerFibers::resume($fiber);
         }
 
-        /** @var Response<ResultInterface>|Error $return */
-        $return = $fiber->getReturn();
+        $result = $fiber->getReturn();
+        if ($result instanceof Error) {
+            return $result;
+        }
+        if (!$result->result instanceof ResultInterface) {
+            throw new LogicException('Stateless request handlers and middleware must return a ResultInterface result.');
+        }
 
-        return $return;
+        /** @var Response<ResultInterface> $response */
+        $response = $result;
+
+        return $response;
     }
 
     /**

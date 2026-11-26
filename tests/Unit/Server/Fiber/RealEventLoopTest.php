@@ -13,17 +13,28 @@ namespace Mcp\Tests\Unit\Server\Fiber;
 
 use Mcp\Example\Server\ReactPhp\ReactFiberScheduler;
 use Mcp\Example\Server\Revolt\RevoltFiberScheduler;
+use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Request;
+use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Notification\ToolListChangedNotification;
+use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\RequestMeta;
+use Mcp\Schema\Result\CallToolResult;
+use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\Builder;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
+use Mcp\Server\Handler\Request\RequestHandlerInterface;
+use Mcp\Server\Middleware\RequestMiddlewareInterface;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionLock;
 use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Transport\CallbackStream;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Mcp\Tests\Unit\Fixtures\RecordingFiberContext;
@@ -105,6 +116,17 @@ final class RealEventLoopTest extends TestCase
     }
 
     /**
+     * @return iterable<string, array{FiberSchedulerInterface, \Closure(float): void, \Closure(list<\Closure(): void>): void, bool}>
+     */
+    public static function runtimesWithAndWithoutReceivingMiddleware(): iterable
+    {
+        foreach (self::runtimes() as $runtime => $arguments) {
+            yield "$runtime, without middleware" => [...$arguments, false];
+            yield "$runtime, with middleware" => [...$arguments, true];
+        }
+    }
+
+    /**
      * @param \Closure(float): void                  $sleep
      * @param \Closure(list<\Closure(): void>): void $run
      */
@@ -132,6 +154,93 @@ final class RealEventLoopTest extends TestCase
         ]);
 
         $this->assertSame(['quick done', 'slow done'], $answers);
+    }
+
+    /**
+     * @param \Closure(float): void                  $sleep
+     * @param \Closure(list<\Closure(): void>): void $run
+     */
+    #[DataProvider('runtimes')]
+    public function testReceivingMiddlewareObservesElicitationAndRetry(FiberSchedulerInterface $scheduler, \Closure $sleep, \Closure $run): void
+    {
+        $builder = $this->builder($scheduler)
+            ->addTool(static function (RequestContext $context) use ($sleep): string {
+                $sleep(0.01);
+                $answer = $context->getClientGateway()->elicit('Your name?', new ElicitationSchema(['name' => new StringSchemaDefinition('Name')], ['name']), key: 'who');
+                $sleep(0.01);
+
+                return 'Hello, '.($answer->content['name'] ?? 'nobody');
+            }, name: 'greet', description: 'Greets you');
+
+        $observed = [];
+        if (interface_exists(RequestMiddlewareInterface::class)) {
+            $builder->addReceivingMiddleware(self::middleware(static function (Request $request, SessionInterface $session, RequestHandlerInterface $next) use (&$observed): Response|Error {
+                $response = $next->handle($request, $session);
+                if ($response instanceof Response && \is_object($response->result)) {
+                    $observed[] = $response->result::class;
+                }
+
+                return $response;
+            }));
+        }
+
+        $server = $builder->build();
+        $asked = $done = null;
+        $run([
+            function () use ($server, &$asked, &$done): void {
+                $capabilities = ['elicitation' => new \stdClass()];
+                $asked = $this->decode($this->modernCall($server, 'greet', $capabilities))['result'] ?? [];
+                $done = $this->text($this->modernCall($server, 'greet', $capabilities, [
+                    'inputResponses' => ['who' => ['action' => 'accept', 'content' => ['name' => 'Ada']]],
+                ]));
+            },
+        ]);
+
+        $this->assertSame('input_required', $asked['resultType'] ?? null);
+        $this->assertSame('Hello, Ada', $done);
+        $this->assertSame([
+            InputRequiredResult::class,
+            CallToolResult::class,
+        ], $observed, 'Receiving middleware must observe both the input-required response and the retry result.');
+    }
+
+    public function testReceivingMiddlewareCanShortCircuitInBothEras(): void
+    {
+        $observed = [];
+        $builder = Server::builder()
+            ->setServerInfo('middleware-test', '1.0.0')
+            ->setSession(new InMemorySessionStore())
+            ->addTool(function (): string {
+                $this->fail('The handler must not run after middleware returns early.');
+            }, name: 'greet', description: 'Greets you')
+            ->addReceivingMiddleware(self::middleware(static function (Request $request, SessionInterface $session, RequestHandlerInterface $next) use (&$observed): Response|Error {
+                if (!$request instanceof CallToolRequest) {
+                    return $next->handle($request, $session);
+                }
+
+                $observed[] = 'outer before';
+                $result = $next->handle($request->withMeta(['com.example/marker' => 'outer']), $session);
+                $observed[] = 'outer after';
+
+                return $result;
+            }))
+            ->addReceivingMiddleware(self::middleware(static function (Request $request, SessionInterface $session, RequestHandlerInterface $next) use (&$observed): Response|Error {
+                if (!$request instanceof CallToolRequest) {
+                    return $next->handle($request, $session);
+                }
+
+                $observed[] = $request->getMeta()['com.example/marker'] ?? null;
+
+                return new Response($request->getId(), new CallToolResult([new TextContent('short-circuited')]));
+            }));
+
+        $server = $builder->build();
+        $this->assertSame('short-circuited', $this->text($this->modernCall($server, 'greet')));
+        $this->assertSame('short-circuited', $this->text($this->handshakeCall($server, $this->handshake($server), 'greet', 2)));
+        $this->assertSame([
+            'outer before', 'outer', 'outer after',
+            'outer before', 'outer', 'outer after',
+        ], $observed);
     }
 
     /**
@@ -397,13 +506,14 @@ final class RealEventLoopTest extends TestCase
      * @param \Closure(float): void                  $sleep
      * @param \Closure(list<\Closure(): void>): void $run
      */
-    #[DataProvider('runtimes')]
+    #[DataProvider('runtimesWithAndWithoutReceivingMiddleware')]
     #[TestDox('dropping the chunks when the client goes away stops the handler before it sends anything more')]
-    public function testDroppingTheChunksStopsTheHandler(FiberSchedulerInterface $scheduler, \Closure $sleep, \Closure $run): void
+    public function testDroppingTheChunksStopsTheHandler(FiberSchedulerInterface $scheduler, \Closure $sleep, \Closure $run, bool $withMiddleware): void
     {
         $unwound = false;
         $finished = false;
-        $server = $this->builder($scheduler)
+        $middlewareUnwound = false;
+        $builder = $this->builder($scheduler)
             ->addTool(static function (RequestContext $context) use ($sleep, &$unwound, &$finished): string {
                 try {
                     $sleep(0.01);
@@ -414,8 +524,17 @@ final class RealEventLoopTest extends TestCase
                 } finally {
                     $unwound = true;
                 }
-            }, name: 'notifier', description: 'Sends a notification')
-            ->build();
+            }, name: 'notifier', description: 'Sends a notification');
+        if ($withMiddleware) {
+            $builder->addReceivingMiddleware(self::middleware(static function (Request $request, SessionInterface $session, RequestHandlerInterface $next) use (&$middlewareUnwound): Response|Error {
+                try {
+                    return $next->handle($request, $session);
+                } finally {
+                    $middlewareUnwound = true;
+                }
+            }));
+        }
+        $server = $builder->build();
 
         $written = [];
         $unwoundWhileTheBodyIsHeld = false;
@@ -437,6 +556,7 @@ final class RealEventLoopTest extends TestCase
         $this->assertStringContainsString('list_changed', $written[0]);
         $this->assertTrue($unwoundWhileTheBodyIsHeld, 'Dropping the chunks unwinds the handler while the body is still held.');
         $this->assertFalse($finished);
+        $this->assertSame($withMiddleware, $middlewareUnwound);
     }
 
     /**
@@ -627,6 +747,26 @@ final class RealEventLoopTest extends TestCase
         }
 
         return $server->run(new StreamableHttpTransport($request, $this->factory, $this->factory));
+    }
+
+    /**
+     * @param \Closure(Request, SessionInterface, RequestHandlerInterface<ResultInterface|array<string, mixed>>): (Response<ResultInterface|array<string, mixed>>|Error) $callback
+     */
+    private static function middleware(\Closure $callback): RequestMiddlewareInterface
+    {
+        return new class($callback) implements RequestMiddlewareInterface {
+            /**
+             * @param \Closure(Request, SessionInterface, RequestHandlerInterface<ResultInterface|array<string, mixed>>): (Response<ResultInterface|array<string, mixed>>|Error) $callback
+             */
+            public function __construct(private readonly \Closure $callback)
+            {
+            }
+
+            public function processRequest(Request $request, SessionInterface $session, RequestHandlerInterface $next): Response|Error
+            {
+                return ($this->callback)($request, $session, $next);
+            }
+        };
     }
 
     private function builder(FiberSchedulerInterface $scheduler, bool $sessions = true): Builder

@@ -298,6 +298,9 @@ final class Builder
      */
     private ?array $parts = null;
 
+    /** @var list<Middleware\RequestMiddlewareInterface> */
+    private array $receivingMiddleware = [];
+
     /**
      * Sets the server's identity. Required.
      *
@@ -529,6 +532,16 @@ final class Builder
                 }
             }
         }
+
+        return $this;
+    }
+
+    /**
+     * The first registered middleware is the outermost layer.
+     */
+    public function addReceivingMiddleware(Middleware\RequestMiddlewareInterface $middleware): self
+    {
+        $this->receivingMiddleware[] = $middleware;
 
         return $this;
     }
@@ -1050,6 +1063,7 @@ final class Builder
             fiberScheduler: $this->fiberScheduler,
             fiberContext: $this->fiberContext,
             sessionless: !$this->sessions,
+            receivingMiddleware: $this->receivingMiddleware,
         );
 
         $modernVersions = $this->modernVersions ?? ProtocolVersion::modernVersions();
@@ -1102,6 +1116,7 @@ final class Builder
             requestStateBinder: $this->requestStateBinder,
             fiberScheduler: $this->fiberScheduler,
             fiberContext: $this->fiberContext,
+            receivingMiddleware: $this->receivingMiddleware,
         );
     }
 

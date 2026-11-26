@@ -42,6 +42,8 @@ use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\Fiber\HandlerFibers;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
+use Mcp\Server\Middleware\RequestMiddlewareHandler;
+use Mcp\Server\Middleware\RequestMiddlewareInterface;
 use Mcp\Server\Session\EphemeralSession;
 use Mcp\Server\Session\EphemeralSessionInterface;
 use Mcp\Server\Session\SessionInterface;
@@ -139,6 +141,7 @@ class Protocol
     /**
      * @param array<int, RequestHandlerInterface<ResultInterface|array<string, mixed>>> $requestHandlers
      * @param array<int, NotificationHandlerInterface>                                  $notificationHandlers
+     * @param list<RequestMiddlewareInterface>                                          $receivingMiddleware
      * @param bool                                                                      $sessionless          serve each handshake-era request over Streamable HTTP
      *                                                                                                        on a session of its own, without a `Mcp-Session-Id`
      */
@@ -155,6 +158,7 @@ class Protocol
         private readonly ?FiberSchedulerInterface $fiberScheduler = null,
         private readonly ?FiberContextInterface $fiberContext = null,
         private readonly bool $sessionless = false,
+        private readonly array $receivingMiddleware = [],
     ) {
         $this->sessionLock = null !== $sessionLock && null !== $fiberScheduler ? new EventLoopSessionLock($sessionLock, $fiberScheduler) : $sessionLock;
         $this->awaitedRequestIds = new \WeakMap();
@@ -447,9 +451,22 @@ class Protocol
             return;
         }
 
+        $handlers = $this->requestHandlers;
+        if ([] !== $this->receivingMiddleware) {
+            $handlers = [RequestMiddlewareHandler::wrap($this->receivingMiddleware, $request, $session, static function (Request $request, SessionInterface $session) use ($handlers): Response|Error {
+                foreach ($handlers as $handler) {
+                    if ($handler->supports($request)) {
+                        return $handler->handle($request, $session);
+                    }
+                }
+
+                return Error::forMethodNotFound(\sprintf('No handler found for method "%s".', $request::getMethod()), $request->getId());
+            })];
+        }
+
         $handlerFound = false;
 
-        foreach ($this->requestHandlers as $handler) {
+        foreach ($handlers as $handler) {
             if (!$handler->supports($request)) {
                 continue;
             }
