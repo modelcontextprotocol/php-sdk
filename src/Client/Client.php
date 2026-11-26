@@ -18,6 +18,7 @@ use Mcp\Client\Exception\InvalidArgumentException;
 use Mcp\Client\Exception\RequestCancelledException;
 use Mcp\Client\Exception\RequestException;
 use Mcp\Client\Exception\RuntimeException;
+use Mcp\Client\Exception\TimeoutException;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -200,9 +201,14 @@ class Client
      */
     public function listTools(?string $cursor = null): ListToolsResult
     {
+        return $this->listToolsPage($cursor);
+    }
+
+    private function listToolsPage(?string $cursor, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): ListToolsResult
+    {
         $request = new ListToolsRequest($cursor);
 
-        $response = $this->sendRequest($request);
+        $response = $this->sendRequest($request, null, $cancellation, $timeoutSeconds);
 
         $result = $response->result;
 
@@ -228,10 +234,10 @@ class Client
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      *                                                                                                Optional callback for progress updates
      * @param CancellationTokenInterface|null                                         $cancellation   Non-blocking cancellation signal
-     * @param float|null                                                              $timeoutSeconds Finite positive timeout replacing the default for this call
+     * @param float|null                                                              $timeoutSeconds Finite positive timeout replacing the default for this call, retry included
      *
      * @throws RequestCancelledException                                                                             When cancellation is observed
-     * @throws Exception\TimeoutException                                                                            When the request timeout is observed to have expired
+     * @throws TimeoutException                                                                                      When the request timeout is observed to have expired
      * @throws AuthorizationException|RequestException|ConnectionException|InvalidArgumentException|RuntimeException
      */
     public function callTool(string $name, array $arguments = [], ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): CallToolResult
@@ -244,18 +250,24 @@ class Client
             throw new InvalidArgumentException('The per-call timeout must be a finite positive number of seconds.');
         }
 
-        $catalog = $this->protocol->getToolCatalog();
+        $this->refuseRejectedTool($name);
 
-        // A tool the listing showed to be malformed is refused here rather than
-        // sent: the client cannot produce the headers its annotations demand,
-        // so the call could only go out misdescribed (SEP-2243).
-        if ($catalog->isRejected($name)) {
-            throw new RuntimeException(\sprintf('Refusing to call tool "%s": its "x-mcp-header" annotations are invalid (%s).', $name, $catalog->reasonFor($name)));
+        // One deadline for the whole call: the listing and the retry only get what is left of it.
+        $deadline = microtime(true) + ($timeoutSeconds ?? $this->config->requestTimeout);
+
+        try {
+            $response = $this->sendRequest(new CallToolRequest($name, $arguments), $onProgress, $cancellation, self::remaining($deadline));
+        } catch (RequestException $e) {
+            if (Error::HEADER_MISMATCH !== $e->getCode()) {
+                throw $e;
+            }
+
+            // The tool was never listed or its schema changed: list again and retry once (SEP-2243).
+            $this->recordTools($cancellation, $deadline);
+            $this->refuseRejectedTool($name);
+
+            $response = $this->sendRequest(new CallToolRequest($name, $arguments), $onProgress, $cancellation, self::remaining($deadline));
         }
-
-        $request = new CallToolRequest($name, $arguments);
-
-        $response = $this->sendRequest($request, $onProgress, $cancellation, $timeoutSeconds);
 
         return CallToolResult::fromArray($response->result);
     }
@@ -400,6 +412,39 @@ class Client
         }
 
         $this->protocol->sendNotification(new RootsListChangedNotification());
+    }
+
+    // A malformed tool can't get the headers its annotations demand, so it is never sent (SEP-2243).
+    private function refuseRejectedTool(string $name): void
+    {
+        $catalog = $this->protocol->getToolCatalog();
+
+        if ($catalog->isRejected($name)) {
+            throw new RuntimeException(\sprintf('Refusing to call tool "%s": its "x-mcp-header" annotations are invalid (%s).', $name, $catalog->reasonFor($name)));
+        }
+    }
+
+    private function recordTools(?CancellationTokenInterface $cancellation, float $deadline): void
+    {
+        $cursor = null;
+
+        do {
+            $cursor = $this->listToolsPage($cursor, $cancellation, self::remaining($deadline))->nextCursor;
+        } while (null !== $cursor);
+    }
+
+    /**
+     * @throws TimeoutException when nothing is left
+     */
+    private static function remaining(float $deadline): float
+    {
+        $left = $deadline - microtime(true);
+
+        if ($left <= 0) {
+            throw new TimeoutException('The request deadline expired.');
+        }
+
+        return $left;
     }
 
     /**
