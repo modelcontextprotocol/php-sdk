@@ -236,23 +236,6 @@ class Client
      */
     public function callTool(string $name, array $arguments = [], ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): CallToolResult
     {
-        if ($cancellation?->isCancellationRequested()) {
-            throw new RequestCancelledException('The client cancelled the request.');
-        }
-
-        if (null !== $timeoutSeconds && (!is_finite($timeoutSeconds) || $timeoutSeconds <= 0)) {
-            throw new InvalidArgumentException('The per-call timeout must be a finite positive number of seconds.');
-        }
-
-        $catalog = $this->protocol->getToolCatalog();
-
-        // A tool the listing showed to be malformed is refused here rather than
-        // sent: the client cannot produce the headers its annotations demand,
-        // so the call could only go out misdescribed (SEP-2243).
-        if ($catalog->isRejected($name)) {
-            throw new RuntimeException(\sprintf('Refusing to call tool "%s": its "x-mcp-header" annotations are invalid (%s).', $name, $catalog->reasonFor($name)));
-        }
-
         $request = new CallToolRequest($name, $arguments);
 
         $response = $this->sendRequest($request, $onProgress, $cancellation, $timeoutSeconds);
@@ -403,16 +386,44 @@ class Client
     }
 
     /**
-     * Send a request to the server and wait for response.
+     * Send a core or extension request and return the server response.
      *
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      *
      * @return Response<mixed>
      *
-     * @throws AuthorizationException|RequestException|ConnectionException|InvalidArgumentException
+     * @throws AuthorizationException|RequestException|ConnectionException|InvalidArgumentException|RuntimeException
+     * @throws RequestCancelledException|Exception\TimeoutException
+     */
+    public function request(Request $request, ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): Response
+    {
+        return $this->sendRequest($request, $onProgress, $cancellation, $timeoutSeconds);
+    }
+
+    /**
+     * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
+     *
+     * @return Response<mixed>
      */
     private function sendRequest(Request $request, ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): Response
     {
+        if ($cancellation?->isCancellationRequested()) {
+            throw new RequestCancelledException('The client cancelled the request.');
+        }
+
+        if (null !== $timeoutSeconds && (!is_finite($timeoutSeconds) || $timeoutSeconds <= 0)) {
+            throw new InvalidArgumentException('The per-call timeout must be a finite positive number of seconds.');
+        }
+
+        if ($request instanceof CallToolRequest) {
+            $catalog = $this->protocol->getToolCatalog();
+
+            // A tool with invalid annotations cannot be sent with the headers it requires (SEP-2243).
+            if ($catalog->isRejected($request->name)) {
+                throw new RuntimeException(\sprintf('Refusing to call tool "%s": its "x-mcp-header" annotations are invalid (%s).', $request->name, $catalog->reasonFor($request->name)));
+            }
+        }
+
         $transport = $this->transport;
         if (null === $transport || !$this->protocol->getState()->isInitialized()) {
             throw new ConnectionException('Client is not connected. Call connect() first.');

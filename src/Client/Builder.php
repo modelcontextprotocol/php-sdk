@@ -97,7 +97,7 @@ final class Builder
 
     /**
      * Enable one or more MCP protocol extensions, announced to the server under
-     * `capabilities.extensions` in the initialize request.
+     * `capabilities.extensions` in modern request metadata or in the initialize request.
      *
      * @throws InvalidArgumentException if the identifier is not a valid `_meta` prefix
      * @throws LogicException           if the same extension is enabled more than once
