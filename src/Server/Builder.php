@@ -1134,7 +1134,7 @@ final class Builder
             : $this->eventDispatcher;
         $subscriptionManager = $this->subscriptionManager ?? new SessionSubscriptionManager($logger);
         $sessionManager = $this->sessionManager ?? new SessionManager(
-            $this->sessionStore ?? new InMemorySessionStore(),
+            $this->sessionStore ?? ($this->sessions ? new InMemorySessionStore() : new InMemorySessionStore(ttl: \PHP_INT_MAX)),
             $logger,
             $this->gcProbability,
             $this->gcDivisor,

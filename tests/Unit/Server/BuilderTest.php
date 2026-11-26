@@ -35,11 +35,14 @@ use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Handler\Request\InitializeHandler;
 use Mcp\Server\Protocol;
 use Mcp\Server\Server;
+use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\SessionInterface;
+use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Subscription\PublishingEventDispatcher;
 use Mcp\Server\Transport\InMemoryTransport;
+use Mcp\Server\Transport\StdioTransport;
 use Mcp\Tests\Unit\Server\Extension\ThingExtension;
 use Mcp\Tests\Unit\Server\Extension\ThingListHandler;
 use Mcp\Tests\Unit\Server\Extension\ThingListRequest;
@@ -222,6 +225,97 @@ final class BuilderTest extends TestCase
         $capabilities = $this->extractServerCapabilities($server);
 
         $this->assertTrue($capabilities->tools);
+    }
+
+    #[TestDox('the default stdio session survives idle time and is destroyed at EOF')]
+    public function testDefaultStdioSessionSurvivesIdleTime(): void
+    {
+        $server = Server::builder()->build();
+        $store = $this->extractSessionStore($server);
+        $records = new \ReflectionProperty(InMemorySessionStore::class, 'store');
+        $input = fopen('php://memory', 'r+');
+        $this->assertNotFalse($input);
+        fwrite($input, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'."\n");
+        fwrite($input, '{"jsonrpc":"2.0","id":2,"method":"ping"}'."\n");
+        rewind($input);
+        $outputFile = tempnam(sys_get_temp_dir(), 'mcp-idle');
+        $this->assertNotFalse($outputFile);
+        $output = fopen($outputFile, 'w');
+        $this->assertNotFalse($output);
+        $transport = new class($input, $output, $store, $records) extends StdioTransport {
+            /**
+             * @param resource $input
+             * @param resource $output
+             */
+            public function __construct($input, $output, private readonly InMemorySessionStore $store, private readonly \ReflectionProperty $records)
+            {
+                parent::__construct($input, $output);
+            }
+
+            private int $ticks = 0;
+
+            protected function processInput(): void
+            {
+                if (1 !== $this->ticks++) {
+                    parent::processInput();
+
+                    return;
+                }
+
+                /** @var array<string, array{data: string, timestamp: int}> $records */
+                $records = $this->records->getValue($this->store);
+                foreach ($records as &$record) {
+                    $record['timestamp'] -= 7200;
+                }
+                $this->records->setValue($this->store, $records);
+                parent::processInput();
+            }
+        };
+
+        try {
+            $this->assertSame(0, $server->run($transport));
+            $written = file_get_contents($outputFile);
+            $this->assertNotFalse($written);
+            $lines = array_map(static fn (string $line): array => json_decode($line, true, flags: \JSON_THROW_ON_ERROR), explode("\n", trim($written)));
+            $this->assertSame(1, $lines[0]['id'] ?? null);
+            $this->assertArrayHasKey('result', $lines[0]);
+            $this->assertSame(2, $lines[1]['id'] ?? null, $written);
+            $this->assertSame([], $lines[1]['result'] ?? null);
+            $this->assertSame([], $records->getValue($store));
+        } finally {
+            unlink($outputFile);
+        }
+    }
+
+    #[TestDox('explicitly enabling sessions preserves the default HTTP expiry')]
+    public function testExplicitSessionsStillExpire(): void
+    {
+        $store = $this->extractSessionStore(Server::builder()->setSession()->build());
+        $id = \Symfony\Component\Uid\Uuid::v4();
+        $store->write($id, '{}');
+        $records = new \ReflectionProperty(InMemorySessionStore::class, 'store');
+        $records->setValue($store, [$id->toRfc4122() => ['data' => '{}', 'timestamp' => time() - 7200]]);
+
+        $this->assertFalse($store->exists($id));
+        $this->assertEquals([$id], $store->gc());
+    }
+
+    #[TestDox('a configured session store is retained')]
+    public function testCustomSessionStoreIsRetained(): void
+    {
+        $store = new InMemorySessionStore(ttl: 2);
+
+        $this->assertSame($store, $this->extractSessionStore(Server::builder()->setSession($store)->build()));
+    }
+
+    private function extractSessionStore(Server $server): InMemorySessionStore
+    {
+        $protocol = (new \ReflectionProperty(Server::class, 'protocol'))->getValue($server);
+        $manager = (new \ReflectionProperty(Protocol::class, 'sessionManager'))->getValue($protocol);
+        $store = (new \ReflectionProperty(SessionManager::class, 'store'))->getValue($manager);
+        $this->assertInstanceOf(InMemorySessionStore::class, $store);
+
+        return $store;
     }
 
     #[TestDox('setSessionLock() returns the builder for fluent chaining')]
