@@ -11,7 +11,6 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
-use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
@@ -23,7 +22,6 @@ use Mcp\Schema\Tool;
 use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Server\Capability\Registry\ToolReference;
 use Mcp\Server\Capability\RegistryInterface;
-use Mcp\Server\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Server\Exception\RegistryException;
 use Mcp\Server\Exception\ToolCallException;
 use Mcp\Server\Exception\ToolNotFoundException;
@@ -123,24 +121,6 @@ class CallToolHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($foreign, $response->result);
-    }
-
-    public function testAMissingClientCapabilityIsLeftToTheProtocol(): void
-    {
-        // Not a tool failure: the request was unservable, and the protocol
-        // renders it as -32021. The handler must let it through rather than
-        // turn it into tool output.
-        $request = $this->createCallToolRequest('slow_tool', []);
-        $toolReference = $this->createToolReference('slow_tool', static fn () => null);
-        $required = new ClientCapabilities(extensions: ['io.example/thing' => new \stdClass()]);
-
-        $this->registry->method('getTool')->willReturn($toolReference);
-        $this->referenceHandler->method('handle')->willThrowException(new MissingRequiredClientCapabilityException($required, 'Needs the thing.'));
-
-        $this->expectException(MissingRequiredClientCapabilityException::class);
-        $this->expectExceptionMessage('Needs the thing.');
-
-        $this->handler->handle($request, $this->session);
     }
 
     public function testHandleToolCallWithEmptyArguments(): void

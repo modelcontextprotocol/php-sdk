@@ -9,28 +9,21 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Schema\Result;
+namespace Mcp\Schema\Extension\Tasks;
 
 use Mcp\Schema\Enum\ResultType;
 use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\ResultInterface;
-use Mcp\Schema\Task;
 
 /**
- * The answer to a request the server decided to run as a task (SEP-2663).
+ * The answer to a `tools/call` the server decided to run as a task (SEP-2663).
  *
  * The result *is* the task: `resultType: "task"` alongside the task's own
- * fields, at the root. A nested wrapper would make a client unpack one shape
- * here and another from `tasks/get`, for no gain.
- *
- * Whether to create a task is the server's decision, not something the client
- * asks for per request — but the server must not make it for a client that did
- * not declare the extension, which {@see \Mcp\Server\Task\TasksExtension} is
- * what checks.
+ * fields, at the root.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-class CreateTaskResult implements ResultInterface
+final class CreateTaskResult implements ResultInterface
 {
     public function __construct(
         public readonly Task $task,
@@ -44,7 +37,7 @@ class CreateTaskResult implements ResultInterface
      */
     public static function fromArray(array $data): self
     {
-        if (ResultType::Task->value !== ($data['resultType'] ?? null)) {
+        if (!self::describes($data)) {
             throw new InvalidArgumentException('Missing or invalid "resultType" in CreateTaskResult data.');
         }
 
@@ -66,8 +59,6 @@ class CreateTaskResult implements ResultInterface
      */
     public function jsonSerialize(): array
     {
-        // The envelope only: a task that was just created has no result, no
-        // error and nothing it is waiting for.
         return ['resultType' => ResultType::Task->value, ...$this->task->toEnvelope()];
     }
 }

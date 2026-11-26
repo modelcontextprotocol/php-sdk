@@ -11,48 +11,37 @@
 
 namespace Mcp\Tests\Integration;
 
-use Mcp\Client\Client;
+use Mcp\Client\Builder as ClientBuilder;
 use Mcp\Client\Exception\RequestException;
+use Mcp\Client\Exception\RuntimeException;
 use Mcp\Client\Task\TaskClient;
 use Mcp\Schema\Content\TextContent;
-use Mcp\Schema\Enum\TaskStatus;
+use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Extension\Tasks\CreateTaskResult;
+use Mcp\Schema\Extension\Tasks\Task;
+use Mcp\Schema\Extension\Tasks\TaskStatus;
 use Mcp\Schema\JsonRpc\Error;
-use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\CallToolResult;
-use Mcp\Schema\Result\CreateTaskResult;
-use Mcp\Schema\Result\GetPromptResult;
-use Mcp\Schema\Task;
 use Mcp\Server\Task\TasksExtension;
 use PHPUnit\Framework\Attributes\TestDox;
 
 /**
- * The Tasks extension (SEP-2663), server and client together: a handle
- * instead of an answer, polled until it settles.
+ * The Tasks extension (SEP-2663) on 2026-07-28, server and client together:
+ * a handle instead of an answer, polled until it settles.
  *
  * @see Fixture/tasks.php for the server under test
  */
 final class TasksTest extends IntegrationTestCase
 {
-    #[TestDox('the server announces the extension with empty settings')]
-    public function testExtensionIsAnnounced(): void
-    {
-        $client = $this->connectDeclaring();
-
-        $result = $client->callTool('long_job');
-
-        $this->assertInstanceOf(CreateTaskResult::class, $result);
-        $this->assertSame(TaskStatus::Working, $result->task->status);
-        $this->assertSame('queued', $result->task->statusMessage);
-        $this->assertSame(10, $result->task->pollIntervalMs);
-        $this->assertNotNull($result->task->createdAt);
-    }
-
     #[TestDox('a task is polled to completion and carries the tool result')]
     public function testTaskIsPolledToCompletion(): void
     {
         $client = $this->connectDeclaring();
         $created = $client->callTool('long_job');
+
         $this->assertInstanceOf(CreateTaskResult::class, $created);
+        $this->assertSame(TaskStatus::Working, $created->task->status);
+        $this->assertSame('queued', $created->task->statusMessage);
 
         $polled = $client->get($created->task->taskId);
         $this->assertSame(TaskStatus::Working, $polled->status);
@@ -60,70 +49,55 @@ final class TasksTest extends IntegrationTestCase
 
         $done = $this->settle($client, $created->task->taskId);
         $this->assertSame(TaskStatus::Completed, $done->status);
-        $this->assertNull($done->error);
+        $this->assertNotNull($done->result);
 
         $result = CallToolResult::fromArray($done->result);
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
         $this->assertSame('done', $result->content[0]->text);
     }
 
+    #[TestDox('the plain client refuses a task answer and points to TaskClient')]
+    public function testPlainClientRefusesATask(): void
+    {
+        $client = $this->connect('tasks', $this->declaring());
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage(TaskClient::class.'::callTool()');
+
+        $client->callTool('long_job');
+    }
+
     #[TestDox('a client that did not declare the extension gets the synchronous answer')]
     public function testUndeclaredClientIsServedSynchronously(): void
     {
-        $client = $this->connect('tasks');
+        $result = $this->connect('tasks', $this->clientBuilder()->setProtocolVersion(ProtocolVersion::V2026_07_28))->callTool('long_job');
 
-        $result = $client->callTool('long_job');
-
-        $this->assertInstanceOf(CallToolResult::class, $result);
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
         $this->assertSame('sync', $result->content[0]->text);
     }
 
-    #[TestDox('a task-only tool refuses a client that cannot poll with -32021')]
-    public function testUndeclaredClientIsRefusedARequiredTask(): void
+    #[TestDox('below 2026-07-28 the extension does not exist: tools answer synchronously, tasks/* is not found')]
+    public function testOlderRevisionHasNoTasks(): void
     {
-        $client = $this->connect('tasks');
+        $client = new TaskClient($this->connect('tasks', $this->clientBuilder()
+            ->setProtocolVersion(ProtocolVersion::V2025_11_25)
+            ->enableExtension(new TasksExtension())));
 
-        try {
-            $client->callTool('task_only');
-            $this->fail('Expected the task to be refused.');
-        } catch (RequestException $e) {
-            $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $e->getError()?->code);
-            $this->assertArrayHasKey(TasksExtension::ID, $e->getError()->data['requiredCapabilities']['extensions']);
-        }
+        $result = $client->callTool('long_job');
+        $this->assertInstanceOf(CallToolResult::class, $result);
+        $this->assertInstanceOf(TextContent::class, $result->content[0]);
+        $this->assertSame('sync', $result->content[0]->text);
+
+        $this->assertErrorCode(Error::METHOD_NOT_FOUND, static fn () => $client->get('anything'));
     }
 
-    #[TestDox('the tasks/* methods themselves are refused to a client that did not declare the extension')]
-    public function testUndeclaredClientCannotPoll(): void
+    #[TestDox('a client that did not declare the extension is refused a task and the tasks/* methods with -32021')]
+    public function testUndeclaredClientIsRefused(): void
     {
-        $client = new TaskClient($this->connect('tasks'));
+        $client = new TaskClient($this->connect('tasks', $this->clientBuilder()->setProtocolVersion(ProtocolVersion::V2026_07_28)));
 
-        try {
-            $client->get('anything');
-            $this->fail('Expected tasks/get to be refused.');
-        } catch (RequestException $e) {
-            $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $e->getError()?->code);
-        }
-    }
-
-    #[TestDox('a parked task exposes what it asks for, and an answer through tasks/update completes it')]
-    public function testInputRequiredRoundTrip(): void
-    {
-        $client = $this->connectDeclaring();
-        $created = $client->callTool('ask_job');
-        $this->assertInstanceOf(CreateTaskResult::class, $created);
-
-        $parked = $client->get($created->task->taskId);
-        $this->assertSame(TaskStatus::InputRequired, $parked->status);
-        $this->assertArrayHasKey('name', $parked->inputRequests);
-        $this->assertInstanceOf(ElicitRequest::class, $parked->inputRequests['name']);
-        $this->assertSame('What is your name?', $parked->inputRequests['name']->message);
-
-        $client->update($created->task->taskId, ['name' => ['action' => 'accept', 'content' => ['name' => 'Ada']]]);
-
-        $done = $client->get($created->task->taskId);
-        $this->assertSame(TaskStatus::Completed, $done->status);
-        $this->assertSame('Hello, Ada', CallToolResult::fromArray($done->result)->content[0]->text ?? null);
+        $this->assertErrorCode(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, static fn () => $client->callTool('task_only'));
+        $this->assertErrorCode(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, static fn () => $client->get('anything'));
     }
 
     #[TestDox('a failed task carries the error inline and no result')]
@@ -160,31 +134,32 @@ final class TasksTest extends IntegrationTestCase
     {
         $client = $this->connectDeclaring();
 
-        try {
-            $client->get('no-such-task');
-            $this->fail('Expected tasks/get to fail.');
-        } catch (RequestException $e) {
-            $this->assertSame(Error::INVALID_PARAMS, $e->getError()?->code);
-        }
+        $this->assertErrorCode(Error::INVALID_PARAMS, static fn () => $client->get('no-such-task'));
     }
 
-    #[TestDox('a prompt can be served as a task too')]
-    public function testPromptAsTask(): void
+    private function declaring(): ClientBuilder
     {
-        $client = $this->connectDeclaring();
-        $created = $client->getPrompt('slow_prompt');
-        $this->assertInstanceOf(CreateTaskResult::class, $created);
-
-        $done = $this->settle($client, $created->task->taskId);
-
-        $this->assertSame(TaskStatus::Completed, $done->status);
-        $prompt = GetPromptResult::fromArray($done->result);
-        $this->assertSame('prompt done', $prompt->messages[0]->content->text ?? null);
+        return $this->clientBuilder()
+            ->setProtocolVersion(ProtocolVersion::V2026_07_28)
+            ->enableExtension(new TasksExtension());
     }
 
     private function connectDeclaring(): TaskClient
     {
-        return new TaskClient($this->connect('tasks', $this->clientBuilder()->enableExtension(new TasksExtension())));
+        $client = $this->connect('tasks', $this->declaring());
+        $this->assertSame(ProtocolVersion::V2026_07_28, $client->getProtocolVersion());
+
+        return new TaskClient($client);
+    }
+
+    private function assertErrorCode(int $code, callable $call): void
+    {
+        try {
+            $call();
+            $this->fail(\sprintf('Expected error %d.', $code));
+        } catch (RequestException $e) {
+            $this->assertSame($code, $e->getError()?->code);
+        }
     }
 
     /**

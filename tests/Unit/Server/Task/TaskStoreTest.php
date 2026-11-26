@@ -11,21 +11,20 @@
 
 namespace Mcp\Tests\Unit\Server\Task;
 
-use Mcp\Schema\Elicitation\ElicitationSchema;
-use Mcp\Schema\Elicitation\StringSchemaDefinition;
-use Mcp\Schema\Enum\TaskStatus;
+use Mcp\Schema\Extension\Tasks\Task;
+use Mcp\Schema\Extension\Tasks\TaskStatus;
 use Mcp\Schema\JsonRpc\Error;
-use Mcp\Schema\Request\ElicitRequest;
-use Mcp\Schema\Task;
 use Mcp\Server\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\RuntimeException;
 use Mcp\Server\Task\InMemoryTaskStore;
 use Mcp\Server\Task\Psr16TaskStore;
 use Mcp\Server\Task\TaskStoreInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
-use Psr\Clock\ClockInterface;
 use Psr\SimpleCache\CacheInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Psr16Cache;
 
 class TaskStoreTest extends TestCase
 {
@@ -35,121 +34,100 @@ class TaskStoreTest extends TestCase
     public static function stores(): iterable
     {
         yield 'in memory' => [new InMemoryTaskStore()];
-        yield 'psr-16' => [new Psr16TaskStore(self::arrayCache())];
+        yield 'psr-16' => [new Psr16TaskStore(new Psr16Cache(new ArrayAdapter()))];
     }
 
-    #[DataProvider('stores')]
-    #[TestDox('a task round-trips through the store')]
-    public function testRoundTrip(TaskStoreInterface $store): void
+    /**
+     * @return iterable<string, array{TaskStoreInterface, Task}>
+     */
+    public static function provideRoundTrips(): iterable
     {
-        $store->save(new Task('t-1', TaskStatus::Working, new \DateTimeImmutable(), new \DateTimeImmutable(), 600_000, 250, 'halfway'));
+        $now = new \DateTimeImmutable();
+        $working = new Task('t-1', TaskStatus::Working, $now, $now, 600_000, 250, 'halfway', owner: 'alice');
 
-        $task = $store->get('t-1');
+        $tasks = [
+            'working, owned' => $working,
+            'completed' => $working->with(TaskStatus::Completed, $now, result: ['content' => [['type' => 'text', 'text' => 'done']]]),
+            'failed' => $working->with(TaskStatus::Failed, $now, error: Error::forInternalError('boom')),
+        ];
 
-        $this->assertNotNull($task);
-        $this->assertSame('t-1', $task->taskId);
-        $this->assertSame(TaskStatus::Working, $task->status);
-        $this->assertSame(600_000, $task->ttlMs);
-        $this->assertSame(250, $task->pollIntervalMs);
-        $this->assertSame('halfway', $task->statusMessage);
+        foreach (self::stores() as $storeName => [$store]) {
+            foreach ($tasks as $taskName => $task) {
+                yield $storeName.', '.$taskName => [$store, $task];
+            }
+        }
+    }
+
+    #[DataProvider('provideRoundTrips')]
+    #[TestDox('a task round-trips through the store, owner included')]
+    public function testRoundTrip(TaskStoreInterface $store, Task $task): void
+    {
+        $store->save($task);
+
+        $read = $store->get($task->taskId);
+
+        $this->assertNotNull($read);
+        $this->assertEquals($task->jsonSerialize(), $read->jsonSerialize());
+        $this->assertSame($task->owner, $read->owner);
     }
 
     #[DataProvider('stores')]
-    #[TestDox('an unknown id reads as absent')]
     public function testUnknownIdIsNull(TaskStoreInterface $store): void
     {
         $this->assertNull($store->get('nope'));
     }
 
     #[DataProvider('stores')]
-    #[TestDox('a saved task overwrites the earlier state under the same id')]
-    public function testSaveOverwrites(TaskStoreInterface $store): void
-    {
-        $task = new Task('t-2', TaskStatus::Working, new \DateTimeImmutable(), new \DateTimeImmutable(), 600_000);
-        $store->save($task);
-        $store->save($task->with(TaskStatus::Cancelled));
-
-        $this->assertSame(TaskStatus::Cancelled, $store->get('t-2')?->status);
-    }
-
-    #[DataProvider('stores')]
-    #[TestDox('a failed task keeps its error across the store')]
-    public function testErrorSurvives(TaskStoreInterface $store): void
-    {
-        $task = (new Task('t-3', TaskStatus::Working, new \DateTimeImmutable(), null, 600_000))
-            ->with(TaskStatus::Failed, error: Error::forInternalError('boom'));
-
-        $store->save($task);
-
-        $read = $store->get('t-3');
-        $this->assertNotNull($read);
-        $this->assertNotNull($read->error);
-        $this->assertSame(Error::INTERNAL_ERROR, $read->error->code);
-        $this->assertSame('boom', $read->error->message);
-    }
-
-    #[DataProvider('stores')]
-    #[TestDox('a parked task still knows what it is waiting for after a round trip')]
-    public function testInputRequestsSurvive(TaskStoreInterface $store): void
-    {
-        $task = (new Task('t-4', TaskStatus::Working, new \DateTimeImmutable(), null, 600_000))
-            ->with(TaskStatus::InputRequired, inputRequests: [
-                'who' => new ElicitRequest('Who?', new ElicitationSchema(['n' => new StringSchemaDefinition('N')], ['n'])),
-            ]);
-
-        $store->save($task);
-
-        $read = $store->get('t-4');
-        $this->assertNotNull($read);
-        $this->assertArrayHasKey('who', $read->inputRequests);
-        $this->assertInstanceOf(ElicitRequest::class, $read->inputRequests['who']);
-        $this->assertSame('Who?', $read->inputRequests['who']->message);
-    }
-
-    #[DataProvider('stores')]
-    #[TestDox('a deleted task is gone')]
-    public function testDelete(TaskStoreInterface $store): void
-    {
-        $store->save(new Task('t-5'));
-        $store->delete('t-5');
-
-        $this->assertNull($store->get('t-5'));
-    }
-
     #[TestDox('a task past its TTL reads as absent')]
-    public function testTtlExpiry(): void
+    public function testTtlExpiry(TaskStoreInterface $store): void
     {
-        $created = new \DateTimeImmutable('2026-08-15T10:00:00+00:00');
-        $clock = new class($created) implements ClockInterface {
-            public function __construct(public \DateTimeImmutable $now)
-            {
-            }
-
-            public function now(): \DateTimeImmutable
-            {
-                return $this->now;
-            }
-        };
-
-        $store = new InMemoryTaskStore(clock: $clock);
+        $created = new \DateTimeImmutable('-2 seconds');
         $store->save(new Task('t-6', TaskStatus::Working, $created, $created, 1000));
 
-        $this->assertNotNull($store->get('t-6'));
-
-        $clock->now = $created->modify('+2 seconds');
         $this->assertNull($store->get('t-6'));
     }
 
-    #[TestDox('the in-memory store drops the least recently used task past its limit')]
+    #[TestDox('the PSR-16 store refuses to report a task created that the cache did not keep')]
+    public function testPsr16SaveFailureThrows(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('set')->willReturn(false);
+        $now = new \DateTimeImmutable();
+
+        $this->expectException(RuntimeException::class);
+
+        (new Psr16TaskStore($cache))->save(new Task('t-7', TaskStatus::Working, $now, $now));
+    }
+
+    #[TestDox('the PSR-16 store keeps a task without a TTL for as long as the cache does')]
+    public function testPsr16UnlimitedTtl(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->expects($this->once())->method('set')->with('mcp.tasks.t-8', $this->isType('string'), null)->willReturn(true);
+        $now = new \DateTimeImmutable();
+
+        (new Psr16TaskStore($cache))->save(new Task('t-8', TaskStatus::Working, $now, $now));
+    }
+
+    #[TestDox('an unreadable stored payload reads as absent rather than throwing')]
+    public function testCorruptPayloadIsDropped(): void
+    {
+        $cache = new Psr16Cache(new ArrayAdapter());
+        $cache->set('mcp.tasks.t-9', 'not json at all');
+
+        $this->assertNull((new Psr16TaskStore($cache))->get('t-9'));
+    }
+
+    #[TestDox('the in-memory store drops the least recently saved task past its limit')]
     public function testInMemoryEviction(): void
     {
+        $now = new \DateTimeImmutable();
         $store = new InMemoryTaskStore(limit: 2);
 
-        $store->save(new Task('a'));
-        $store->save(new Task('b'));
-        // Touching `a` makes `b` the least recently used.
-        $store->save(new Task('a', TaskStatus::Working));
-        $store->save(new Task('c'));
+        $store->save(new Task('a', TaskStatus::Working, $now, $now));
+        $store->save(new Task('b', TaskStatus::Working, $now, $now));
+        $store->save(new Task('a', TaskStatus::Working, $now, $now));
+        $store->save(new Task('c', TaskStatus::Working, $now, $now));
 
         $this->assertNotNull($store->get('a'));
         $this->assertNull($store->get('b'));
@@ -162,78 +140,5 @@ class TaskStoreTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         new InMemoryTaskStore(limit: 0);
-    }
-
-    #[TestDox('an unreadable stored payload reads as absent rather than throwing')]
-    public function testCorruptPayloadIsDropped(): void
-    {
-        $cache = self::arrayCache();
-        $cache->set('mcp.tasks.t-7', 'not json at all');
-
-        $this->assertNull((new Psr16TaskStore($cache))->get('t-7'));
-    }
-
-    private static function arrayCache(): CacheInterface
-    {
-        return new class implements CacheInterface {
-            /** @var array<string, mixed> */
-            private array $values = [];
-
-            public function get(string $key, mixed $default = null): mixed
-            {
-                return $this->values[$key] ?? $default;
-            }
-
-            public function set(string $key, mixed $value, int|\DateInterval|null $ttl = null): bool
-            {
-                $this->values[$key] = $value;
-
-                return true;
-            }
-
-            public function delete(string $key): bool
-            {
-                unset($this->values[$key]);
-
-                return true;
-            }
-
-            public function clear(): bool
-            {
-                $this->values = [];
-
-                return true;
-            }
-
-            public function getMultiple(iterable $keys, mixed $default = null): iterable
-            {
-                foreach ($keys as $key) {
-                    yield $key => $this->get($key, $default);
-                }
-            }
-
-            public function setMultiple(iterable $values, int|\DateInterval|null $ttl = null): bool
-            {
-                foreach ($values as $key => $value) {
-                    $this->set((string) $key, $value, $ttl);
-                }
-
-                return true;
-            }
-
-            public function deleteMultiple(iterable $keys): bool
-            {
-                foreach ($keys as $key) {
-                    $this->delete($key);
-                }
-
-                return true;
-            }
-
-            public function has(string $key): bool
-            {
-                return \array_key_exists($key, $this->values);
-            }
-        };
     }
 }

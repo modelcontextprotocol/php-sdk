@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Task;
 
-use Mcp\Schema\Task;
+use Mcp\Schema\Extension\Tasks\Task;
 use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\NativeClock;
 use Psr\Clock\ClockInterface;
@@ -21,8 +21,8 @@ use Psr\Clock\ClockInterface;
  *
  * Correct for stdio and for persistent runtimes where the whole server is one
  * process. Under PHP-FPM it is not: the worker that creates a task and the
- * worker polled for it are different processes, and every `tasks/get` would
- * answer "no such task". {@see Psr16TaskStore} is the answer there.
+ * worker polled for it are different processes. {@see Psr16TaskStore} is the
+ * answer there.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -31,32 +31,28 @@ final class InMemoryTaskStore implements TaskStoreInterface
     /** @var array<string, Task> */
     private array $tasks = [];
 
-    private readonly ClockInterface $clock;
-
     /**
-     * @param int $limit how many tasks to keep before dropping the oldest, so an unbounded
-     *                   run of task creation cannot exhaust memory
+     * @param int $limit how many tasks to keep before dropping the least recently saved one, so an
+     *                   unbounded run of task creation cannot exhaust memory
      */
     public function __construct(
         private readonly int $limit = 1000,
-        ?ClockInterface $clock = null,
+        private readonly ClockInterface $clock = new NativeClock(),
     ) {
         if ($this->limit < 1) {
             throw new InvalidArgumentException(\sprintf('A task store must hold at least one task, got %d.', $this->limit));
         }
-
-        $this->clock = $clock ?? new NativeClock();
     }
 
     public function save(Task $task): void
     {
-        // Re-inserted rather than updated in place, so the eviction order below
-        // reflects last use and a task being polled is not the one dropped.
+        // Re-inserted rather than updated in place, so the first key is always
+        // the least recently saved task.
         unset($this->tasks[$task->taskId]);
         $this->tasks[$task->taskId] = $task;
 
-        while (\count($this->tasks) > $this->limit) {
-            array_shift($this->tasks);
+        if (\count($this->tasks) > $this->limit) {
+            unset($this->tasks[array_key_first($this->tasks)]);
         }
     }
 
@@ -75,10 +71,5 @@ final class InMemoryTaskStore implements TaskStoreInterface
         }
 
         return $task;
-    }
-
-    public function delete(string $taskId): void
-    {
-        unset($this->tasks[$taskId]);
     }
 }

@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Schema\Enum;
+namespace Mcp\Schema\Extension\Tasks;
 
 /**
  * Where a task is in its life (SEP-2663).
@@ -27,9 +27,6 @@ enum TaskStatus: string
     /** The work is in progress. */
     case Working = 'working';
 
-    /** The server needs client input before it can continue. */
-    case InputRequired = 'input_required';
-
     /** The work finished; the result is what the original request would have returned. */
     case Completed = 'completed';
 
@@ -46,7 +43,7 @@ enum TaskStatus: string
     {
         return match ($this) {
             self::Completed, self::Failed, self::Cancelled => true,
-            self::Working, self::InputRequired => false,
+            self::Working => false,
         };
     }
 }
