@@ -7,7 +7,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Client
 
-* Retry a tool call refused with `-32020` once, after listing the tools again, so a tool called without being listed gets its `Mcp-Param-*` headers.
+* Retry a tool call refused with `-32020` once, after listing the tools again, so a tool called without being listed gets its `Mcp-Param-*` headers; the listing and the retry share the call's timeout and cancellation.
 
 ### Server
 
