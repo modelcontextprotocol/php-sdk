@@ -26,6 +26,21 @@ $transport = new StdioTransport(
 - `logger` (LoggerInterface|null): Optional PSR-3 logger
 - `maxBufferSize` (int): Maximum buffered bytes per message before the transport gives up
 
+On Linux and macOS, `command` goes to the shell through `escapeshellcmd()`, while each entry of `args` is quoted as
+one argument. A program whose path has a space needs quotes around it inside the string:
+
+```php
+$transport = new StdioTransport('"/Users/me/My Tools/server"', ['--verbose']);
+```
+
+Quotes are not enough when the path also has `(`, `)`, `&`, `$` or another character the shell treats specially:
+`escapeshellcmd()` puts a backslash before each of them, and the shell keeps that backslash inside quotes, so a path
+like `/Users/me/Tools (old)/server` is not found. Start such a program through `env` and pass its path as an argument:
+
+```php
+$transport = new StdioTransport('/usr/bin/env', ['/Users/me/Tools (old)/server', '--verbose']);
+```
+
 If the server process exits while a request waits for its answer, the request fails at once with a
 `RequestException`. The next call throws a `ConnectionException` until you call `connect()` again.
 
