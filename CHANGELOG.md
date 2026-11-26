@@ -9,6 +9,10 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 * Fix const validation errors always reporting the expected value as null.
 
+### Client
+
+* Add `Client::callToolRound()` for the modern multi round-trip lifecycle: it returns the server's `InputRequiredResult` without resolving input, and a later call carrying the answers keyed by input request ID and the opaque `requestState` resumes it. `callTool()` keeps resolving input automatically, with its existing signature and return type.
+
 0.10.0
 ------
 

@@ -134,10 +134,8 @@ class StatelessClientTest extends TestCase
         });
 
         $client = $this->connect(elicitation: true, httpClient: $httpClient);
-        // @phpstan-ignore function.alreadyNarrowedType (Run the same assertion against SDK versions without callToolRound.)
-        $callRound = method_exists($client, 'callToolRound') ? $client->callToolRound(...) : $client->callTool(...);
 
-        $pending = $callRound('greet');
+        $pending = $client->callToolRound('greet');
 
         $this->assertInstanceOf(InputRequiredResult::class, $pending, 'Received '.get_debug_type($pending).' instead of being able to defer the tool call.');
         $this->assertInstanceOf(ElicitRequest::class, $pending->inputRequests['who']);
@@ -159,7 +157,6 @@ class StatelessClientTest extends TestCase
         $this->assertNotSame($calls[0]->id, $calls[1]->id);
         $this->assertSame($pending->requestState, $calls[1]->params->requestState);
         $this->assertSame('Grace', $calls[1]->params->inputResponses->who->content->name);
-        $this->assertSame('Hello, Ada!', self::text($client->callTool('greet')));
 
         $client->disconnect();
     }

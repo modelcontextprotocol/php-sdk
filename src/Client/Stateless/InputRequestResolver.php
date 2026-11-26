@@ -43,7 +43,7 @@ final class InputRequestResolver
      * The only requests a server may park in `inputRequests`. Anything else is
      * a server fault, and answering it would be inventing protocol.
      *
-     * @var array<string, class-string<ElicitRequest|CreateSamplingMessageRequest|ListRootsRequest>>
+     * @var array<string, class-string<ElicitRequest>|class-string<CreateSamplingMessageRequest>|class-string<ListRootsRequest>>
      */
     private const RESOLVABLE = [
         'elicitation/create' => ElicitRequest::class,
@@ -82,6 +82,8 @@ final class InputRequestResolver
 
     /**
      * @param array<string, mixed> $result
+     *
+     * @throws RuntimeException when the server sent an ask that cannot be parsed, or an "input_required" result without input requests or state
      */
     public static function parseResult(array $result): ?InputRequiredResult
     {
@@ -96,6 +98,10 @@ final class InputRequestResolver
         }
 
         $state = $result['requestState'] ?? null;
+
+        if ([] === $requests && !\is_string($state)) {
+            throw new RuntimeException(\sprintf('Server answered "%s" without input requests or a state to resume.', InputRequiredResult::RESULT_TYPE));
+        }
 
         return new InputRequiredResult($requests, \is_string($state) ? $state : null);
     }

@@ -551,40 +551,19 @@ class Protocol
      * revision the server accepts (SEP-2575). Both re-send the same call, so
      * they belong together and above the single exchange.
      *
-     * @param Request $request      The request to send
-     * @param int     $timeout      The timeout in seconds
-     * @param bool    $withProgress Whether to attach a progress token to the request
+     * @param Request                                                       $request      The request to send
+     * @param int                                                           $timeout      The timeout in seconds
+     * @param bool                                                          $withProgress Whether to attach a progress token to the request
+     * @param array{inputResponses?: \stdClass, requestState?: string}|null $round        Resume data for a multi round-trip call
      *
      * @return Response<array<string, mixed>>|Error
      */
-    public function request(Request $request, int $timeout, bool $withProgress = false, ?CancellationTokenInterface $cancellation = null, ?float $callTimeout = null): Response|Error
+    public function request(Request $request, int $timeout, bool $withProgress = false, ?CancellationTokenInterface $cancellation = null, ?float $callTimeout = null, ?array $round = null): Response|Error
     {
-        return $this->requestWithInput($request, $timeout, $withProgress, $cancellation, $callTimeout);
-    }
-
-    /**
-     * @internal
-     *
-     * @param array{inputResponses?: \stdClass, requestState?: string} $round
-     *
-     * @return Response<array<string, mixed>>|Error
-     */
-    public function requestRound(Request $request, int $timeout, array $round, bool $withProgress = false, ?CancellationTokenInterface $cancellation = null, ?float $callTimeout = null): Response|Error
-    {
-        if (null === $this->envelope) {
+        if (null !== $round && null === $this->envelope) {
             throw new InvalidArgumentException('Calling a tool one round at a time requires protocol revision 2026-07-28 or later.');
         }
 
-        return $this->requestWithInput($request, $timeout, $withProgress, $cancellation, $callTimeout, $round);
-    }
-
-    /**
-     * @param array{inputResponses?: \stdClass, requestState?: string}|null $round
-     *
-     * @return Response<array<string, mixed>>|Error
-     */
-    private function requestWithInput(Request $request, int $timeout, bool $withProgress, ?CancellationTokenInterface $cancellation, ?float $callTimeout, ?array $round = null): Response|Error
-    {
         $deadline = null !== $callTimeout ? microtime(true) + $callTimeout : null;
         $payload = $request->withId(0)->jsonSerialize();
         unset($payload['id']);

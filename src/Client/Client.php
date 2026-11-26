@@ -465,11 +465,7 @@ class Client
         }
 
         $withProgress = null !== $onProgress;
-        $timeout = $this->config->requestTimeout;
-        $timeoutSeconds ??= $timeout;
-        $fiber = new \Fiber(fn () => null === $round
-            ? $this->protocol->request($request, $timeout, $withProgress, $cancellation, $timeoutSeconds)
-            : $this->protocol->requestRound($request, $timeout, $round, $withProgress, $cancellation, $timeoutSeconds));
+        $fiber = new \Fiber(fn () => $this->protocol->request($request, $this->config->requestTimeout, $withProgress, $cancellation, $timeoutSeconds ?? $this->config->requestTimeout, $round));
         $this->protocol->setProgressCallback($onProgress);
 
         try {
