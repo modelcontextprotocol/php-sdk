@@ -155,6 +155,20 @@ class ProtocolVersionTest extends TestCase
         $this->assertTrue(ProtocolVersion::V2026_07_28->usesInvalidParamsForResourceNotFound());
     }
 
+    #[TestDox('2025-11-25 moves input validation errors from protocol errors to tool execution errors')]
+    public function testReportsInvalidToolArgumentsAsToolError(): void
+    {
+        foreach ([ProtocolVersion::V2024_11_05, ProtocolVersion::V2025_03_26, ProtocolVersion::V2025_06_18] as $version) {
+            $this->assertFalse(
+                $version->reportsInvalidToolArgumentsAsToolError(),
+                \sprintf('%s still lists invalid arguments under protocol errors.', $version->value),
+            );
+        }
+
+        $this->assertTrue(ProtocolVersion::V2025_11_25->reportsInvalidToolArgumentsAsToolError());
+        $this->assertTrue(ProtocolVersion::V2026_07_28->reportsInvalidToolArgumentsAsToolError());
+    }
+
     #[TestDox('SEP-2575 removes SSE stream resumption')]
     public function testSupportsSseResumption(): void
     {

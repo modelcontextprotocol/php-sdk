@@ -8,6 +8,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 ### Server
 
 * Fix const validation errors always reporting the expected value as null.
+* [BC Break] Answer `tools/call` arguments that fail the tool's input schema with a tool result marked `isError` instead of `-32602`, from revision `2025-11-25` on (SEP-1303). The text is the message the error carried; sessions up to `2025-06-18` keep `-32602` with `validation_errors`. Adds `ProtocolVersion::reportsInvalidToolArgumentsAsToolError()`.
 
 0.10.0
 ------

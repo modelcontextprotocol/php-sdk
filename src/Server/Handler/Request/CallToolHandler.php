@@ -82,10 +82,23 @@ final class CallToolHandler implements RequestHandlerInterface
             return Error::forInvalidParams($e->getMessage(), $request->getId());
         }
 
+        $context = new RequestContext($session, $request);
+
         $inputSchema = $reference->tool->inputSchema;
         $validationErrors = $this->schemaValidator->validateAgainstJsonSchema((object) $arguments, $inputSchema);
         if (!empty($validationErrors)) {
             $summaryMessage = "Invalid parameters for tool '{$toolName}': ".self::summarizeValidationErrors($validationErrors);
+
+            $this->logger->debug('Tool arguments do not match the input schema', [
+                'name' => $toolName,
+                'validation_errors' => $validationErrors,
+            ]);
+
+            // SEP-1303: an input validation error is a tool execution error,
+            // which the model reads and can answer with adjusted arguments.
+            if ($context->getProtocolVersion()->reportsInvalidToolArgumentsAsToolError()) {
+                return new Response($request->getId(), CallToolResult::error([new TextContent($summaryMessage)]));
+            }
 
             return Error::forInvalidParams($summaryMessage, $request->getId(), ['validation_errors' => $validationErrors]);
         }
@@ -94,8 +107,6 @@ final class CallToolHandler implements RequestHandlerInterface
 
         $arguments['_session'] = $session;
         $arguments['_request'] = $request;
-
-        $context = new RequestContext($session, $request);
 
         try {
             $result = $this->referenceHandler->handle($reference, $arguments);

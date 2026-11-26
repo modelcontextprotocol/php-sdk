@@ -333,7 +333,7 @@ class CallToolHandlerTest extends TestCase
     {
         $this->registry->method('getTool')->willThrowException(new ToolNotFoundException('unknown'));
 
-        $this->assertCalledButNotExecuted($this->createCallToolRequest('unknown', []));
+        $this->assertCalledButNotExecuted($this->createCallToolRequest('unknown', []), Error::class);
     }
 
     public function testInvalidArgumentsAreLoggedAsCalledButNotAsExecuted(): void
@@ -341,7 +341,7 @@ class CallToolHandlerTest extends TestCase
         $toolReference = $this->createToolReference('strict', static fn () => 'unused');
         $this->registry->method('getTool')->willReturn($toolReference);
 
-        $this->assertCalledButNotExecuted($this->createCallToolRequest('strict', ['example' => 123]));
+        $this->assertCalledButNotExecuted($this->createCallToolRequest('strict', ['example' => 123]), Response::class);
     }
 
     public function testHandleWithNullResult(): void
@@ -805,41 +805,71 @@ class CallToolHandlerTest extends TestCase
         $this->assertNull($response->result->structuredContent);
     }
 
-    public function testValidationError(): void
+    /**
+     * @dataProvider provideRevisionsReportingRefusedArgumentsAsToolErrors
+     */
+    public function testArgumentsRefusedByTheInputSchemaAreReportedAsAToolError(?string $negotiated): void
     {
-        $schema = [
-            'type' => 'object',
-            'properties' => [
-                'favorite_number' => [
-                    'type' => 'number',
-                    'description' => 'Your favorite number',
-                ],
-            ],
-            'required' => [
-                'favorite_number',
-            ],
-        ];
+        $request = $this->createCallToolRequest('strict', ['example' => 123]);
+        $toolReference = $this->createToolReference('strict', static fn () => 'unused');
 
-        $request = $this->createCallToolRequest('result_tool', ['query' => 'php']);
-        $toolReference = $this->getMockBuilder(ToolReference::class)
-            ->setConstructorArgs([new Tool('simple_tool', null, $schema, null, null), static function () {}])
-            ->getMock();
+        $this->session->method('get')->with('protocol_version')->willReturn($negotiated);
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->expects($this->never())->method('handle');
 
-        $this->registry
-            ->expects($this->once())
-            ->method('getTool')
-            ->with('result_tool')
-            ->willReturn($toolReference);
+        $response = $this->handler->handle($request, $this->session);
 
-        $this->referenceHandler
-            ->expects($this->never())
-            ->method('handle');
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertEquals($request->getId(), $response->id);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
+        $this->assertTrue($response->result->isError);
+        $this->assertFalse($response->result->hasStructuredContent());
+        $this->assertSame(
+            "Invalid parameters for tool 'strict': Property '/example': Invalid type. Expected `string`, but received `integer`.",
+            $this->firstText($response->result),
+        );
+    }
+
+    /**
+     * @return iterable<string, array{?string}>
+     */
+    public static function provideRevisionsReportingRefusedArgumentsAsToolErrors(): iterable
+    {
+        yield '2025-11-25' => ['2025-11-25'];
+        yield '2026-07-28' => ['2026-07-28'];
+        yield 'no revision negotiated' => [null];
+    }
+
+    /**
+     * @dataProvider provideRevisionsReportingRefusedArgumentsAsProtocolErrors
+     */
+    public function testArgumentsRefusedByTheInputSchemaStayAProtocolErrorBeforeRevision20251125(string $negotiated): void
+    {
+        $request = $this->createCallToolRequest('strict', ['example' => 123]);
+        $toolReference = $this->createToolReference('strict', static fn () => 'unused');
+
+        $this->session->method('get')->with('protocol_version')->willReturn($negotiated);
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->expects($this->never())->method('handle');
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INVALID_PARAMS, $response->code);
+        $this->assertSame("Invalid parameters for tool 'strict': Property '/example': Invalid type. Expected `string`, but received `integer`.", $response->message);
+        $this->assertIsArray($response->data);
+        $this->assertArrayHasKey('validation_errors', $response->data);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideRevisionsReportingRefusedArgumentsAsProtocolErrors(): iterable
+    {
+        yield '2024-11-05' => ['2024-11-05'];
+        yield '2025-03-26' => ['2025-03-26'];
+        yield '2025-06-18' => ['2025-06-18'];
     }
 
     public function testStructuredContentMissingARequiredPropertyIsReportedAsAToolError(): void
@@ -1087,7 +1117,10 @@ class CallToolHandlerTest extends TestCase
         ]);
     }
 
-    private function assertCalledButNotExecuted(CallToolRequest $request): void
+    /**
+     * @param class-string $answer
+     */
+    private function assertCalledButNotExecuted(CallToolRequest $request, string $answer): void
     {
         $logger = new class extends AbstractLogger {
             public array $records = [];
@@ -1102,7 +1135,7 @@ class CallToolHandlerTest extends TestCase
 
         $this->referenceHandler->expects($this->never())->method('handle');
 
-        $this->assertInstanceOf(Error::class, $handler->handle($request, $this->session));
+        $this->assertInstanceOf($answer, $handler->handle($request, $this->session));
 
         $messages = array_column($logger->records, 'message');
         $this->assertContains('Calling tool', $messages);

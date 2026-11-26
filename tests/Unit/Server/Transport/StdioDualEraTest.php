@@ -92,7 +92,9 @@ final class StdioDualEraTest extends TestCase
             if ($accepted) {
                 $this->assertSame(json_encode(json_decode($json)->value), $answer['result']['content'][0]['text']);
             } else {
-                $this->assertSame(Error::INVALID_PARAMS, $answer['error']['code']);
+                // Both openings speak a revision that reports refused arguments as a tool execution error.
+                $this->assertTrue($answer['result']['isError']);
+                $this->assertStringStartsWith("Invalid parameters for tool 'typed': ", $answer['result']['content'][0]['text']);
             }
         }
     }
@@ -139,7 +141,9 @@ final class StdioDualEraTest extends TestCase
             if ($accepted) {
                 $this->assertSame(json_encode(json_decode($json)->value), $answer['result']['content'][0]['text']);
             } else {
-                $this->assertSame(Error::INVALID_PARAMS, $answer['error']['code']);
+                // Both openings speak a revision that reports refused arguments as a tool execution error.
+                $this->assertTrue($answer['result']['isError']);
+                $this->assertStringStartsWith("Invalid parameters for tool 'typed': ", $answer['result']['content'][0]['text']);
             }
         }
     }
