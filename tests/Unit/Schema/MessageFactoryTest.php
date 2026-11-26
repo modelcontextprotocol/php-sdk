@@ -551,6 +551,21 @@ final class MessageFactoryTest extends TestCase
         $this->assertInstanceOf(PingRequest::class, $result);
     }
 
+    #[DataProvider('provideMethods')]
+    public function testIsCoreMethod(string $method, bool $expected): void
+    {
+        $this->assertSame($expected, MessageFactory::isCoreMethod($method));
+    }
+
+    public static function provideMethods(): iterable
+    {
+        yield 'request' => ['tools/call', true];
+        yield 'notification' => ['notifications/cancelled', true];
+        yield 'modern-only request' => ['server/discover', true];
+        yield 'method without a message class' => ['subscriptions/listen', true];
+        yield 'extension method' => ['com.example/things.list', false];
+    }
+
     private function invalidInput(string $json): InvalidInputMessageException
     {
         try {

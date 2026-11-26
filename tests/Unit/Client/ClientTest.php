@@ -25,6 +25,8 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Exception\InvalidArgumentException as SchemaInvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Tests\Unit\Server\Extension\ThingListRequest;
+use Mcp\Tests\Unit\Server\Extension\ThingSeenNotification;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -259,6 +261,40 @@ final class ClientTest extends TestCase
         $client->sendRootsListChanged();
     }
 
+    #[TestDox('sendRequest() sends a request the typed API does not cover and returns the answer')]
+    public function testSendRequestSendsACustomRequest(): void
+    {
+        $transport = new FakeTransport();
+        $client = Client::builder()->setProtocolVersion(ProtocolVersion::V2025_11_25)->build();
+        $client->connect($transport);
+
+        $response = $client->sendRequest(new ThingListRequest());
+
+        $this->assertSame(['com.example/things.list'], \array_slice($transport->sentMethods, -1));
+        $this->assertSame('Test Server', $response->result['serverInfo']['name']);
+    }
+
+    #[TestDox('notify() sends a notification to the server')]
+    public function testNotifySendsANotification(): void
+    {
+        $transport = new FakeTransport();
+        $client = Client::builder()->setProtocolVersion(ProtocolVersion::V2025_11_25)->build();
+        $client->connect($transport);
+
+        $client->notify(new ThingSeenNotification());
+
+        $this->assertSame(['com.example/things.seen'], \array_slice($transport->sentMethods, -1));
+    }
+
+    #[TestDox('notify() throws when the client is not connected')]
+    public function testNotifyThrowsWhenNotConnected(): void
+    {
+        $this->expectException(ConnectionException::class);
+        $this->expectExceptionMessage('Client is not connected.');
+
+        Client::builder()->build()->notify(new ThingSeenNotification());
+    }
+
     public function testSendRootsListChangedThrowsWhenNotConnected(): void
     {
         $client = Client::builder()
@@ -305,6 +341,9 @@ final class FakeTransport extends BaseTransport
     public int $connectCalls = 0;
     public int $closeCalls = 0;
 
+    /** @var list<string|null> */
+    public array $sentMethods = [];
+
     private string $outcome = self::ACCEPT;
 
     /** @var list<string> Answers not yet delivered to the client */
@@ -337,6 +376,7 @@ final class FakeTransport extends BaseTransport
         }
 
         $message = json_decode($data, true, 512, \JSON_THROW_ON_ERROR);
+        $this->sentMethods[] = $message['method'] ?? null;
 
         if (!isset($message['id'])) {
             if (self::BREAK_AFTER_ACCEPT === $this->outcome) {

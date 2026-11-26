@@ -71,6 +71,22 @@ final class MessageFactory
     ];
 
     /**
+     * Core methods with no message class: the server answers the subscription
+     * stream before decoding.
+     */
+    private const UNMODELLED_CORE_METHODS = [
+        'subscriptions/listen' => true,
+        'notifications/subscriptions/acknowledged' => true,
+    ];
+
+    /**
+     * Derived from constants only, so it is the same for every request a worker serves.
+     *
+     * @var array<string, true>|null
+     */
+    private static ?array $coreMethods = null;
+
+    /**
      * @param list<class-string<Request>|class-string<Notification>> $registeredMessages
      */
     public function __construct(
@@ -91,6 +107,23 @@ final class MessageFactory
     public static function make(array $additional = []): self
     {
         return new self([...self::REGISTERED_MESSAGES, ...$additional]);
+    }
+
+    /**
+     * Whether $method is defined by the MCP specification rather than by an extension.
+     */
+    public static function isCoreMethod(string $method): bool
+    {
+        if (null === self::$coreMethods) {
+            $coreMethods = self::UNMODELLED_CORE_METHODS;
+            // `server/discover` is left out of the default registry because only the modern era decodes it.
+            foreach ([...self::REGISTERED_MESSAGES, Schema\Request\DiscoverRequest::class] as $messageClass) {
+                $coreMethods[$messageClass::getMethod()] = true;
+            }
+            self::$coreMethods = $coreMethods;
+        }
+
+        return isset(self::$coreMethods[$method]);
     }
 
     /**

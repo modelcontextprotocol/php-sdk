@@ -13,12 +13,17 @@ namespace Mcp\Client;
 
 use Mcp\Client\Exception\InvalidArgumentException;
 use Mcp\Client\Exception\LogicException;
+use Mcp\Client\Extension\ClientExtensionInterface;
 use Mcp\Client\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Extension\DependentExtensionInterface;
 use Mcp\Schema\Extension\ExtensionInterface;
 use Mcp\Schema\Implementation;
+use Mcp\Schema\JsonRpc\Notification;
+use Mcp\Schema\JsonRpc\Request;
+use Mcp\Schema\MessageFactory;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -39,6 +44,15 @@ final class Builder
 
     /** @var array<string, array<string, mixed>> */
     private array $extensions = [];
+
+    /** @var array<string, string> RPC method to the extension identifier defining it */
+    private array $extensionMethods = [];
+
+    /** @var list<class-string<Request>|class-string<Notification>> */
+    private array $extensionMessages = [];
+
+    /** @var array<string, list<string>> extension identifier to the identifiers of the extensions it requires */
+    private array $extensionRequirements = [];
     private int $initTimeout = 30;
     private int $requestTimeout = 120;
     private int $maxRetries = 3;
@@ -99,8 +113,18 @@ final class Builder
      * Enable one or more MCP protocol extensions, announced to the server under
      * `capabilities.extensions` in the initialize request.
      *
+     * An extension also contributes the message classes its methods decode
+     * into, a {@see ClientExtensionInterface} the handlers answering them, and a
+     * {@see DependentExtensionInterface} the extensions it requires, checked on
+     * build.
+     *
+     * An extension is installed whole or not at all: when it is rejected, none
+     * of its contributions are kept.
+     *
      * @throws InvalidArgumentException if the identifier is not a valid `_meta` prefix
-     * @throws LogicException           if the same extension is enabled more than once
+     * @throws LogicException           if the same extension is enabled more than once, an
+     *                                  extension defines a core method, or two enabled
+     *                                  extensions define the same RPC method
      */
     public function enableExtension(ExtensionInterface ...$extensions): self
     {
@@ -111,7 +135,56 @@ final class Builder
                 throw new LogicException(\sprintf('Extension "%s" is already enabled.', $id));
             }
 
+            /** @var array<string, class-string<Request>|class-string<Notification>> $messages */
+            $messages = [];
+            foreach ($extension->getMessages() as $message) {
+                $method = $message::getMethod();
+
+                if (MessageFactory::isCoreMethod($method)) {
+                    throw new LogicException(\sprintf('Extension "%s" cannot define "%s": it is a core MCP method.', $id, $method));
+                }
+
+                // The message factory resolves a method to whichever class was
+                // registered first, so a second owner would silently never be reached.
+                if (isset($this->extensionMethods[$method]) || isset($messages[$method])) {
+                    throw new LogicException(\sprintf('Method "%s" is already claimed by extension "%s", so extension "%s" cannot also define it.', $method, $this->extensionMethods[$method] ?? $id, $id));
+                }
+
+                $messages[$method] = $message;
+            }
+
+            $requestHandlers = [];
+            $notificationHandlers = [];
+            if ($extension instanceof ClientExtensionInterface) {
+                foreach ($extension->getRequestHandlers() as $handler) {
+                    $requestHandlers[] = $handler;
+                }
+
+                foreach ($extension->getNotificationHandlers() as $handler) {
+                    $notificationHandlers[] = $handler;
+                }
+            }
+
+            $requirements = [];
+            if ($extension instanceof DependentExtensionInterface) {
+                foreach ($extension->getRequiredExtensions() as $required) {
+                    $requirements[] = (string) $required;
+                }
+            }
+
             $this->extensions[$id] = $extension->getCapabilities();
+
+            foreach ($messages as $method => $message) {
+                $this->extensionMessages[] = $message;
+                $this->extensionMethods[$method] = $id;
+            }
+
+            array_push($this->requestHandlers, ...$requestHandlers);
+            array_push($this->notificationHandlers, ...$notificationHandlers);
+
+            if ([] !== $requirements) {
+                $this->extensionRequirements[$id] = $requirements;
+            }
         }
 
         return $this;
@@ -188,6 +261,14 @@ final class Builder
      */
     public function build(): Client
     {
+        foreach ($this->extensionRequirements as $id => $requirements) {
+            foreach ($requirements as $required) {
+                if (!isset($this->extensions[$required])) {
+                    throw new LogicException(\sprintf('Extension "%s" requires extension "%s", which is not enabled.', $id, $required));
+                }
+            }
+        }
+
         $logger = $this->logger ?? new NullLogger();
 
         $clientInfo = new Implementation(
@@ -218,6 +299,7 @@ final class Builder
         $protocol = new Protocol(
             requestHandlers: $this->requestHandlers,
             notificationHandlers: $this->notificationHandlers,
+            messageFactory: MessageFactory::make(additional: $this->extensionMessages),
             logger: $logger,
         );
 

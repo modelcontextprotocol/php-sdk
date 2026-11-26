@@ -24,6 +24,7 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Exception\ExceptionInterface;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\RootsListChangedNotification;
@@ -403,7 +404,24 @@ class Client
     }
 
     /**
+     * Send a notification the typed API does not cover, such as one an extension defines.
+     *
+     * @throws ConnectionException    if the client is not connected
+     * @throws AuthorizationException if the server answers with HTTP 401 or 403
+     */
+    public function notify(Notification $notification): void
+    {
+        if (!$this->isConnected()) {
+            throw new ConnectionException('Client is not connected. Call connect() first.');
+        }
+
+        $this->protocol->sendNotification($notification);
+    }
+
+    /**
      * Send a request to the server and wait for response.
+     *
+     * Public to send requests the typed API does not cover, such as one an extension defines.
      *
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      *
@@ -411,7 +429,7 @@ class Client
      *
      * @throws AuthorizationException|RequestException|ConnectionException|InvalidArgumentException
      */
-    private function sendRequest(Request $request, ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): Response
+    public function sendRequest(Request $request, ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): Response
     {
         $transport = $this->transport;
         if (null === $transport || !$this->protocol->getState()->isInitialized()) {

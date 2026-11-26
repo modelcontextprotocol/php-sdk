@@ -13,10 +13,12 @@ namespace Mcp\Server\Extension;
 
 use Mcp\Schema\Extension\ExtensionInterface;
 use Mcp\Schema\JsonRpc\ResultInterface;
+use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 
 /**
- * An extension that answers the methods it defines when enabled on a server.
+ * An extension that answers the requests and receives the notifications it
+ * defines when enabled on a server.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -28,4 +30,11 @@ interface ServerExtensionInterface extends ExtensionInterface
      * @return iterable<RequestHandlerInterface<ResultInterface>>
      */
     public function getRequestHandlers(): iterable;
+
+    /**
+     * The handlers receiving the notifications of {@see self::getMessages()}.
+     *
+     * @return iterable<NotificationHandlerInterface>
+     */
+    public function getNotificationHandlers(): iterable;
 }
