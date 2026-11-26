@@ -5,6 +5,11 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.11.0
 ------
 
+### Client
+
+* Preserve JSON types in tool results' `structuredContent`: JSON objects now decode to `stdClass` instead of associative arrays, including nested objects. JSON arrays remain PHP arrays. The response envelope and content blocks are unchanged; `hasStructuredContent()` still distinguishes explicit `null` from an omitted field.
+* Preserve nested JSON types in discovered `outputSchema` definitions; the public schema root remains a PHP array. If a NUL-prefixed member forces associative decoding, reject responses with shape-sensitive tool data instead of returning ambiguous values.
+
 ### Server
 
 * Fix const validation errors always reporting the expected value as null.

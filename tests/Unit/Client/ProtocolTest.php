@@ -329,6 +329,24 @@ final class ProtocolTest extends TestCase
         $this->assertSame(Error::METHOD_NOT_FOUND, $response->code);
     }
 
+    public function testLossyToolResponseCompletesThePendingRequestWithAnError(): void
+    {
+        $protocol = new Protocol();
+        foreach ([
+            '{"content":[],"structuredContent":{"\u0000key":{},"list":[]}}',
+            '{"tools":[{"name":"t","inputSchema":{},"outputSchema":{"const":{"\u0000key":{}}}}]}',
+        ] as $result) {
+            $protocol->getState()->addPendingRequest(7, 30);
+            $protocol->processMessage('{"jsonrpc":"2.0","id":7,"result":'.$result.'}');
+
+            $response = $protocol->getState()->consumeResponse(7);
+            $this->assertInstanceOf(Error::class, $response);
+            $this->assertSame(7, $response->getId());
+            $this->assertSame(Error::INVALID_REQUEST, $response->code);
+            $protocol->getState()->removePendingRequest(7);
+        }
+    }
+
     #[TestDox('a response for a cancelled request cannot accumulate in state')]
     public function testIgnoresResponseForNoLongerPendingRequest(): void
     {

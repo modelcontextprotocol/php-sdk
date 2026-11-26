@@ -147,6 +147,26 @@ final class MessageFactory
             }
 
             if (isset($data['result'])) {
+                if (\is_array($message) && \is_array($data['result']) && self::hasShapeSensitiveToolData($data['result'])) {
+                    // Correlate the refusal to the pending call instead of dropping the response.
+                    return Error::forInvalidRequest('Cannot preserve tool response JSON types in a message with a member name starting with a NUL byte.', Response::fromArray($data)->getId());
+                }
+
+                // Retain only the shape-sensitive fields; envelope DTOs still expect arrays.
+                if ($message instanceof \stdClass && ($message->result ?? null) instanceof \stdClass) {
+                    $result = $message->result;
+                    if (property_exists($result, 'structuredContent')) {
+                        $data['result']['structuredContent'] = $result->structuredContent;
+                    }
+                    if (\is_array($result->tools ?? null)) {
+                        foreach ($result->tools as $index => $tool) {
+                            if ($tool instanceof \stdClass && ($tool->outputSchema ?? null) instanceof \stdClass) {
+                                $data['result']['tools'][$index]['outputSchema'] = (array) $tool->outputSchema;
+                            }
+                        }
+                    }
+                }
+
                 return Response::fromArray($data);
             }
 
@@ -177,6 +197,24 @@ final class MessageFactory
         } catch (InvalidArgumentException $e) {
             throw new InvalidInputMessageException($e->getMessage(), 0, $e);
         }
+    }
+
+    /** @param array<mixed> $result */
+    private static function hasShapeSensitiveToolData(array $result): bool
+    {
+        if (\is_array($result['structuredContent'] ?? null)) {
+            return true;
+        }
+
+        if (\is_array($result['tools'] ?? null)) {
+            foreach ($result['tools'] as $tool) {
+                if (\is_array($tool) && \is_array($tool['outputSchema'] ?? null)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
