@@ -18,9 +18,11 @@ use Mcp\Client\Exception\InvalidArgumentException;
 use Mcp\Client\Exception\RequestCancelledException;
 use Mcp\Client\Exception\RequestException;
 use Mcp\Client\Exception\RuntimeException;
+use Mcp\Client\Task\TaskClient;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Enum\ResultType;
 use Mcp\Schema\Exception\ExceptionInterface;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
@@ -244,18 +246,13 @@ class Client
             throw new InvalidArgumentException('The per-call timeout must be a finite positive number of seconds.');
         }
 
-        $catalog = $this->protocol->getToolCatalog();
-
-        // A tool the listing showed to be malformed is refused here rather than
-        // sent: the client cannot produce the headers its annotations demand,
-        // so the call could only go out misdescribed (SEP-2243).
-        if ($catalog->isRejected($name)) {
-            throw new RuntimeException(\sprintf('Refusing to call tool "%s": its "x-mcp-header" annotations are invalid (%s).', $name, $catalog->reasonFor($name)));
-        }
-
         $request = new CallToolRequest($name, $arguments);
 
         $response = $this->sendRequest($request, $onProgress, $cancellation, $timeoutSeconds);
+
+        if (ResultType::Task->value === ($response->result['resultType'] ?? null)) {
+            throw new RuntimeException(\sprintf('The server answered tool "%s" with a task; call it through %s::callTool() to handle task results.', $name, TaskClient::class));
+        }
 
         return CallToolResult::fromArray($response->result);
     }
@@ -409,13 +406,22 @@ class Client
      *
      * @return Response<mixed>
      *
-     * @throws AuthorizationException|RequestException|ConnectionException|InvalidArgumentException
+     * @throws AuthorizationException|RequestException|ConnectionException|InvalidArgumentException|RuntimeException
      */
-    private function sendRequest(Request $request, ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): Response
+    public function sendRequest(Request $request, ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): Response
     {
         $transport = $this->transport;
         if (null === $transport || !$this->protocol->getState()->isInitialized()) {
             throw new ConnectionException('Client is not connected. Call connect() first.');
+        }
+
+        $catalog = $this->protocol->getToolCatalog();
+
+        // A tool the listing showed to be malformed is refused here rather than
+        // sent: the client cannot produce the headers its annotations demand,
+        // so the call could only go out misdescribed (SEP-2243).
+        if ($request instanceof CallToolRequest && $catalog->isRejected($request->name)) {
+            throw new RuntimeException(\sprintf('Refusing to call tool "%s": its "x-mcp-header" annotations are invalid (%s).', $request->name, $catalog->reasonFor($request->name)));
         }
 
         $withProgress = null !== $onProgress;

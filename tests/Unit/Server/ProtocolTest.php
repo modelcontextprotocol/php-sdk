@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server;
 
+use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
@@ -27,6 +28,7 @@ use Mcp\Server\Event\NotificationEvent;
 use Mcp\Server\Event\RequestEvent;
 use Mcp\Server\Event\ResponseEvent;
 use Mcp\Server\Event\ServerRequestEvent;
+use Mcp\Server\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Server\Exception\RuntimeException;
 use Mcp\Server\Exception\SessionRequiredException;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
@@ -998,6 +1000,32 @@ final class ProtocolTest extends TestCase
         $this->assertArrayHasKey('error', $message);
         $this->assertEquals(Error::INVALID_PARAMS, $message['error']['code']);
         $this->assertStringContainsString('Invalid parameter', $message['error']['message']);
+    }
+
+    public function testHandlerMissingClientCapabilityReturnsMissingRequiredClientCapabilityError(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willThrowException(new MissingRequiredClientCapabilityException(new ClientCapabilities(roots: false, extensions: ['com.example/thing' => new \stdClass()]), 'Needs the thing.'));
+
+        $this->sessionManager->method('createWithId')->willReturn($this->createMock(SessionInterface::class));
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        $transport = new RecordingTransport();
+
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput($transport, '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "test"}}', Uuid::v4());
+
+        $message = json_decode($transport->sent[0]['message'], true);
+        $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $message['error']['code']);
+        $this->assertSame('Needs the thing.', $message['error']['message']);
+        $this->assertSame(['extensions' => ['com.example/thing' => []]], $message['error']['data']['requiredCapabilities']);
     }
 
     #[TestDox('Handler throwing unexpected exception returns internal error')]

@@ -91,6 +91,113 @@ the same method, `enableExtension()` throws a `LogicException`. Extensions bring
 notification handlers: add those with `Builder::addNotificationHandler()`. They
 [don't run on revision `2026-07-28`](custom-handlers.md#protocol-2026-07-28).
 
+## Tasks (`io.modelcontextprotocol/tasks`)
+
+!!! warning "Experimental"
+    The Tasks support is experimental: its API may change with SEP-3570.
+
+The [Tasks extension][ext-tasks] (SEP-2663) lets a server answer a `tools/call` with a durable
+handle instead of holding the connection open. The client polls `tasks/get` until the task
+settles, and may `tasks/cancel` it. Only `tools/call` can become a task, and only on protocol
+revision `2026-07-28` and later: on older revisions `tasks/*` answer `-32601` and no task is
+created.
+
+Tools create tasks through a `TaskManager`, which you build with a store and pass to the
+extension:
+
+```php
+use Mcp\Server\Server;
+use Mcp\Server\Task\InMemoryTaskStore;
+use Mcp\Server\Task\TaskManager;
+use Mcp\Server\Task\TasksExtension;
+
+$tasks = new TaskManager(new InMemoryTaskStore());
+
+$server = Server::builder()
+    ->enableExtension(new TasksExtension($tasks))
+    ->build();
+```
+
+`InMemoryTaskStore` suits stdio and any single-process runtime, and drops the least recently
+saved task past a limit (1000 by default). Under PHP-FPM the worker that creates a task is not
+the one polled for it, so use `Psr16TaskStore` over a shared cache. It throws when the cache does
+not keep a task, so no handle is handed out for a task `tasks/get` would not find.
+
+Creating a task is the server's decision, made per call. A tool takes the `RequestContext` and
+asks the manager:
+
+```php
+use Mcp\Schema\Extension\Tasks\CreateTaskResult;
+use Mcp\Server\RequestContext;
+
+static function (RequestContext $context) use ($tasks, $queue): CreateTaskResult|string {
+    if (!$tasks->isSupported($context)) {
+        return runSynchronously();          // the client cannot poll, so answer now
+    }
+
+    $created = $tasks->create($context, ttlMs: 600_000, pollIntervalMs: 1000);
+    $queue->push($created->task->taskId);
+
+    return $created;
+}
+```
+
+`create()` stores the task before returning it, under a random UUIDv4 id. For a client that did
+not declare the extension it throws a `MissingRequiredClientCapabilityException`, answered as
+`-32021`: what a tool that can only run as a task should let through.
+
+When the request was authorized (see [Authorization](../run/authorization.md)), the task is bound
+to the OAuth client id and subject of the access token. `tasks/get` and `tasks/cancel` from
+another client or subject answer `-32602` "Unknown task", like an id that does not exist. Without
+authorization the task id is the only credential.
+
+The SDK serves `tasks/get` and `tasks/cancel`; running the task is the application's job. A
+worker moves it on through the manager:
+
+```php
+use Mcp\Schema\Extension\Tasks\TaskStatus;
+
+$tasks->transition($taskId, TaskStatus::Completed, result: $callToolResult->jsonSerialize());
+```
+
+A task in a terminal status (`completed`, `failed`, `cancelled`) never changes again:
+`transition()` throws, so a worker cannot overwrite a cancellation. A tool that ran and reported
+a problem is `completed` with `isError` on its result; `failed` is reserved for protocol-level
+errors and carries the error instead of a result.
+
+### On the client
+
+A client declares the extension, then handles either result shape through `TaskClient`. The
+plain `Client::callTool()` throws when the server answers with a task.
+
+```php
+use Mcp\Client\Client;
+use Mcp\Client\Task\TaskClient;
+use Mcp\Schema\Extension\Tasks\CreateTaskResult;
+use Mcp\Schema\Result\CallToolResult;
+use Mcp\Server\Task\TasksExtension;
+
+$client = Client::builder()
+    ->enableExtension(new TasksExtension())
+    ->build();
+$client->connect($transport);
+
+$tasks = new TaskClient($client);
+$result = $tasks->callTool('long_job');
+
+if ($result instanceof CreateTaskResult) {
+    do {
+        usleep(1000 * ($result->task->pollIntervalMs ?? 1000));
+        $task = $tasks->get($result->task->taskId);
+    } while (!$task->status->isTerminal());
+
+    $result = CallToolResult::fromArray($task->result);   // once completed
+}
+```
+
+`cancel($taskId)` asks the server to stop; cancellation is cooperative and the task may still
+finish.
+
 ## MCP Apps (`io.modelcontextprotocol/ui`)
 
 The [MCP Apps extension][ext-apps] lets servers expose interactive HTML UIs as
@@ -206,3 +313,4 @@ working minimal view is included in
 [`examples/server/mcp-apps/weather-app.html`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/server/mcp-apps/weather-app.html).
 
 [ext-apps]: https://github.com/modelcontextprotocol/ext-apps
+[ext-tasks]: https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2663

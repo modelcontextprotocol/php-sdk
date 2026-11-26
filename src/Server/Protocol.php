@@ -31,6 +31,7 @@ use Mcp\Server\Event\RequestEvent;
 use Mcp\Server\Event\ResponseEvent;
 use Mcp\Server\Event\ServerRequestEvent;
 use Mcp\Server\Exception\ConfigurationException;
+use Mcp\Server\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Server\Exception\RuntimeException;
 use Mcp\Server\Exception\SessionLockException;
 use Mcp\Server\Exception\SessionLockTimeoutException;
@@ -1181,7 +1182,9 @@ class Protocol
 
     private function errorForThrowable(\Throwable $e, Request $request, SessionInterface $session): Error
     {
-        if ($e instanceof \InvalidArgumentException && !$e instanceof ConfigurationException) {
+        if ($e instanceof MissingRequiredClientCapabilityException) {
+            $error = Error::forMissingRequiredClientCapability($e->getMessage(), $e->requiredCapabilities, $request->getId());
+        } elseif ($e instanceof \InvalidArgumentException && !$e instanceof ConfigurationException) {
             $this->logger->warning(\sprintf('Invalid argument: %s', $e->getMessage()), ['exception' => $e]);
             $error = Error::forInvalidParams($e->getMessage(), $request->getId());
         } elseif ($e instanceof SessionRequiredException) {

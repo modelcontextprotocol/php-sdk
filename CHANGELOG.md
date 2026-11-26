@@ -8,6 +8,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 ### Server
 
 * Fix const validation errors always reporting the expected value as null.
+* Add the Tasks extension (SEP-2663, `io.modelcontextprotocol/tasks`), experimental, API may change with SEP-3570: a `tools/call` can be answered with a durable task the client polls through `tasks/get` and cancels through `tasks/cancel`, from protocol revision `2026-07-28` on. A tool creates one with `TaskManager::create($requestContext)` (refused with `-32021` to a client that did not declare the extension); the task is bound to the OAuth client id and subject of the request, and the application advances it with `TaskManager::transition()`. Stores: `InMemoryTaskStore`, `Psr16TaskStore`. On the client, `Client\Task\TaskClient::callTool()` returns `CallToolResult|CreateTaskResult`, while `Client::callTool()` throws on a task.
+* `CallToolHandler` passes any `ResultInterface` a tool returns through untouched, so an extension's result (e.g. `CreateTaskResult`) reaches the client; a `MissingRequiredClientCapabilityException` thrown from a handler is answered as `-32021` on the handshake era too; `Client::sendRequest()` is public, to send requests the typed API does not cover.
 
 0.10.0
 ------
