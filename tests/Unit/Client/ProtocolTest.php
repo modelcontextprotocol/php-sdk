@@ -700,6 +700,45 @@ final class ProtocolTest extends TestCase
         $this->assertInstanceOf(\JsonException::class, $logger->warnings[0]['exception'] ?? null);
     }
 
+    /**
+     * @return iterable<string, array{string, int}>
+     */
+    public static function provideUnreadableServerRequests(): iterable
+    {
+        yield 'unknown method' => ['{"jsonrpc": "2.0", "id": "srv-1", "method": "vendor/unknown", "params": {}}', Error::METHOD_NOT_FOUND];
+        yield 'invalid params' => ['{"jsonrpc": "2.0", "id": "srv-1", "method": "sampling/createMessage", "params": {"messages": "not a list"}}', Error::INVALID_PARAMS];
+    }
+
+    #[DataProvider('provideUnreadableServerRequests')]
+    #[TestDox('answers a server request it cannot read with an error instead of dropping it')]
+    public function testAnswersUnreadableServerRequestWithError(string $input, int $code): void
+    {
+        $messages = [];
+        $transport = $this->createMock(TransportInterface::class);
+        $transport->method('send')->willReturnCallback(static function (string $data) use (&$messages): void {
+            $messages[] = json_decode($data, true, flags: \JSON_THROW_ON_ERROR);
+        });
+        $protocol = new Protocol();
+        $protocol->connect($transport, $this->createConfiguration(ProtocolVersion::V2025_11_25));
+
+        $protocol->processMessage($input);
+
+        $this->assertCount(1, $messages);
+        $this->assertSame('srv-1', $messages[0]['id']);
+        $this->assertSame($code, $messages[0]['error']['code'] ?? null);
+    }
+
+    #[TestDox('does not answer a malformed response from the server')]
+    public function testDoesNotAnswerMalformedResponse(): void
+    {
+        $transport = $this->createMock(TransportInterface::class);
+        $transport->expects($this->never())->method('send');
+        $protocol = new Protocol();
+        $protocol->connect($transport, $this->createConfiguration(ProtocolVersion::V2025_11_25));
+
+        $protocol->processMessage('{"jsonrpc": "2.0", "id": 7, "error": {"code": "oops", "message": "bad"}}');
+    }
+
     private function createConfiguration(ProtocolVersion $protocolVersion, ?ProtocolVersion $fallback = ProtocolVersion::V2025_11_25): Configuration
     {
         return new Configuration(
