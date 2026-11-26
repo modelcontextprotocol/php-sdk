@@ -18,7 +18,7 @@ use Mcp\Schema\JsonRpc\Response;
 /**
  * Interface for handling requests from the server.
  *
- * @template TResult
+ * @template-covariant TResult
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
