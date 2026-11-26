@@ -31,8 +31,8 @@ namespace Mcp\Server\Capability\Attribute;
  *     pattern?: string,
  *     minimum?: int|float,
  *     maximum?: int|float,
- *     exclusiveMinimum?: bool,
- *     exclusiveMaximum?: bool,
+ *     exclusiveMinimum?: int|float|bool,
+ *     exclusiveMaximum?: int|float|bool,
  *     multipleOf?: int|float,
  *     items?: array<string, mixed>,
  *     minItems?: int,
@@ -77,8 +77,8 @@ class Schema
     // Constraints for number/integer
     public int|float|null $minimum = null;
     public int|float|null $maximum = null;
-    public ?bool $exclusiveMinimum = null;
-    public ?bool $exclusiveMaximum = null;
+    public int|float|bool|null $exclusiveMinimum = null;
+    public int|float|bool|null $exclusiveMaximum = null;
     public int|float|null $multipleOf = null;
 
     // Constraints for array
@@ -115,8 +115,8 @@ class Schema
      * @param ?string                            $pattern              regex pattern for strings
      * @param int|float|null                     $minimum              minimum value for numbers/integers
      * @param int|float|null                     $maximum              maximum value for numbers/integers
-     * @param ?bool                              $exclusiveMinimum     exclusive minimum
-     * @param ?bool                              $exclusiveMaximum     exclusive maximum
+     * @param int|float|bool|null                $exclusiveMinimum     exclusive minimum value, or a legacy flag for $minimum
+     * @param int|float|bool|null                $exclusiveMaximum     exclusive maximum value, or a legacy flag for $maximum
      * @param int|float|null                     $multipleOf           must be a multiple of this value
      * @param ?array<string, mixed>              $items                JSON Schema for items if type is 'array'
      * @param ?int                               $minItems             minimum items for an array
@@ -137,8 +137,8 @@ class Schema
         ?string $pattern = null,
         int|float|null $minimum = null,
         int|float|null $maximum = null,
-        ?bool $exclusiveMinimum = null,
-        ?bool $exclusiveMaximum = null,
+        int|float|bool|null $exclusiveMinimum = null,
+        int|float|bool|null $exclusiveMaximum = null,
         int|float|null $multipleOf = null,
         ?array $items = null,
         ?int $minItems = null,
@@ -174,7 +174,7 @@ class Schema
     }
 
     /**
-     * Converts the attribute's definition to a JSON schema array.
+     * Extracts the attribute's settings for schema generation.
      *
      * @return SchemaAttributeData
      */

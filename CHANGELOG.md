@@ -7,6 +7,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Server
 
+* Generate numeric `exclusiveMinimum` and `exclusiveMaximum` constraints for JSON Schema 2020-12. `#[Schema]` accepts numeric bounds and still supports boolean flags after merging method and parameter settings.
+* [BC Break] Reject a `#[Schema]` exclusive-bound flag set to `true` without a corresponding numeric `minimum` or `maximum`. Subclasses redeclaring the two exclusive-bound properties must match their widened `int|float|bool|null` types.
 * Fix const validation errors always reporting the expected value as null.
 
 0.10.0
