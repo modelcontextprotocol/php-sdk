@@ -11,17 +11,26 @@
 
 namespace Mcp\Tests\Unit\Server\Extension;
 
+use Mcp\Schema\Extension\DependentExtensionInterface;
 use Mcp\Schema\Extension\ExtensionIdentifier;
+use Mcp\Schema\JsonRpc\Notification;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Server\Extension\ServerExtensionInterface;
 
 /**
- * A minimal extension: an identifier, a capability payload, and one method it
+ * A minimal extension: an identifier, a capability payload, and the methods it
  * defines and serves.
  */
-final class ThingExtension implements ServerExtensionInterface
+final class ThingExtension implements ServerExtensionInterface, DependentExtensionInterface
 {
+    /**
+     * @param list<class-string<Request>|class-string<Notification>> $messages
+     * @param list<string>                                           $requires
+     */
     public function __construct(
         private readonly string $id = 'com.example/things',
+        private readonly array $messages = [ThingListRequest::class, ThingSeenNotification::class],
+        private readonly array $requires = [],
     ) {
     }
 
@@ -37,11 +46,26 @@ final class ThingExtension implements ServerExtensionInterface
 
     public function getMessages(): array
     {
-        return [ThingListRequest::class];
+        return $this->messages;
     }
 
     public function getRequestHandlers(): iterable
     {
         yield new ThingListHandler();
+    }
+
+    public function getNotificationHandlers(): iterable
+    {
+        yield new ThingSeenHandler();
+    }
+
+    public function getRequiredExtensions(): array
+    {
+        $required = [];
+        foreach ($this->requires as $id) {
+            $required[] = new ExtensionIdentifier($id);
+        }
+
+        return $required;
     }
 }

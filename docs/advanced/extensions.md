@@ -82,14 +82,84 @@ Enable it with `Builder::enableExtension(new AuditExtension())`.
     A prefix whose second label is `modelcontextprotocol` or `mcp` (e.g. `io.modelcontextprotocol/`) is reserved for
     official extensions. The SDK doesn't refuse such an identifier, so choose a prefix of your own.
 
+### Custom methods
+
 An extension that adds JSON-RPC methods also implements `getMessages()`, which returns the
-request and notification classes of the new methods, so the SDK can parse them. To answer
-those methods on a server, it implements `Mcp\Server\Extension\ServerExtensionInterface`,
-whose `getRequestHandlers()` returns the [request handlers](custom-handlers.md) that answer
-them. If two enabled extensions define
-the same method, `enableExtension()` throws a `LogicException`. Extensions bring no
-notification handlers: add those with `Builder::addNotificationHandler()`. They
+request and notification classes of the new methods, so the SDK can parse them. Its handlers
+come from the interfaces of the side it is enabled on:
+
+| Side | Interface | Contributes |
+| --- | --- | --- |
+| Server | `Mcp\Server\Extension\ServerExtensionInterface` | `getRequestHandlers()` and `getNotificationHandlers()`: [handlers](custom-handlers.md) for the client's requests and notifications |
+| Client | `Mcp\Client\Extension\ClientExtensionInterface` | `getRequestHandlers()` and `getNotificationHandlers()` for the server's requests and notifications |
+
+Handlers differ per side, so an extension with methods for both sides ships one class per
+side, sharing the message classes.
+Server notification handlers
 [don't run on revision `2026-07-28`](custom-handlers.md#protocol-2026-07-28).
+
+A method name belongs to one message class. `enableExtension()` throws a `LogicException`
+when an extension defines a core MCP method, such as `tools/call` or `notifications/cancelled`,
+or a method another enabled extension already defines. Replacing what a core method does
+stays possible with a [custom handler](custom-handlers.md), which keeps the method's types.
+
+### Requiring another extension
+
+An extension that only works alongside another one implements
+`Mcp\Schema\Extension\DependentExtensionInterface`:
+
+```php
+use Mcp\Schema\Extension\DependentExtensionInterface;
+use Mcp\Schema\Extension\ExtensionIdentifier;
+
+final class SearchExtension implements DependentExtensionInterface
+{
+    // getId(), getCapabilities(), getMessages()...
+
+    public function getRequiredExtensions(): array
+    {
+        return [new ExtensionIdentifier('com.example/catalog')];
+    }
+}
+```
+
+The requirement is local and never sent to the peer. `build()` checks it, so the required
+extension can be enabled before or after the one requiring it. When it is missing, `build()`
+throws a `LogicException` naming both extensions, and no client or server is created.
+
+## Extension points (SEP-3371)
+
+[SEP-3371](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/3371) defines
+the extension points an SDK offers so that an extension can ship as its own package. This
+SDK implements SEP-3371 for server and client: registration and custom methods; middleware not yet.
+
+| Extension point | Server | Client |
+| --- | --- | --- |
+| Registration | `Server\Builder::enableExtension()` | `Client\Builder::enableExtension()` |
+| Capabilities | `ExtensionInterface::getCapabilities()`, read back with `ClientGateway::supportsExtension()` | `ExtensionInterface::getCapabilities()`, read back with `Client::getServerCapabilities()` |
+| Dependencies | `DependentExtensionInterface` | `DependentExtensionInterface` |
+| Receiving custom methods | `getMessages()`, `ServerExtensionInterface` | `getMessages()`, `ClientExtensionInterface` |
+| Sending custom methods | `ClientGateway::request()` and `ClientGateway::notify()`, from the `RequestContext` of a handler | `Client::sendRequest()` and `Client::notify()` |
+| Middleware | not available yet | not available yet |
+
+Registration happens on the builder, before any message is processed:
+
+* Each extension is installed whole or not at all. When `enableExtension()` throws, none
+  of the rejected extension's capabilities, messages or handlers are kept.
+* Enabling the same identifier twice, a core method name, or a method another extension
+  defines throws a `LogicException`.
+* Dependencies are checked by `build()`, whatever order the extensions were enabled in.
+
+`ClientGateway::request()` needs a session, since the client answers in a request of its
+own, and revision `2026-07-28` has no server-initiated requests: a handler returns an
+`InputRequiredResult` there instead.
+
+Handlers run in the order they were registered, whether they come from an extension or
+from `addRequestHandler()`/`addNotificationHandler()`. A request goes to the first handler
+that supports it. On the server, these handlers run before the SDK's built-in ones, and
+every notification handler that supports a notification runs. On the client, the built-in
+`notifications/progress` handler runs first, and a notification reaches only the first
+handler that supports it.
 
 ## MCP Apps (`io.modelcontextprotocol/ui`)
 

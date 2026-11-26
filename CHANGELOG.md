@@ -7,7 +7,23 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Server
 
+* [BC Break] Add `ServerExtensionInterface::getNotificationHandlers()`, through which an extension contributes notification handlers. Implementers must add it; return `[]` when the extension handles no notifications.
 * Fix const validation errors always reporting the expected value as null.
+* `Builder::enableExtension()` rejects an extension defining a core MCP method, and installs an extension whole or not at all.
+* `Builder::build()` rejects an extension whose required extensions are not enabled.
+* `ClientGateway::request()` is no longer internal, to send requests the typed methods do not cover, such as an extension's.
+
+### Client
+
+* `Client::sendRequest()` is public, and `Client::notify()` is added, to send requests and notifications the typed API does not cover, such as an extension's.
+* Add `Mcp\Client\Extension\ClientExtensionInterface`, through which an extension contributes request and notification handlers.
+* `Builder::enableExtension()` registers an extension's message classes, so the client decodes its methods, and rejects an extension defining a core MCP method or a method another extension defines.
+* `Builder::build()` rejects an extension whose required extensions are not enabled.
+
+### Schema
+
+* Add `Mcp\Schema\Extension\DependentExtensionInterface`, through which an extension requires other extensions on the same client or server (SEP-3371).
+* Add `MessageFactory::isCoreMethod()`.
 
 0.10.0
 ------

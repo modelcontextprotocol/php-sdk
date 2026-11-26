@@ -15,9 +15,13 @@ use Composer\Autoload\ClassLoader;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Exception\InvalidArgumentException as SchemaInvalidArgumentException;
+use Mcp\Schema\Exception\UnknownMethodException;
 use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Schema\Implementation;
+use Mcp\Schema\JsonRpc\Notification;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
@@ -43,8 +47,11 @@ use Mcp\Server\Transport\InMemoryTransport;
 use Mcp\Tests\Unit\Server\Extension\ThingExtension;
 use Mcp\Tests\Unit\Server\Extension\ThingListHandler;
 use Mcp\Tests\Unit\Server\Extension\ThingListRequest;
+use Mcp\Tests\Unit\Server\Extension\ThingSeenHandler;
+use Mcp\Tests\Unit\Server\Extension\ThingSeenNotification;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionLock;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionStore;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -464,6 +471,83 @@ final class BuilderTest extends TestCase
         $handlers = (new \ReflectionProperty(Builder::class, 'requestHandlers'))->getValue($builder);
 
         $this->assertContainsOnlyInstancesOf(ThingListHandler::class, $handlers);
+    }
+
+    #[TestDox('A notification-handling extension contributes the handlers its notifications reach')]
+    public function testEnableExtensionRegistersItsNotificationHandlers(): void
+    {
+        $builder = Server::builder()->enableExtension(new ThingExtension());
+
+        $handlers = (new \ReflectionProperty(Builder::class, 'notificationHandlers'))->getValue($builder);
+
+        $this->assertEquals([new ThingSeenHandler()], $handlers);
+    }
+
+    /**
+     * @param class-string<Request>|class-string<Notification> $message
+     */
+    #[DataProvider('provideCoreMessages')]
+    #[TestDox('enableExtension() throws when an extension defines a core method')]
+    public function testEnableExtensionRejectsCoreMethod(string $message): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage(\sprintf('Extension "com.example/things" cannot define "%s"', $message::getMethod()));
+
+        Server::builder()->enableExtension(new ThingExtension(messages: [$message]));
+    }
+
+    public static function provideCoreMessages(): iterable
+    {
+        yield 'request' => [CallToolRequest::class];
+        yield 'notification' => [CancelledNotification::class];
+    }
+
+    #[TestDox('A rejected extension leaves none of its contributions installed')]
+    public function testRejectedExtensionLeavesNothingInstalled(): void
+    {
+        $builder = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->enableExtension(new ThingExtension('com.example/seen', [ThingSeenNotification::class]));
+
+        try {
+            $builder->enableExtension(new ThingExtension('com.example/things', [ThingListRequest::class, ThingSeenNotification::class]));
+            $this->fail('The extension should have been rejected.');
+        } catch (LogicException) {
+        }
+
+        $server = $builder->build();
+
+        $this->assertSame(['com.example/seen'], array_keys($this->extractServerCapabilities($server)->extensions ?? []));
+        $this->assertCount(1, (new \ReflectionProperty(Builder::class, 'requestHandlers'))->getValue($builder));
+
+        $factory = (new \ReflectionProperty(Protocol::class, 'messageFactory'))
+            ->getValue((new \ReflectionProperty(Server::class, 'protocol'))->getValue($server));
+
+        $this->expectException(UnknownMethodException::class);
+        $factory->create('{"jsonrpc":"2.0","id":1,"method":"com.example/things.list"}');
+    }
+
+    #[TestDox('build() throws when an enabled extension requires one that is not enabled')]
+    public function testBuildRejectsExtensionWithMissingDependency(): void
+    {
+        $builder = Server::builder()->enableExtension(new ThingExtension(requires: ['com.example/catalog']));
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('Extension "com.example/things" requires extension "com.example/catalog", which is not enabled.');
+
+        $builder->build();
+    }
+
+    #[TestDox('An extension may be enabled after the extension that requires it')]
+    public function testDependencyMayBeEnabledAfterTheDependent(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->enableExtension(new ThingExtension(requires: ['com.example/catalog']))
+            ->enableExtension(new ThingExtension('com.example/catalog', []))
+            ->build();
+
+        $this->assertSame(['com.example/things', 'com.example/catalog'], array_keys($this->extractServerCapabilities($server)->extensions ?? []));
     }
 
     #[TestDox('Lazy loading (default) advertises tools from configured sources without running loaders')]

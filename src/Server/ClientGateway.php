@@ -455,9 +455,13 @@ class ClientGateway
      * This suspends the Fiber and waits for the client to respond. The transport
      * handles polling the session for the response and resuming the Fiber when ready.
      *
-     * Public for {@see InputRequiredShim}, which sends the requests a handler
-     * embedded in an {@see \Mcp\Schema\Result\InputRequiredResult} and knows
-     * nothing about their kinds. Prefer the typed methods above.
+     * Sends requests the typed methods above do not cover, such as one an
+     * extension defines, to the client of this gateway's session. Prefer the
+     * typed methods for core requests.
+     *
+     * The client answers in a POST of its own, so this needs a session, and
+     * the `2026-07-28` revision has no server-initiated requests: there a
+     * handler returns an {@see \Mcp\Schema\Result\InputRequiredResult} instead.
      *
      * @param Request $request The request to send
      * @param int     $timeout Maximum time to wait for response (seconds)
@@ -466,8 +470,6 @@ class ClientGateway
      *
      * @throws RuntimeException         If Fiber support is not available
      * @throws SessionRequiredException if the server runs without sessions
-     *
-     * @internal
      */
     public function request(Request $request, int $timeout = 120): Response|Error
     {

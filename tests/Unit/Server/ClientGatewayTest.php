@@ -35,6 +35,7 @@ use Mcp\Server\Protocol;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
+use Mcp\Tests\Unit\Server\Extension\ThingListRequest;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -111,6 +112,26 @@ final class ClientGatewayTest extends TestCase
         // An `elicitation` naming no mode declares form mode alone.
         $this->assertFalse($this->gatewayFor(['elicitation' => []])->supportsElicitationUrl());
         $this->assertFalse($this->gatewayFor(['elicitation' => ['form' => []]])->supportsElicitationUrl());
+    }
+
+    public function testRequestSendsACustomRequestToItsSessionAndReturnsTheAnswer(): void
+    {
+        $id = Uuid::v4();
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn($id);
+        $gateway = new ClientGateway($session);
+        $answer = $this->response(['things' => ['a']]);
+
+        $fiber = new \Fiber(static fn (): Response|Error => $gateway->request(new ThingListRequest(), 5));
+        $suspend = $fiber->start();
+
+        $this->assertInstanceOf(RequestSuspension::class, $suspend);
+        $this->assertInstanceOf(ThingListRequest::class, $suspend->request);
+        $this->assertSame($id->toRfc4122(), $suspend->sessionId);
+
+        $fiber->resume($answer);
+
+        $this->assertSame($answer, $fiber->getReturn());
     }
 
     public function testElicitUrlSendsAUrlModeRequest(): void

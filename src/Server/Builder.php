@@ -14,9 +14,12 @@ namespace Mcp\Server;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Extension\AbstractExtension;
+use Mcp\Schema\Extension\DependentExtensionInterface;
 use Mcp\Schema\Extension\ExtensionInterface;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
+use Mcp\Schema\JsonRpc\Notification;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\MessageFactory;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Request\DiscoverRequest;
@@ -148,8 +151,11 @@ final class Builder
     /** @var array<string, string> RPC method to the extension identifier defining it */
     private array $extensionMethods = [];
 
-    /** @var list<class-string<\Mcp\Schema\JsonRpc\Request>|class-string<\Mcp\Schema\JsonRpc\Notification>> */
+    /** @var list<class-string<Request>|class-string<Notification>> */
     private array $extensionMessages = [];
+
+    /** @var array<string, list<string>> extension identifier to the identifiers of the extensions it requires */
+    private array $extensionRequirements = [];
 
     /** @var string|list<string>|null */
     private string|array|null $requestStateKey = null;
@@ -487,12 +493,18 @@ final class Builder
      * `capabilities.extensions` during the initialize handshake.
      *
      * An extension also contributes the message classes its methods decode
-     * into, and a {@see ServerExtensionInterface} the handlers serving them — see
-     * {@see AbstractExtension} for extensions that only announce a capability.
+     * into, a {@see ServerExtensionInterface} the request and notification
+     * handlers serving them, and a {@see DependentExtensionInterface} the
+     * extensions it requires, checked on build — see {@see AbstractExtension}
+     * for extensions that only announce a capability.
+     *
+     * An extension is installed whole or not at all: when it is rejected, none
+     * of its contributions are kept.
      *
      * @throws InvalidArgumentException if the identifier is not a valid `_meta` prefix
-     * @throws LogicException           if the same extension is enabled more than once, or
-     *                                  two enabled extensions define the same RPC method
+     * @throws LogicException           if the same extension is enabled more than once, an
+     *                                  extension defines a core method, or two enabled
+     *                                  extensions define the same RPC method
      */
     public function enableExtension(ExtensionInterface ...$extensions): self
     {
@@ -503,30 +515,60 @@ final class Builder
                 throw new LogicException(\sprintf('Extension "%s" is already enabled.', $id));
             }
 
-            $this->extensions[$id] = $extension->getCapabilities();
-
-            // Without this the method cannot be decoded at all, so nothing
-            // downstream ever sees it.
+            /** @var array<string, class-string<Request>|class-string<Notification>> $messages */
+            $messages = [];
             foreach ($extension->getMessages() as $message) {
                 $method = $message::getMethod();
+
+                if (MessageFactory::isCoreMethod($method)) {
+                    throw new LogicException(\sprintf('Extension "%s" cannot define "%s": it is a core MCP method.', $id, $method));
+                }
 
                 // The message factory resolves a method to whichever class was
                 // registered first, so a second owner here would silently lose
                 // the dispatch race while still being named in error messages.
-                if (isset($this->extensionMethods[$method]) && $this->extensionMethods[$method] !== $id) {
-                    throw new LogicException(\sprintf('Method "%s" is already claimed by extension "%s", so extension "%s" cannot also define it.', $method, $this->extensionMethods[$method], $id));
+                if (isset($this->extensionMethods[$method]) || isset($messages[$method])) {
+                    throw new LogicException(\sprintf('Method "%s" is already claimed by extension "%s", so extension "%s" cannot also define it.', $method, $this->extensionMethods[$method] ?? $id, $id));
                 }
 
+                $messages[$method] = $message;
+            }
+
+            $requestHandlers = [];
+            $notificationHandlers = [];
+            if ($extension instanceof ServerExtensionInterface) {
+                foreach ($extension->getRequestHandlers() as $handler) {
+                    $requestHandlers[] = $handler;
+                }
+
+                foreach ($extension->getNotificationHandlers() as $handler) {
+                    $notificationHandlers[] = $handler;
+                }
+            }
+
+            $requirements = [];
+            if ($extension instanceof DependentExtensionInterface) {
+                foreach ($extension->getRequiredExtensions() as $required) {
+                    $requirements[] = (string) $required;
+                }
+            }
+
+            $this->extensions[$id] = $extension->getCapabilities();
+
+            // Without this the method cannot be decoded at all, so nothing
+            // downstream ever sees it. Recorded even though the handler answers
+            // it, so a server with the extension *off* can say so instead of
+            // "no such method".
+            foreach ($messages as $method => $message) {
                 $this->extensionMessages[] = $message;
-                // Recorded even though the handler answers it, so a server with
-                // the extension *off* can say so instead of "no such method".
                 $this->extensionMethods[$method] = $id;
             }
 
-            if ($extension instanceof ServerExtensionInterface) {
-                foreach ($extension->getRequestHandlers() as $handler) {
-                    $this->requestHandlers[] = $handler;
-                }
+            array_push($this->requestHandlers, ...$requestHandlers);
+            array_push($this->notificationHandlers, ...$notificationHandlers);
+
+            if ([] !== $requirements) {
+                $this->extensionRequirements[$id] = $requirements;
             }
         }
 
@@ -1124,6 +1166,14 @@ final class Builder
      */
     private function resolve(): array
     {
+        foreach ($this->extensionRequirements as $id => $requirements) {
+            foreach ($requirements as $required) {
+                if (!isset($this->extensions[$required])) {
+                    throw new LogicException(\sprintf('Extension "%s" requires extension "%s", which is not enabled.', $id, $required));
+                }
+            }
+        }
+
         $logger = $this->logger ?? new NullLogger();
         $container = $this->container ?? new Container();
 
