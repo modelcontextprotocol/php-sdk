@@ -38,11 +38,13 @@ use Mcp\Schema\MessageFactory;
 use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Schema\Notification\InitializedNotification;
 use Mcp\Schema\Notification\ProgressNotification;
+use Mcp\Schema\Notification\SubscriptionsAcknowledgedNotification;
 use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Schema\RequestMeta;
 use Mcp\Schema\Result\InitializeResult;
 use Mcp\Schema\ServerCapabilities;
+use Mcp\Schema\SubscriptionFilter;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -87,6 +89,12 @@ class Protocol
 
     /** @var (callable(float, ?float, ?string): void)|null */
     private $onProgress;
+
+    /** @var (callable(Notification): void)|null */
+    private $onSubscriptionNotification;
+
+    /** @var (callable(SubscriptionFilter): void)|null */
+    private $onSubscriptionAcknowledged;
 
     private readonly InputRequestResolver $inputRequests;
 
@@ -291,6 +299,64 @@ class Protocol
         } catch (\Throwable $e) {
             $this->logger->warning('Progress callback failed', ['exception' => $e]);
         }
+    }
+
+    /**
+     * Set the callbacks of the `subscriptions/listen` stream in flight, null to clear them.
+     *
+     * @param (callable(Notification): void)|null       $onNotification
+     * @param (callable(SubscriptionFilter): void)|null $onAcknowledged
+     */
+    public function setSubscriptionCallbacks(?callable $onNotification, ?callable $onAcknowledged = null): void
+    {
+        $this->onSubscriptionNotification = $onNotification;
+        $this->onSubscriptionAcknowledged = $onAcknowledged;
+    }
+
+    /**
+     * Hands a notification of the open subscription to its callbacks.
+     *
+     * @return bool whether the notification belonged to the subscription
+     */
+    private function deliverSubscription(Notification $notification): bool
+    {
+        $pending = $this->state->getPendingRequests();
+
+        // On stdio the server ends a subscription by cancelling its listen request.
+        if ($notification instanceof CancelledNotification && \array_key_exists($notification->requestId, $pending)) {
+            $this->state->storeResponse($notification->requestId, [
+                'jsonrpc' => '2.0',
+                'id' => $notification->requestId,
+                'result' => ['_meta' => [RequestMeta::SUBSCRIPTION_ID => $notification->requestId]],
+            ]);
+
+            return true;
+        }
+
+        $subscriptionId = $notification->getMeta()[RequestMeta::SUBSCRIPTION_ID] ?? null;
+        if (!\is_int($subscriptionId) && !\is_string($subscriptionId)) {
+            return false;
+        }
+
+        if (!\array_key_exists($subscriptionId, $pending)) {
+            $this->logger->debug('Dropping a notification of a subscription no longer listened to', ['subscriptionId' => $subscriptionId]);
+
+            return true;
+        }
+
+        try {
+            if ($notification instanceof SubscriptionsAcknowledgedNotification) {
+                if (null !== $this->onSubscriptionAcknowledged) {
+                    ($this->onSubscriptionAcknowledged)($notification->notifications);
+                }
+            } elseif (null !== $this->onSubscriptionNotification) {
+                ($this->onSubscriptionNotification)($notification);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('Subscription callback failed', ['exception' => $e]);
+        }
+
+        return true;
     }
 
     public function isModern(): bool
@@ -949,6 +1015,10 @@ class Protocol
         $this->logger->debug('Received server notification', [
             'method' => $method,
         ]);
+
+        if (null !== $this->onSubscriptionNotification && $this->deliverSubscription($notification)) {
+            return;
+        }
 
         foreach ($this->notificationHandlers as $handler) {
             if ($handler->supports($notification)) {

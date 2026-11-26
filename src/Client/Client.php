@@ -24,6 +24,7 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Exception\ExceptionInterface;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\RootsListChangedNotification;
@@ -39,6 +40,7 @@ use Mcp\Schema\Request\ListToolsRequest;
 use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Schema\Request\SetLogLevelRequest;
+use Mcp\Schema\Request\SubscriptionsListenRequest;
 use Mcp\Schema\ResourceReference;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\CompletionCompleteResult;
@@ -49,6 +51,7 @@ use Mcp\Schema\Result\ListResourceTemplatesResult;
 use Mcp\Schema\Result\ListToolsResult;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Schema\ServerCapabilities;
+use Mcp\Schema\SubscriptionFilter;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -352,6 +355,45 @@ class Client
         $response = $this->sendRequest($request);
 
         return CompletionCompleteResult::fromArray($response->result);
+    }
+
+    /**
+     * Listen for the notifications the filter opts in to, until the server ends the
+     * subscription or the cancellation is requested (2026-07-28, `subscriptions/listen`).
+     *
+     * The callbacks run while the stream is open: the acknowledgment first, with the
+     * notification types the server agreed to deliver, then each notification. Request
+     * cancellation from a callback to stop listening.
+     *
+     * @param callable(Notification): void              $onNotification
+     * @param (callable(SubscriptionFilter): void)|null $onAcknowledged
+     *
+     * @throws RequestCancelledException                                   When cancellation is observed
+     * @throws RuntimeException                                            On a connection that negotiated a handshake-era revision
+     * @throws AuthorizationException|RequestException|ConnectionException
+     */
+    public function listen(SubscriptionFilter $notifications, callable $onNotification, ?callable $onAcknowledged = null, ?CancellationTokenInterface $cancellation = null): void
+    {
+        if ($cancellation?->isCancellationRequested()) {
+            throw new RequestCancelledException('The client cancelled the request.');
+        }
+
+        if (!$this->isConnected()) {
+            throw new ConnectionException('Client is not connected. Call connect() first.');
+        }
+
+        if (!$this->protocol->isModern()) {
+            throw new RuntimeException(\sprintf('"subscriptions/listen" needs protocol revision 2026-07-28 or later; this connection negotiated "%s".', $this->getProtocolVersion()?->value));
+        }
+
+        $this->protocol->setSubscriptionCallbacks($onNotification, $onAcknowledged);
+
+        try {
+            // A subscription lasts until either side ends it, not until the request timeout.
+            $this->sendRequest(new SubscriptionsListenRequest($notifications), null, $cancellation, \INF);
+        } finally {
+            $this->protocol->setSubscriptionCallbacks(null);
+        }
     }
 
     /**

@@ -109,6 +109,50 @@ $result = $client->readResource(
 );
 ```
 
+### Listening for Changes
+
+On protocol revision `2026-07-28`, `listen()` opens a `subscriptions/listen` stream for the
+notifications a `SubscriptionFilter` opts in to, and blocks until the server ends the
+subscription. The server first acknowledges the subset it agreed to deliver, then each
+notification reaches the callback. Request cancellation to stop listening:
+
+```php
+use Mcp\Client\CancellationTokenInterface;
+use Mcp\Client\Exception\RequestCancelledException;
+use Mcp\Schema\JsonRpc\Notification;
+use Mcp\Schema\Notification\ResourceUpdatedNotification;
+use Mcp\Schema\SubscriptionFilter;
+
+$stop = new class implements CancellationTokenInterface {
+    public bool $requested = false;
+
+    public function isCancellationRequested(): bool
+    {
+        return $this->requested;
+    }
+};
+
+try {
+    $client->listen(
+        new SubscriptionFilter(resourcesListChanged: true, resourceSubscriptions: ['config://app/settings']),
+        onNotification: static function (Notification $notification): void {
+            if ($notification instanceof ResourceUpdatedNotification) {
+                echo "Changed: {$notification->uri}\n";
+            }
+        },
+        onAcknowledged: static function (SubscriptionFilter $agreed): void {
+            echo 'Subscribed to '.count($agreed->resourceSubscriptions)." resources\n";
+        },
+        cancellation: $stop,
+    );
+} catch (RequestCancelledException) {
+}
+```
+
+A server ends a subscription after its own lifetime, so call `listen()` again to keep
+listening. On a connection that negotiated a handshake-era revision, `listen()` throws a
+`RuntimeException`.
+
 ## Working with Prompts
 
 ### Listing Prompts

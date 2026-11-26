@@ -61,6 +61,14 @@ abstract class Notification implements HasMethodInterface, MessageInterface
     }
 
     /**
+     * @return array<string, mixed>|null
+     */
+    public function getMeta(): ?array
+    {
+        return $this->meta;
+    }
+
+    /**
      * @param array<string, mixed>|null $params
      */
     abstract protected static function fromParams(?array $params): self;
