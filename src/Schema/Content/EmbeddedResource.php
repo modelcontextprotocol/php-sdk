@@ -25,16 +25,21 @@ use Mcp\Schema\Exception\RuntimeException;
  * @phpstan-type EmbeddedResourceData = array{
  *     type: 'resource',
  *     resource: TextResourceContentsData|BlobResourceContentsData,
- *     annotations?: AnnotationsData
+ *     annotations?: AnnotationsData,
+ *     _meta?: array<string, mixed>
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class EmbeddedResource extends Content
 {
+    /**
+     * @param ?array<string, mixed> $meta optional metadata of the content block, unlike the `_meta` of the resource contents
+     */
     public function __construct(
         public readonly TextResourceContents|BlobResourceContents $resource,
         public readonly ?Annotations $annotations = null,
+        public readonly ?array $meta = null,
     ) {
         parent::__construct('resource');
     }
@@ -50,6 +55,9 @@ class EmbeddedResource extends Content
         if (!isset($data['resource']) || !\is_array($data['resource'])) {
             throw new InvalidArgumentException('Missing or invalid "resource" field for EmbeddedResource.');
         }
+        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
+            throw new InvalidArgumentException('Invalid "_meta" field for EmbeddedResource.');
+        }
 
         $resourceData = $data['resource'];
         if (isset($resourceData['text'])) {
@@ -63,6 +71,7 @@ class EmbeddedResource extends Content
         return new self(
             $resourceInstance,
             Annotations::tryFromArray($data['annotations'] ?? null, 'EmbeddedResource'),
+            $data['_meta'] ?? null,
         );
     }
 
@@ -129,6 +138,7 @@ class EmbeddedResource extends Content
      *     type: 'resource',
      *     resource: TextResourceContents|BlobResourceContents,
      *     annotations?: Annotations,
+     *     _meta?: array<string, mixed>,
      * }
      */
     public function jsonSerialize(): array
@@ -139,6 +149,9 @@ class EmbeddedResource extends Content
         ];
         if (null !== $this->annotations) {
             $data['annotations'] = $this->annotations;
+        }
+        if (null !== $this->meta) {
+            $data['_meta'] = $this->meta;
         }
 
         return $data;

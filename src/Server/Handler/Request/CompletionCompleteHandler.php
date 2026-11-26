@@ -18,6 +18,7 @@ use Mcp\Schema\PromptReference;
 use Mcp\Schema\Request\CompletionCompleteRequest;
 use Mcp\Schema\ResourceReference;
 use Mcp\Schema\Result\CompletionCompleteResult;
+use Mcp\Server\Capability\Completion\ContextAwareProviderInterface;
 use Mcp\Server\Capability\Completion\ProviderInterface;
 use Mcp\Server\Capability\Registry\ResourceTemplateReference;
 use Mcp\Server\Capability\RegistryInterface;
@@ -81,7 +82,11 @@ final class CompletionCompleteHandler implements RequestHandlerInterface
                 return Error::forInternalError('Invalid completion provider type', $request->getId());
             }
 
-            $completions = $provider->getCompletions($value);
+            if ($provider instanceof ContextAwareProviderInterface) {
+                $completions = $provider->getCompletionsWithContext($value, $request->context['arguments'] ?? []);
+            } else {
+                $completions = $provider->getCompletions($value);
+            }
             $total = \count($completions);
             $hasMore = $total > 100;
             $paged = \array_slice($completions, 0, 100);

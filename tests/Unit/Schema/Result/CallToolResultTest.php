@@ -136,6 +136,27 @@ final class CallToolResultTest extends TestCase
         $this->assertInstanceOf(ResourceLink::class, $result->content[2]);
     }
 
+    public function testFromArrayKeepsTheMetaOfEachContentBlock(): void
+    {
+        $result = CallToolResult::fromArray([
+            'content' => [
+                ['type' => 'text', 'text' => 'search results', '_meta' => ['com.example/rank' => 1]],
+                ['type' => 'image', 'data' => base64_encode('png'), 'mimeType' => 'image/png', '_meta' => ['com.example/rank' => 2]],
+                ['type' => 'audio', 'data' => base64_encode('wav'), 'mimeType' => 'audio/wav', '_meta' => ['com.example/rank' => 3]],
+                ['type' => 'resource', 'resource' => ['uri' => 'file:///a.txt', 'text' => 'a'], '_meta' => ['com.example/rank' => 4]],
+            ],
+        ]);
+
+        $this->assertInstanceOf(TextContent::class, $result->content[0]);
+        $this->assertSame(['com.example/rank' => 1], $result->content[0]->meta);
+        $this->assertInstanceOf(ImageContent::class, $result->content[1]);
+        $this->assertSame(['com.example/rank' => 2], $result->content[1]->meta);
+        $this->assertInstanceOf(AudioContent::class, $result->content[2]);
+        $this->assertSame(['com.example/rank' => 3], $result->content[2]->meta);
+        $this->assertInstanceOf(EmbeddedResource::class, $result->content[3]);
+        $this->assertSame(['com.example/rank' => 4], $result->content[3]->meta);
+    }
+
     public function testFromArrayRejectsUnknownContentType(): void
     {
         $this->expectException(InvalidArgumentException::class);

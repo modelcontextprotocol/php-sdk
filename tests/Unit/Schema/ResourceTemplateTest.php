@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Schema;
 
 use Mcp\Schema\Exception\InvalidArgumentException;
+use Mcp\Schema\Icon;
 use Mcp\Schema\ResourceTemplate;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -78,6 +79,49 @@ class ResourceTemplateTest extends TestCase
         $this->assertNull($resource->title);
         $this->assertNull($resource->description);
         $this->assertNull($resource->meta);
+        $this->assertNull($resource->icons);
+    }
+
+    public function testIconsFromArray(): void
+    {
+        $resource = ResourceTemplate::fromArray([
+            'uriTemplate' => self::VALID_URI,
+            'name' => 'list-books',
+            'icons' => [
+                ['src' => 'https://example.com/books.png', 'mimeType' => 'image/png', 'sizes' => ['48x48']],
+            ],
+        ]);
+
+        $this->assertIsArray($resource->icons);
+        $this->assertCount(1, $resource->icons);
+        $this->assertInstanceOf(Icon::class, $resource->icons[0]);
+        $this->assertSame('https://example.com/books.png', $resource->icons[0]->src);
+        $this->assertSame('image/png', $resource->icons[0]->mimeType);
+        $this->assertSame(['48x48'], $resource->icons[0]->sizes);
+    }
+
+    public function testIconsSerialization(): void
+    {
+        $resource = new ResourceTemplate(
+            uriTemplate: self::VALID_URI,
+            name: 'list-books',
+            icons: [new Icon('https://example.com/books.png', 'image/png', ['48x48'])],
+        );
+
+        $this->assertSame(
+            '{"uriTemplate":"https:\\/\\/example.com\\/list-books\\/{id}","name":"list-books","icons":[{"src":"https:\\/\\/example.com\\/books.png","mimeType":"image\\/png","sizes":["48x48"]}]}',
+            json_encode($resource),
+        );
+    }
+
+    public function testIconsOmittedWhenNull(): void
+    {
+        $resource = new ResourceTemplate(
+            uriTemplate: self::VALID_URI,
+            name: 'list-books',
+        );
+
+        $this->assertArrayNotHasKey('icons', $resource->jsonSerialize());
     }
 
     public function testTitleFromArray(): void
@@ -161,6 +205,14 @@ class ResourceTemplateTest extends TestCase
                 '_meta' => 'foo',
             ],
             'Invalid "_meta" in ResourceTemplate data.',
+        ];
+        yield 'icons entry that is not an object' => [
+            [
+                'uriTemplate' => self::VALID_URI,
+                'name' => 'list-books',
+                'icons' => ['https://example.com/books.png'],
+            ],
+            'Each entry in "icons" of ResourceTemplate data must be an array.',
         ];
     }
 }

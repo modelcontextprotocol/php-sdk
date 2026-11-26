@@ -73,7 +73,8 @@ final class ReflectedElementLoader implements LoaderInterface
      *     description: ?string,
      *     mimeType: ?string,
      *     annotations: ?Annotations,
-     *     meta: ?array<string, mixed>
+     *     meta: ?array<string, mixed>,
+     *     icons?: ?Icon[]
      * }[] $resourceTemplates
      * @param array{
      *     handler: Handler,
@@ -197,6 +198,7 @@ final class ReflectedElementLoader implements LoaderInterface
                     mimeType: $data['mimeType'] ?? null,
                     annotations: $data['annotations'] ?? null,
                     meta: $data['meta'] ?? null,
+                    icons: $data['icons'] ?? null,
                 );
                 $completionProviders = $this->getCompletionProviders($reflection);
                 $registry->registerResourceTemplate($template, $data['handler'], $completionProviders);

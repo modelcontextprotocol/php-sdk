@@ -20,7 +20,8 @@ use Mcp\Schema\Exception\InvalidArgumentException;
  *
  * @phpstan-type AnnotationsData array{
  *     audience?: string[],
- *     priority?: float
+ *     priority?: float,
+ *     lastModified?: string
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -36,10 +37,12 @@ class Annotations implements \JsonSerializable
      * A value of 1 means "most important," and indicates that the data is
      * effectively required, while 0 means "least important," and indicates that
      * the data is entirely optional.
+     * @param string|null $lastModified the moment the resource was last modified, as an ISO 8601 formatted string (e.g. "2025-01-12T15:00:58Z")
      */
     public function __construct(
         public readonly ?array $audience = null,
         public readonly ?float $priority = null,
+        public readonly ?string $lastModified = null,
     ) {
         if (null !== $this->priority && ($this->priority < 0 || $this->priority > 1)) {
             throw new InvalidArgumentException('Annotation priority must be between 0 and 1.');
@@ -75,10 +78,14 @@ class Annotations implements \JsonSerializable
         if (isset($data['priority']) && !\is_float($data['priority']) && !\is_int($data['priority'])) {
             throw new InvalidArgumentException('Invalid "priority" in Annotations data; expected a number.');
         }
+        if (isset($data['lastModified']) && !\is_string($data['lastModified'])) {
+            throw new InvalidArgumentException('Invalid "lastModified" in Annotations data; expected a string.');
+        }
 
         return new self(
             $audience,
-            isset($data['priority']) ? (float) $data['priority'] : null
+            isset($data['priority']) ? (float) $data['priority'] : null,
+            $data['lastModified'] ?? null,
         );
     }
 
@@ -111,6 +118,9 @@ class Annotations implements \JsonSerializable
         }
         if (null !== $this->priority) {
             $data['priority'] = $this->priority;
+        }
+        if (null !== $this->lastModified) {
+            $data['lastModified'] = $this->lastModified;
         }
 
         return $data;

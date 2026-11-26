@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Capability\Discovery\Fixtures;
 
+use Mcp\Schema\Icon;
 use Mcp\Server\Capability\Attribute\CompletionProvider;
 use Mcp\Server\Capability\Attribute\McpResourceTemplate;
 use Mcp\Tests\Unit\Server\Capability\Attribute\CompletionProviderFixture;
@@ -28,7 +29,8 @@ class DiscoverableTemplateHandler
     #[McpResourceTemplate(
         uriTemplate: 'product://{region}/details/{productId}',
         name: 'product_details_template',
-        mimeType: 'application/json'
+        mimeType: 'application/json',
+        icons: [new Icon('https://example.com/product.png', 'image/png', ['48x48'])],
     )]
     public function getProductDetails(
         string $productId,

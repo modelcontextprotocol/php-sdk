@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Capability\Registry\Loader;
 
+use Mcp\Schema\Icon;
 use Mcp\Server\Capability\Registry;
 use Mcp\Server\Capability\Registry\Loader\ReflectedElementLoader;
 use Mcp\Server\Capability\Registry\ResourceReference;
@@ -67,5 +68,31 @@ class ReflectedElementLoaderResourceTitleTest extends TestCase
 
         $templateRef = $registry->getResourceTemplate('user://{userId}/profile');
         $this->assertSame('User Profile', $templateRef->resourceTemplate->title);
+    }
+
+    public function testLoadPropagatesResourceTemplateIconsToRegisteredTemplate(): void
+    {
+        $icons = [new Icon('https://example.com/user.png', 'image/png', ['48x48'])];
+        $resourceTemplates = [
+            [
+                'handler' => static fn (): string => 'ok',
+                'uriTemplate' => 'user://{userId}/avatar',
+                'name' => 'user_avatar',
+                'title' => null,
+                'description' => null,
+                'mimeType' => null,
+                'annotations' => null,
+                'meta' => null,
+                'icons' => $icons,
+            ],
+        ];
+
+        $loader = new ReflectedElementLoader([], [], $resourceTemplates);
+        $registry = new Registry();
+
+        $loader->load($registry);
+
+        $templateRef = $registry->getResourceTemplate('user://{userId}/avatar');
+        $this->assertSame($icons, $templateRef->resourceTemplate->icons);
     }
 }

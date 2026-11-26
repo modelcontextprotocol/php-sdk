@@ -162,6 +162,7 @@ $server = Server::builder()
 - `mimeType` (string|null): Optional MIME type of the resource
 - `annotations` (Annotations|null): Optional annotations for the resource template
 - `meta` (array|null): Optional metadata for the resource template
+- `icons` (Icon[]|null): Optional array of icons for the resource template
 
 ### Manual Prompt Registration
 

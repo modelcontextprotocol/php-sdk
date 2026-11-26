@@ -8,6 +8,19 @@ All notable changes to `mcp/sdk` will be documented in this file.
 ### Server
 
 * Fix const validation errors always reporting the expected value as null.
+* Add `icons` to `#[McpResourceTemplate]` and `Builder::addResourceTemplate()`.
+* Add `ContextAwareProviderInterface`, a completion provider that receives the arguments the client sent in `context.arguments` of `completion/complete`.
+
+### Client
+
+* Add an optional `$context` argument to `Client::complete()`, sent as `context` of `completion/complete`.
+
+### Schema
+
+* Add `icons` to `ResourceTemplate`, so `resources/templates/list` carries them.
+* Add `_meta` to `TextContent`, `ImageContent`, `AudioContent` and `EmbeddedResource`, as `$meta` constructor argument and property.
+* Add `lastModified` to `Annotations`, the ISO 8601 moment a resource or content block was last modified.
+* Add `context` to `CompletionCompleteRequest`. A `context` or `context.arguments` that is not an object, or an argument value that is not a string, is rejected with `-32602`.
 
 0.10.0
 ------

@@ -16,6 +16,7 @@ use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Exception\InvalidArgumentException as SchemaInvalidArgumentException;
 use Mcp\Schema\Extension\Apps\McpApps;
+use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
@@ -622,6 +623,19 @@ final class BuilderTest extends TestCase
             ->setRegistry($registry)
             ->addTool(static fn (): string => 'ok', 'alpha')
             ->build();
+    }
+
+    public function testAddResourceTemplateForwardsIcons(): void
+    {
+        $icons = [new Icon('https://example.com/user.png', 'image/png', ['48x48'])];
+        $registry = new Registry();
+
+        Server::builder()
+            ->setRegistry($registry)
+            ->addResourceTemplate(static fn (string $userId): string => $userId, 'user://{userId}/avatar', 'user_avatar', icons: $icons)
+            ->build();
+
+        $this->assertSame($icons, $registry->getResourceTemplate('user://{userId}/avatar')->resourceTemplate->icons);
     }
 }
 

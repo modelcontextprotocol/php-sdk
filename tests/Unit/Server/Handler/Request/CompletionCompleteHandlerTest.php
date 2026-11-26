@@ -16,6 +16,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CompletionCompleteRequest;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Result\CompletionCompleteResult;
+use Mcp\Server\Capability\Completion\ContextAwareProviderInterface;
 use Mcp\Server\Capability\Completion\ProviderInterface;
 use Mcp\Server\Capability\Registry\ResourceReference;
 use Mcp\Server\Capability\Registry\ResourceTemplateReference;
@@ -82,6 +83,73 @@ class CompletionCompleteHandlerTest extends TestCase
         $this->assertEquals(new CompletionCompleteResult(['alpha'], 1, false), $response->result);
     }
 
+    public function testPassesContextArgumentsToAContextAwareProvider(): void
+    {
+        $uri = 'file://users/alice/repos/sdk';
+        $request = $this->createCompletionRequest($uri, ['name' => 'repo', 'value' => 's'], ['arguments' => ['owner' => 'alice']]);
+
+        $provider = $this->createMock(ContextAwareProviderInterface::class);
+        $provider->expects($this->never())->method('getCompletions');
+        $provider->expects($this->once())
+            ->method('getCompletionsWithContext')
+            ->with('s', ['owner' => 'alice'])
+            ->willReturn(['sdk', 'site']);
+
+        $this->registry
+            ->method('getResource')
+            ->with($uri)
+            ->willReturn($this->templateReference(['repo' => $provider]));
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertEquals(new CompletionCompleteResult(['sdk', 'site'], 2, false), $response->result);
+    }
+
+    public function testPassesNoArgumentsToAContextAwareProviderWithoutContext(): void
+    {
+        $uri = 'file://users/alice/repos/sdk';
+        $request = $this->createCompletionRequest($uri, ['name' => 'repo', 'value' => 's']);
+
+        $provider = $this->createMock(ContextAwareProviderInterface::class);
+        $provider->expects($this->once())
+            ->method('getCompletionsWithContext')
+            ->with('s', [])
+            ->willReturn(['sdk']);
+
+        $this->registry
+            ->method('getResource')
+            ->with($uri)
+            ->willReturn($this->templateReference(['repo' => $provider]));
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertEquals(new CompletionCompleteResult(['sdk'], 1, false), $response->result);
+    }
+
+    public function testPlainProviderIgnoresContext(): void
+    {
+        $uri = 'file://users/alice/repos/sdk';
+        $request = $this->createCompletionRequest($uri, ['name' => 'repo', 'value' => 's'], ['arguments' => ['owner' => 'alice']]);
+
+        $provider = $this->createMock(ProviderInterface::class);
+        $provider->expects($this->once())
+            ->method('getCompletions')
+            ->with('s')
+            ->willReturn(['sdk']);
+
+        $this->registry
+            ->method('getResource')
+            ->with($uri)
+            ->willReturn($this->templateReference(['repo' => $provider]));
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertEquals(new CompletionCompleteResult(['sdk'], 1, false), $response->result);
+    }
+
     public function testLogsProviderFailureBeforeReturningInternalError(): void
     {
         $uri = 'file://users/alice';
@@ -119,18 +187,36 @@ class CompletionCompleteHandlerTest extends TestCase
     }
 
     /**
-     * @param array{ name: string, value: string } $argument
+     * @param array<string, ProviderInterface> $providers
      */
-    private function createCompletionRequest(string $uri, array $argument): CompletionCompleteRequest
+    private function templateReference(array $providers): ResourceTemplateReference
     {
+        return new ResourceTemplateReference(
+            new ResourceTemplate('file://users/{owner}/repos/{repo}', 'repository'),
+            static fn () => null,
+            $providers,
+        );
+    }
+
+    /**
+     * @param array{ name: string, value: string }            $argument
+     * @param array{ arguments?: array<string, string> }|null $context
+     */
+    private function createCompletionRequest(string $uri, array $argument, ?array $context = null): CompletionCompleteRequest
+    {
+        $params = [
+            'ref' => ['type' => 'ref/resource', 'uri' => $uri],
+            'argument' => $argument,
+        ];
+        if (null !== $context) {
+            $params['context'] = $context;
+        }
+
         return CompletionCompleteRequest::fromArray([
             'jsonrpc' => '2.0',
             'method' => CompletionCompleteRequest::getMethod(),
             'id' => 'test-completion-'.uniqid(),
-            'params' => [
-                'ref' => ['type' => 'ref/resource', 'uri' => $uri],
-                'argument' => $argument,
-            ],
+            'params' => $params,
         ]);
     }
 }
