@@ -104,23 +104,55 @@ final class StdioSuspendedFibersTest extends TestCase
         return ['jsonrpc' => '2.0', 'id' => $id, 'method' => 'tools/call', 'params' => $params];
     }
 
+    #[TestDox('cancelling a suspended elicitation drops it and does not answer that call')]
+    public function testCancelledElicitationIsNotAnswered(): void
+    {
+        $lines = $this->exchange([
+            self::call(2, 'ask'),
+        ], static fn (int|string $id): array => [
+            ['jsonrpc' => '2.0', 'method' => 'notifications/cancelled', 'params' => ['requestId' => 2, 'reason' => 'user cancelled']],
+        ], 1);
+
+        $elicitations = array_values(array_filter($lines, static fn (array $line): bool => 'elicitation/create' === ($line['method'] ?? null)));
+        $this->assertCount(1, $elicitations);
+        $this->assertSame([], $this->answer($lines, 2));
+        $this->assertSame([], array_values(array_filter(
+            $lines,
+            static fn (array $line): bool => 2 === ($line['id'] ?? null) && !isset($line['method']),
+        )));
+    }
+
+    #[TestDox('a cancellation for an unknown request leaves a suspended elicitation running')]
+    public function testUnknownCancellationLeavesSuspendedElicitation(): void
+    {
+        $lines = $this->exchange([
+            self::call(2, 'ask'),
+        ], static fn (int|string $id): array => [
+            ['jsonrpc' => '2.0', 'method' => 'notifications/cancelled', 'params' => ['requestId' => 99]],
+            ['jsonrpc' => '2.0', 'id' => $id, 'result' => ['action' => 'accept', 'content' => ['name' => 'kept']]],
+        ], 1);
+
+        $this->assertSame('kept', $this->answer($lines, 2)['result']['content'][0]['text'] ?? null);
+    }
+
     /**
      * Runs a handshake-era session with the given messages after the handshake.
      *
-     * @param list<array<string, mixed>>                                          $messages
-     * @param (\Closure(int|string, int|string): list<array<string, mixed>>)|null $answer   the client's messages once the server sent two requests, given their ids
+     * @param list<array<string, mixed>> $messages
+     * @param ?\Closure                  $answer      the client's messages once the server sent $answerAfter requests, given their ids
+     * @param int                        $answerAfter number of server-initiated requests to wait for before writing $answer
      *
      * @return list<array<string, mixed>>
      */
-    private function exchange(array $messages, ?\Closure $answer = null): array
+    private function exchange(array $messages, ?\Closure $answer = null, int $answerAfter = 2): array
     {
         $input = fopen('php://temp', 'r+');
         $this->assertNotFalse($input);
 
         $requestIds = [];
-        $dispatcher = new class(static function (ServerRequestEvent $event) use ($input, $answer, &$requestIds): void {
+        $dispatcher = new class(static function (ServerRequestEvent $event) use ($input, $answer, $answerAfter, &$requestIds): void {
             $requestIds[] = $event->getRequest()->getId();
-            if (null === $answer || 2 !== \count($requestIds)) {
+            if (null === $answer || $answerAfter !== \count($requestIds)) {
                 return;
             }
 
