@@ -19,6 +19,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\ListRootsRequest;
+use Mcp\Schema\Result\InputRequiredResult;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -42,7 +43,7 @@ final class InputRequestResolver
      * The only requests a server may park in `inputRequests`. Anything else is
      * a server fault, and answering it would be inventing protocol.
      *
-     * @var array<string, class-string<Request>>
+     * @var array<string, class-string<ElicitRequest>|class-string<CreateSamplingMessageRequest>|class-string<ListRootsRequest>>
      */
     private const RESOLVABLE = [
         'elicitation/create' => ElicitRequest::class,
@@ -72,11 +73,37 @@ final class InputRequestResolver
      */
     public static function asked(array $result): ?array
     {
-        if (($result['resultType'] ?? null) !== 'input_required') {
+        if (($result['resultType'] ?? null) !== InputRequiredResult::RESULT_TYPE) {
             return null;
         }
 
         return \is_array($result['inputRequests'] ?? null) ? $result['inputRequests'] : [];
+    }
+
+    /**
+     * @param array<string, mixed> $result
+     *
+     * @throws RuntimeException when the server sent an ask that cannot be parsed, or an "input_required" result without input requests or state
+     */
+    public static function parseResult(array $result): ?InputRequiredResult
+    {
+        $asked = self::asked($result);
+        if (null === $asked) {
+            return null;
+        }
+
+        $requests = [];
+        foreach ($asked as $key => $ask) {
+            $requests[$key] = self::parseRequest((string) $key, $ask);
+        }
+
+        $state = $result['requestState'] ?? null;
+
+        if ([] === $requests && !\is_string($state)) {
+            throw new RuntimeException(\sprintf('Server answered "%s" without input requests or a state to resume.', InputRequiredResult::RESULT_TYPE));
+        }
+
+        return new InputRequiredResult($requests, \is_string($state) ? $state : null);
     }
 
     /**
@@ -108,6 +135,25 @@ final class InputRequestResolver
      */
     private function answer(string $key, mixed $ask): array
     {
+        $request = self::parseRequest($key, $ask);
+        $method = $request::getMethod();
+
+        $this->logger->debug('Resolving multi round-trip input request', [
+            'key' => $key,
+            'method' => $method,
+        ]);
+
+        $result = $this->dispatch($request);
+
+        if ($result instanceof Error) {
+            throw new RuntimeException(\sprintf('Cannot answer the server\'s "%s" input request under "%s": %s', $method, $key, $result->message));
+        }
+
+        return $result;
+    }
+
+    private static function parseRequest(string $key, mixed $ask): ElicitRequest|CreateSamplingMessageRequest|ListRootsRequest
+    {
         if (!\is_array($ask) || !\is_string($ask['method'] ?? null)) {
             throw new RuntimeException(\sprintf('Server asked for input under "%s" without a method to answer.', $key));
         }
@@ -125,27 +171,13 @@ final class InputRequestResolver
         }
 
         // The ask is a bare method/params pair, but the handlers speak in
-        // messages. The id never reaches the wire — the answer is keyed by
-        // $key — so any id will do.
-        $request = $class::fromArray([
+        // messages, so use the map key as the local message id.
+        return $class::fromArray([
             'jsonrpc' => '2.0',
             'id' => $key,
             'method' => $method,
             'params' => \is_array($params) ? $params : null,
         ]);
-
-        $this->logger->debug('Resolving multi round-trip input request', [
-            'key' => $key,
-            'method' => $method,
-        ]);
-
-        $result = $this->dispatch($request);
-
-        if ($result instanceof Error) {
-            throw new RuntimeException(\sprintf('Cannot answer the server\'s "%s" input request under "%s": %s', $method, $key, $result->message));
-        }
-
-        return $result;
     }
 
     /**

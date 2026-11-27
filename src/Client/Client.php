@@ -18,6 +18,7 @@ use Mcp\Client\Exception\InvalidArgumentException;
 use Mcp\Client\Exception\RequestCancelledException;
 use Mcp\Client\Exception\RequestException;
 use Mcp\Client\Exception\RuntimeException;
+use Mcp\Client\Stateless\InputRequestResolver;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -42,10 +43,14 @@ use Mcp\Schema\Request\SetLogLevelRequest;
 use Mcp\Schema\ResourceReference;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\CompletionCompleteResult;
+use Mcp\Schema\Result\CreateSamplingMessageResult;
+use Mcp\Schema\Result\ElicitResult;
 use Mcp\Schema\Result\GetPromptResult;
+use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Result\ListPromptsResult;
 use Mcp\Schema\Result\ListResourcesResult;
 use Mcp\Schema\Result\ListResourceTemplatesResult;
+use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Schema\Result\ListToolsResult;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Schema\ServerCapabilities;
@@ -236,6 +241,48 @@ class Client
      */
     public function callTool(string $name, array $arguments = [], ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): CallToolResult
     {
+        $response = $this->sendToolCall($name, $arguments, $onProgress, $cancellation, $timeoutSeconds);
+
+        return CallToolResult::fromArray($response->result);
+    }
+
+    /**
+     * Call a tool using the modern lifecycle and return its next result without resolving input automatically.
+     *
+     * To resume, call this method again with the original name and arguments,
+     * the answers keyed by input request ID, and the opaque state from the last result.
+     *
+     * @param array<string, mixed>                                                                                 $arguments
+     * @param array<array-key, ElicitResult|CreateSamplingMessageResult|ListRootsResult|array<string, mixed>>|null $inputResponses
+     * @param (callable(float $progress, ?float $total, ?string $message): void)|null                              $onProgress
+     *
+     * @throws RequestCancelledException|Exception\TimeoutException
+     * @throws AuthorizationException|RequestException|ConnectionException|InvalidArgumentException|RuntimeException
+     */
+    public function callToolRound(string $name, array $arguments = [], ?array $inputResponses = null, ?string $requestState = null, ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): CallToolResult|InputRequiredResult
+    {
+        $round = [];
+        if (null !== $inputResponses) {
+            $round['inputResponses'] = (object) $inputResponses;
+        }
+        if (null !== $requestState) {
+            $round['requestState'] = $requestState;
+        }
+
+        $response = $this->sendToolCall($name, $arguments, $onProgress, $cancellation, $timeoutSeconds, $round);
+
+        return InputRequestResolver::parseResult($response->result) ?? CallToolResult::fromArray($response->result);
+    }
+
+    /**
+     * @param array<string, mixed>                                                    $arguments
+     * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
+     * @param array{inputResponses?: \stdClass, requestState?: string}|null           $round
+     *
+     * @return Response<mixed>
+     */
+    private function sendToolCall(string $name, array $arguments, ?callable $onProgress, ?CancellationTokenInterface $cancellation, ?float $timeoutSeconds, ?array $round = null): Response
+    {
         if ($cancellation?->isCancellationRequested()) {
             throw new RequestCancelledException('The client cancelled the request.');
         }
@@ -255,9 +302,7 @@ class Client
 
         $request = new CallToolRequest($name, $arguments);
 
-        $response = $this->sendRequest($request, $onProgress, $cancellation, $timeoutSeconds);
-
-        return CallToolResult::fromArray($response->result);
+        return $this->sendRequest($request, $onProgress, $cancellation, $timeoutSeconds, $round);
     }
 
     /**
@@ -406,12 +451,13 @@ class Client
      * Send a request to the server and wait for response.
      *
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
+     * @param array{inputResponses?: \stdClass, requestState?: string}|null           $round
      *
      * @return Response<mixed>
      *
      * @throws AuthorizationException|RequestException|ConnectionException|InvalidArgumentException
      */
-    private function sendRequest(Request $request, ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): Response
+    private function sendRequest(Request $request, ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null, ?array $round = null): Response
     {
         $transport = $this->transport;
         if (null === $transport || !$this->protocol->getState()->isInitialized()) {
@@ -419,7 +465,7 @@ class Client
         }
 
         $withProgress = null !== $onProgress;
-        $fiber = new \Fiber(fn () => $this->protocol->request($request, $this->config->requestTimeout, $withProgress, $cancellation, $timeoutSeconds ?? $this->config->requestTimeout));
+        $fiber = new \Fiber(fn () => $this->protocol->request($request, $this->config->requestTimeout, $withProgress, $cancellation, $timeoutSeconds ?? $this->config->requestTimeout, $round));
         $this->protocol->setProgressCallback($onProgress);
 
         try {
