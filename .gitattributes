@@ -1,13 +1,19 @@
+/AGENTS.md export-ignore
 /.github export-ignore
 /.phpdoc export-ignore
+/adr export-ignore
 /docs export-ignore
 /examples export-ignore
 /tests export-ignore
+/src/*/composer.json export-ignore
+/src/*/README.md export-ignore
+/src/*/LICENSE export-ignore
 /.php-cs-fixer.dist.php export-ignore
 /deptrac.yaml export-ignore
 /Makefile export-ignore
 /mkdocs.yml export-ignore
 /requirements-docs.txt export-ignore
-/phpdoc.dist.xml
+/splitsh.json export-ignore
+/phpdoc.dist.xml export-ignore
 /phpstan* export-ignore
 /phpunit.xml.dist export-ignore

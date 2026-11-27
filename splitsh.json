@@ -1,0 +1,10 @@
+{
+    "defaults": {
+        "tag_skip": "never"
+    },
+    "subtrees": {
+        "php-sdk-schema": "src/Schema",
+        "php-sdk-client": "src/Client",
+        "php-sdk-server": "src/Server"
+    }
+}

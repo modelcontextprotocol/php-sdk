@@ -33,6 +33,9 @@ upstream publishes new scenarios.
 composer require mcp/sdk
 ```
 
+If you need only one side, install [`mcp/server`](https://packagist.org/packages/mcp/server) or
+[`mcp/client`](https://packagist.org/packages/mcp/client) instead; both build on [`mcp/schema`](https://packagist.org/packages/mcp/schema).
+
 ## Build a server
 
 A server is a plain PHP class plus a few lines of wiring:
