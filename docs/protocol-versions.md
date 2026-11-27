@@ -217,7 +217,9 @@ Also gone: `Mcp-Session-Id`, the HTTP `GET` stream, and SSE resumability (`Last-
 A broken response stream loses the request; the client re-issues it with a new id.
 
 This revision also removes `notifications/elicitation/complete` and the `elicitationId` field, and
-moves tasks to the `io.modelcontextprotocol/tasks` extension. The SDK implements none of these.
+moves tasks to the `io.modelcontextprotocol/tasks` extension. A client can enable it with
+`Client::builder()->enableExtension(new TasksExtension())` and use `TaskClient` to poll handle
+status, answer input requests and cancel tasks.
 
 Error code `-32002` (resource not found) is retired in favour of `-32602`, and must not be
 emitted by a server of this revision. The SDK picks the code from the revision serving the

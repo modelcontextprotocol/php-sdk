@@ -14,6 +14,9 @@ namespace Mcp\Tests\Unit\Client\Stateless;
 use Mcp\Client\Stateless\HeaderFactory;
 use Mcp\Client\Stateless\ToolCatalog;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Extension\Tasks\CancelTaskRequest;
+use Mcp\Schema\Extension\Tasks\GetTaskRequest;
+use Mcp\Schema\Extension\Tasks\UpdateTaskRequest;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -35,6 +38,16 @@ final class HeaderFactoryTest extends TestCase
         $payload = ['method' => 'tools/call', 'params' => ['name' => 'search', 'arguments' => new \stdClass()]];
 
         $this->assertSame('search', $this->headersFor($payload)['Mcp-Name']);
+    }
+
+    public function testTaskRequestsUseTheTaskIdForRouting(): void
+    {
+        foreach ([new GetTaskRequest('task-1'), new UpdateTaskRequest('task-1', []), new CancelTaskRequest('task-1')] as $request) {
+            $headers = $this->headersFor($request->withId(1)->jsonSerialize());
+
+            $this->assertSame('task-1', $headers['Mcp-Name']);
+            $this->assertSame($request::getMethod(), $headers['Mcp-Method']);
+        }
     }
 
     #[TestDox('wraps a subject that is not header-safe')]

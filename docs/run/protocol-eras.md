@@ -49,7 +49,7 @@ Plus `Mcp-Method` on every request, and `Mcp-Name` on `tools/call`, `prompts/get
 with the body is refused with `-32020`; a missing required `_meta` member with `-32602`; an
 unsupported version with `-32022`, carrying the supported set for the client to retry from.
 
-The SDK only checks the `Mcp-Name` header of the `tasks/*` methods. It doesn't implement these methods.
+The SDK's `TaskClient` sends the `tasks/*` requests. The server validates their `Mcp-Name` headers.
 
 What a handler can read off all this is
 [Talking back to the client](../handlers/client-communication.md#request-metadata).
