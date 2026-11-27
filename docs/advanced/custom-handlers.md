@@ -57,6 +57,23 @@ interface RequestHandlerInterface
 - `supports()` decides if the handler should process the incoming request
 - `handle()` **must** return a `Response` (on success) or an `Error` (on failure)
 
+## Receiving Request Middleware
+
+Register an implementation of `Mcp\Server\Middleware\RequestMiddlewareInterface` with
+`Server::builder()->addReceivingMiddleware($middleware)` to wrap built-in and custom request handlers in
+both protocol eras. Middleware runs after the SDK parses the request and dispatches its request event,
+and before it selects a handler. The first registered middleware runs first and gets the result last.
+
+Call `$next->handle($request, $session)` to continue, or return a `Response` or an `Error` to skip
+the inner layers and the handler. A replacement request must preserve its class and ID. Pass the same
+session and use the request ID on the response. To add request metadata, pass a copy made with
+`$request->withMeta([...($request->getMeta() ?? []), 'com.example/source' => 'middleware'])`.
+
+Use `try` / `finally` to clean up when processing ends. On revision `2026-07-28`, an unanswered gateway
+elicitation returns an `InputRequiredResult` through the middleware. On retry the middleware runs again.
+Notifications emitted by the handler can stream while it runs. The SDK handles `subscriptions/listen` and
+incoming notifications separately.
+
 ## Notification Handlers
 
 Handle JSON-RPC notifications (messages without an `id` that don't expect a response). Notification handlers **do not**
